@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, HEART_MAX } from '../round.js';
-import { getShadeCount, moveWarden, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, FRONTIER_YIELD, HEART_MAX } from '../round.js';
+import { getShadeCount, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
 
@@ -117,6 +117,25 @@ describe('hearthlight', () => {
     const nextNight = endDay(collected, makeRng([0.5]));
     expect(nextNight.round.shades).toHaveLength(getShadeCount(5) + STILL_DEBT);
     expect(nextNight.round.stillDebt).toBe(false);
+  });
+
+  it('the frontier yields more glow but is reached sooner', () => {
+    // A farm on the outer ring produces FRONTIER_YIELD times the glow.
+    let state = { ...createInitialState(), meta: { outerRing: true } };
+    state = beginRound(state, makeRng([0.1, 0.4, 0.7]));
+    state = { ...state, round: { ...state.round, draft: ['farm'], glow: 20 } };
+    const inner = placeStructure(state, 'farm', 'r0s0');
+    const outer = placeStructure(state, 'farm', 'r1s0');
+    const innerRate = getGlowRate(inner) - 1; // strip the Heart's trickle
+    const outerRate = getGlowRate(outer) - 1;
+    expect(outerRate).toBeCloseTo(innerRate * FRONTIER_YIELD);
+
+    // Identical rolls: the shade closes on the frontier farm sooner.
+    const innerNight = endDay(inner, makeRng([0.5, 0.5, 0.5]));
+    const outerNight = endDay(outer, makeRng([0.5, 0.5, 0.5]));
+    const innerApproach = innerNight.round.shades[0].arrivesAt - innerNight.round.shades[0].spawnedAt;
+    const outerApproach = outerNight.round.shades[0].arrivesAt - outerNight.round.shades[0].spawnedAt;
+    expect(outerApproach).toBeCloseTo(innerApproach * FRONTIER_APPROACH, 5);
   });
 
   it('palisades bodyguard their neighbors', () => {

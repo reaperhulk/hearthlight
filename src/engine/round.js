@@ -14,6 +14,10 @@ export const LEVEL_UP_NIGHTS_VETERAN = 7;
 export function levelGlowMult(level) {
   return level >= 3 ? 2 : level >= 2 ? 1.5 : 1;
 }
+
+// The frontier: outer-ring ground is richer — but the dark reaches it first
+// (see FRONTIER_APPROACH in night.js).
+export const FRONTIER_YIELD = 1.5;
 export const HEART_MAX = 80;
 
 // Draw today's draft: distinct structures, with visible pity — at least one
@@ -88,7 +92,7 @@ export function getGlowBreakdown(state) {
   for (const slot of round.slots) {
     if (!slot.structure) continue;
     const def = STRUCTURES[slot.structure.type];
-    const levelMult = levelGlowMult(slot.structure.level);
+    const levelMult = levelGlowMult(slot.structure.level) * (slot.ring > 0 ? FRONTIER_YIELD : 1);
     base += (def.glowPerSecond || 0) * levelMult;
     if (def.adjacencyBonus) {
       for (const neighbor of getAdjacentSlots(round.slots, slot.id)) {

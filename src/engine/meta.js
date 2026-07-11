@@ -31,7 +31,7 @@ export const META_UPGRADES = {
     id: 'outerRing',
     name: 'The Outer Ring',
     cost: 12,
-    description: 'Unlocks ten more slots beyond the first circle.',
+    description: 'Ten frontier slots: richer ground (+50% Glow) — but the dark reaches them first.',
   },
   heartstone: {
     id: 'heartstone',

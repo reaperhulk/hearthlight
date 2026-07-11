@@ -40,6 +40,10 @@ export function rollOmen(day, rng) {
 export const HEARTSEEKER_NIGHT = 7;
 export const HEART_SLOT = 'heart';
 
+// The frontier is reached first: shades close on outer-ring structures
+// this much sooner (pairs with FRONTIER_YIELD in round.js).
+export const FRONTIER_APPROACH = 0.9;
+
 export function getHeartseekerCount(night, count) {
   return night >= HEARTSEEKER_NIGHT ? Math.floor(count / 5) : 0;
 }
@@ -80,6 +84,7 @@ export function spawnShades(state, rng) {
 
   for (let index = 0; index < count; index++) {
     let targetSlotId = null;
+    let ringFactor = 1;
     // The first shades of a late night seek the Heart itself. A lantern
     // kept near the center slows them — light guards the Heart.
     if (index < heartseekers) {
@@ -114,8 +119,9 @@ export function spawnShades(state, rng) {
         if (shield) pick = shield;
       }
       targetSlotId = pick.id;
+      ringFactor = pick.ring > 0 ? FRONTIER_APPROACH : 1;
     }
-    const approach = ((8 + 5 * rng()) / speed) * (targetSlotId ? lanternSlow(round, targetSlotId) : 1) + bellDelay;
+    const approach = ((8 + 5 * rng()) / speed) * ringFactor * (targetSlotId ? lanternSlow(round, targetSlotId) : 1) + bellDelay;
     shades.push({
       id: nextId++,
       targetSlotId, // null targets the Heart itself

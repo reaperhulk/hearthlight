@@ -81,12 +81,15 @@ function chooseSlot(state, structureId, style, rng) {
   const empty = round.slots.filter(slot => !slot.structure);
   if (empty.length === 0) return null;
   if (style === 'random') return empty[Math.floor(rng() * empty.length)];
+  // Defense holds the inner keep first, expands outward once it is full.
+  const inner = empty.filter(slot => slot.ring === 0);
+  const pool = STRUCTURES[structureId].defensive && inner.length > 0 ? inner : empty;
   if (structureId === 'watchtower' || structureId === 'lantern' || structureId === 'belltower') {
-    return empty.reduce((best, candidate) => {
+    return pool.reduce((best, candidate) => {
       const covers = getAdjacentSlots(round.slots, candidate.id).filter(neighbor => neighbor.structure).length;
       const bestCovers = getAdjacentSlots(round.slots, best.id).filter(neighbor => neighbor.structure).length;
       return covers > bestCovers ? candidate : best;
-    }, empty[0]);
+    }, pool[0]);
   }
   if (structureId === 'well') {
     return empty.find(candidate =>
@@ -94,21 +97,33 @@ function chooseSlot(state, structureId, style, rng) {
   }
   if (structureId === 'palisade') {
     // Shield placement: cover the most neighbors that lack a palisade.
-    return empty.reduce((best, candidate) => {
+    return pool.reduce((best, candidate) => {
       const shieldValue = slot => getAdjacentSlots(round.slots, slot.id).filter(neighbor =>
         neighbor.structure && neighbor.structure.type !== 'palisade' &&
         !getAdjacentSlots(round.slots, neighbor.id).some(other => other.structure?.type === 'palisade')).length;
       return shieldValue(candidate) > shieldValue(best) ? candidate : best;
-    }, empty[0]);
+    }, pool[0]);
+  }
+  // Economy prefers covered frontier ground: richer soil behind a wall.
+  if (!STRUCTURES[structureId].defensive) {
+    const frontier = empty.find(candidate => candidate.ring > 0 &&
+      getAdjacentSlots(round.slots, candidate.id).some(neighbor =>
+        neighbor.structure?.type === 'palisade'));
+    if (frontier) return frontier;
   }
   return empty[0];
 }
 
-// Skilled restraint: a structure is also a target. Smart bots refuse to
-// overextend into the exposed outer ring — an unguardable structure costs
-// more Heart than it earns.
-function smartSkips(config, slot) {
-  return config.day === 'smart' && slot.ring > 0;
+// Skilled restraint: a structure is also a target. Smart bots keep the
+// wall on the inner keep and take economy to the frontier only under
+// cover — an unguardable structure costs more Heart than it earns.
+function smartSkips(config, slot, card, round) {
+  if (config.day !== 'smart' || slot.ring === 0) return false;
+  // Defense may take the frontier once the keep is full (chooseSlot
+  // prefers inner slots). Economy goes out only behind a palisade.
+  if (STRUCTURES[card].defensive) return false;
+  return !getAdjacentSlots(round.slots, slot.id).some(neighbor =>
+    neighbor.structure?.type === 'palisade');
 }
 
 function botDay(state, profile, t, rng, collector) {
@@ -127,7 +142,7 @@ function botDay(state, profile, t, rng, collector) {
     const card = chooseCard(state, config.day, rng);
     if (card) {
       const slot = chooseSlot(state, card, config.day, rng);
-      if (slot && smartSkips(config, slot)) {
+      if (slot && smartSkips(config, slot, card, state.round)) {
         passing = true;
       } else {
         const placed = slot && placeStructure(state, card, slot.id);
@@ -144,8 +159,9 @@ function botDay(state, profile, t, rng, collector) {
     // End the day once placed — or once there is nothing worth doing
     // (town full, deliberate pass, or no affordable card in sight).
     const current = state.round;
-    const done = current.placedToday || passing || atCap ||
-      !current.slots.some(slot => !slot.structure && !smartSkips(config, slot)) ||
+    // The draft's defense pity means any empty slot is placeable.
+    const placeable = current.slots.some(slot => !slot.structure);
+    const done = current.placedToday || passing || atCap || !placeable ||
       !current.draft.some(id => STRUCTURES[id].cost <= current.glow + getGlowRate(state) * 4);
     if (done) state = endDay(state, rng);
   }
@@ -360,6 +376,27 @@ if (!quick) {
   const fmtDelta = value => `${value >= 0 ? '+' : ''}${value.toFixed(1)}`;
   say(`  meta value (Δnights/Δembers vs bare keeper): ${Object.keys(META_UPGRADES).map(id =>
     `${id} ${fmtDelta(depth.metaValue[`${id}.nights`])}n/${fmtDelta(depth.metaValue[`${id}.embers`])}e`).join(' | ')}`);
+
+  // Arc context: progression upgrades (outerRing) only show their worth in
+  // long, kitted-out runs. Δ total nights across the 5-round arc when the
+  // upgrade is pre-owned from round 1.
+  const playArc = (seed, preMeta) => {
+    const rng = mulberry32(seed);
+    let state = { ...createInitialState(), meta: { ...preMeta } };
+    let nights = 0;
+    for (let roundIndex = 0; roundIndex < 5; roundIndex++) {
+      const outcome = playRound(state, 'keeper', rng);
+      nights += outcome.nights;
+      state = spendEmbers(outcome.state);
+    }
+    return nights;
+  };
+  const arcBaseline = mean(DEPTH_SEEDS.map(seed => playArc(seed, {})));
+  for (const id of Object.keys(META_UPGRADES)) {
+    depth.metaValue[`${id}.arcNights`] = mean(DEPTH_SEEDS.map(seed => playArc(seed, { [id]: true }))) - arcBaseline;
+  }
+  say(`  meta arc value (Δ nights over the 5-round arc, pre-owned): ${Object.keys(META_UPGRADES).map(id =>
+    `${id} ${fmtDelta(depth.metaValue[`${id}.arcNights`])}`).join(' | ')}`);
   say(`  picks: ${STRUCTURE_IDS.map(id => `${id} ${collector.picks[id] || 0}`).join(' | ')}`);
   depth.picks = { ...collector.picks };
 }
@@ -466,15 +503,17 @@ if (assertMode) {
     if (depth.ablations.bunker > agg.keeperNights) {
       issues.push(`turtling beats building: bunker ${depth.ablations.bunker.toFixed(1)}n vs keeper ${agg.keeperNights.toFixed(1)}n`);
     }
-    // outerRing waits on ring-2 content (roadmap: outer ring identity)
-    // before it can show marginal value to a bot that never builds there.
-    const META_WAITING_ON_CONTENT = new Set(['outerRing']);
     for (const id of Object.keys(META_UPGRADES)) {
       const nights = depth.metaValue[`${id}.nights`];
       const embers = depth.metaValue[`${id}.embers`];
-      if (nights < -0.5) issues.push(`meta trap: ${id} makes runs shorter (${nights.toFixed(1)}n)`);
-      if (!META_WAITING_ON_CONTENT.has(id) && nights < 0.3 && embers < 1) {
-        issues.push(`meta shelf-warmer: ${id} neither lengthens runs (${nights.toFixed(1)}n) nor pays (${embers.toFixed(1)}e)`);
+      const arcNights = depth.metaValue[`${id}.arcNights`];
+      // A trap hurts everywhere; a shelf-warmer helps nowhere. Progression
+      // upgrades may be round-1-negative if the arc redeems them.
+      if (nights < -0.5 && arcNights < 0.5) {
+        issues.push(`meta trap: ${id} shortens round 1 (${nights.toFixed(1)}n) and the arc does not redeem it (${arcNights.toFixed(1)}n)`);
+      }
+      if (nights < 0.3 && embers < 1 && arcNights < 1) {
+        issues.push(`meta shelf-warmer: ${id} pays nowhere (r1 ${nights.toFixed(1)}n/${embers.toFixed(1)}e, arc ${arcNights.toFixed(1)}n)`);
       }
     }
     if (!Object.keys(META_UPGRADES).some(id => depth.metaValue[`${id}.nights`] >= 0.5)) {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadState, saveState } from '../engine/state.js';
-import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, levelGlowMult, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
+import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, levelGlowMult, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT } from '../engine/night.js';
@@ -30,11 +30,12 @@ function slotPixel(slot) {
 function describeSlot(round, slot) {
   const structure = slot.structure;
   const def = STRUCTURES[structure.type];
-  const levelMult = levelGlowMult(structure.level);
+  const levelMult = levelGlowMult(structure.level) * (slot.ring > 0 ? FRONTIER_YIELD : 1);
   const neighbors = getAdjacentSlots(round.slots, slot.id).filter(neighbor => neighbor.structure);
   const rows = [];
   rows.push(['Toughness', `${structure.hp} bite${structure.hp === 1 ? '' : 's'}`]);
   if (def.glowPerSecond) rows.push(['Glow', `${(def.glowPerSecond * levelMult).toFixed(1)}/s`]);
+  if (slot.ring > 0) rows.push(['Frontier', 'richer ground — the dark arrives sooner']);
   if (def.adjacencyBonus) {
     const boosted = neighbors.filter(neighbor => def.adjacencyBonus[neighbor.structure.type]);
     rows.push(['Boosting', boosted.length > 0

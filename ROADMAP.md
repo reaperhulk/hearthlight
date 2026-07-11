@@ -84,9 +84,17 @@ commit pushed to main. Update checkboxes as work lands.
       from the 1.0n floor to 1.4n (keeper 5.4 vs randomPlace 4.0); turtle
       gap 1.0n.
 
+- [x] **The frontier (outer ring identity)** — ring-2 ground yields +50%
+      Glow but the dark reaches it 10% sooner; the meta description says
+      both. Meta value is now also measured in ARC context (each upgrade
+      pre-owned across the 5-round arc): outerRing measured -6.0 arc
+      nights as pure economy expansion (glow saturates — surplus can't buy
+      nights) and +5.0 once the bots learned its real use: room for the
+      expanded wall when the inner keep fills, plus covered frontier farms.
+      Trap/shelf-warmer assertions now consult both round-1 and arc axes.
+
 ## Later / ideas
 
-- Second map ring content pass (outer-ring-only structures?).
 - A third meta tier gated on best-nights milestones rather than Embers.
 - Browser smoke test in CI (puppeteer) once the UI stabilizes.
 - Mobile PWA manifest for install-to-homescreen.
