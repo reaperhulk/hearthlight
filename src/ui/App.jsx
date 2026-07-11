@@ -467,6 +467,11 @@ export function App() {
                 {round.draft.map(id => {
                   const def = STRUCTURES[id];
                   const affordable = round.glow >= def.cost && !round.placedToday;
+                  const rate = getGlowRate(state);
+                  const eta = Math.ceil((def.cost - round.glow) / Math.max(0.1, rate));
+                  const etaLabel = round.placedToday ? null
+                    : round.glow >= def.cost ? null
+                    : eta <= Math.ceil(dayRemaining) ? `in ${eta}s` : 'not today';
                   return (
                     <button
                       key={id}
@@ -477,6 +482,7 @@ export function App() {
                       <span className="card-head">
                         <StructureIcon type={id} />
                         <strong>{def.name}</strong>
+                        {etaLabel && <span className="eta">{etaLabel}</span>}
                         <em className="cost">{def.cost}</em>
                       </span>
                       <span>{def.description}</span>
@@ -485,7 +491,11 @@ export function App() {
                 })}
               </div>
               <button className="end-day" onClick={() => setState(current => endDay(current))}>
-                {round.placedToday ? 'Call the Dusk' : 'Skip the day (place nothing)'}
+                {(() => {
+                  const forecast = getNightForecast(round);
+                  const brings = forecast.omen === 'still' ? 'a still night' : `${forecast.count} come`;
+                  return round.placedToday ? `Call the Dusk \u2014 ${brings}` : `Skip the day \u2014 ${brings}`;
+                })()}
               </button>
               {selectedCard && <p className="hint">Tap an empty slot to build the {STRUCTURES[selectedCard].name}.</p>}
               {!selectedCard && !inspected && <p className="hint">Tap a building to inspect it.</p>}

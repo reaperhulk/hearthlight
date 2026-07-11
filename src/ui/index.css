@@ -199,3 +199,5 @@ button:focus-visible, canvas:focus-visible {
 
 .lore.dim { color: #5f6b7d; font-size: 0.78em; }
 .epitaph { color: #8f7fa8; font-style: italic; font-size: 0.8em; margin-bottom: 10px; }
+
+.card-head .eta { color: #5f6b7d; font-size: 0.85em; white-space: nowrap; }
