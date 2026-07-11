@@ -167,6 +167,18 @@ commit pushed to main. Update checkboxes as work lands.
       re-identified as 'four cards, two of them defenses' (+10.6 arc
       nights, was +0.2).
 
+- [x] **Light earns its slot** — playtest question: 'what's the point of
+      the slowdown building?' Measurement agreed: a keeper who never
+      picked lanterns beat one who did by 0.6 nights (a trap card), and
+      the bell measured zero. Reworked: shades don't eat light (lanterns
+      are never targeted), lit ground slows attackers AND quickens the
+      Warden's banish (×0.6 hold), a lantern-lit watchtower gains +1
+      bolt, and the bell's toll hastens the Warden (reposition −1s per
+      standing bell) on top of its +2s delay. Bought after the core wall,
+      lanterns now measure +0.6 nights; bought early they still lose —
+      build order is the depth. Keeper ceiling rose to 6.8n; placement
+      spread 2.6n over random.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

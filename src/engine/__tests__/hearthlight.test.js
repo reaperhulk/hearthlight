@@ -3,7 +3,7 @@ import { createInitialState, loadState, migrateState, saveState } from '../state
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { abandonRound, beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
-import { getNightForecast, getShadeCount, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
 
@@ -147,6 +147,52 @@ describe('hearthlight', () => {
     const innerApproach = innerNight.round.shades[0].arrivesAt - innerNight.round.shades[0].spawnedAt;
     const outerApproach = outerNight.round.shades[0].arrivesAt - outerNight.round.shades[0].spawnedAt;
     expect(outerApproach).toBeCloseTo(innerApproach * FRONTIER_APPROACH, 5);
+  });
+
+  it('lamplight quickens the grip and the bell hastens the step', () => {
+    // Lit ground: a held shade is banished at LANTERN_HOLD_FACTOR speed.
+    let lit = startedRound();
+    lit = { ...lit, round: { ...lit.round, draft: ['lantern', 'palisade'], glow: 40 } };
+    lit = placeStructure(lit, 'lantern', 'r0s0');
+    lit = { ...lit, round: { ...lit.round, placedToday: false } };
+    lit = placeStructure(lit, 'palisade', 'r0s1');
+    const start = lit.round.time;
+    lit = {
+      ...lit,
+      round: {
+        ...lit.round, phase: 'night', phaseStart: start, placedToday: false, towerCharges: {},
+        shades: [{ id: 1, targetSlotId: 'r0s1', spawnAngle: 0, spawnedAt: start, arrivesAt: start + 1, phase: 'approach', heldSince: null, feedsAt: null }],
+      },
+    };
+    lit = moveWarden(lit, 1, 'r0s1');
+    // Banished at 1 + 3.5*0.6 = 3.1s — by t=4 it is gone; unlit would still hold.
+    lit = runSeconds(lit, 4, makeRng());
+    expect(lit.round.shades).toHaveLength(0);
+    expect(lit.round.stats.nights.at(-1).banished).toBe(1);
+
+    // A standing bell tower shaves the Warden's reposition cooldown.
+    let bell = startedRound();
+    expect(getWardenCooldown(bell)).toBe(WARDEN_COOLDOWN);
+    bell = { ...bell, round: { ...bell.round, draft: ['belltower'], glow: 40 } };
+    bell = placeStructure(bell, 'belltower', 'r0s3');
+    expect(getWardenCooldown(bell)).toBe(WARDEN_COOLDOWN - 1);
+  });
+
+  it('shades do not eat light: lanterns are never targeted', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['lantern', 'farm'], glow: 40 } };
+    state = placeStructure(state, 'lantern', 'r0s0');
+    state = { ...state, round: { ...state.round, placedToday: false } };
+    state = placeStructure(state, 'farm', 'r0s3');
+    state = { ...state, round: { ...state.round, day: 3 } }; // 4 shades
+    state = endDay(state, makeRng([0.1, 0.5, 0.9, 0.3, 0.7]));
+    expect(state.round.shades.every(shade => shade.targetSlotId !== 'r0s0')).toBe(true);
+    // A town of only light leaves the Heart exposed.
+    let lit = startedRound();
+    lit = { ...lit, round: { ...lit.round, draft: ['lantern'], glow: 40 } };
+    lit = placeStructure(lit, 'lantern', 'r0s0');
+    lit = endDay(lit, makeRng([0.5]));
+    expect(lit.round.shades[0].targetSlotId).toBeNull();
   });
 
   it('the dark spreads: a night threatens distinct positions first', () => {

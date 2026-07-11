@@ -42,12 +42,15 @@ function describeSlot(round, slot) {
       : 'nothing adjacent yet']);
   }
   rows.push(['At dawn', `+${DAWN_GLOW_PER_STRUCTURE + (def.dawnGlow || 0)} Glow`]);
-  if (def.slowsAdjacent) rows.push(['Slows', `shades on lit neighbors ×${def.slowsAdjacent}`]);
+  if (def.slowsAdjacent) {
+    rows.push(['Slows', `shades on lit neighbors ×${def.slowsAdjacent}`]);
+    rows.push(['Lamplight', 'the Warden banishes 40% faster on lit ground']);
+  }
   if (def.nightCharges) {
     rows.push(['Banishes', `${def.nightCharges + (structure.level >= 3 ? 1 : 0)} shades/night on neighbors`]);
     rows.push(['Blind spot', 'cannot save itself']);
   }
-  if (def.nightDelay) rows.push(['Toll', `every shade +${def.nightDelay}s approach`]);
+  if (def.nightDelay) rows.push(['Toll', `every shade +${def.nightDelay}s approach; Warden repositions 1s sooner`]);
   if (def.tauntWeight) rows.push(['Taunt', 'draws shades to itself']);
   rows.push(['Neighbors', neighbors.length > 0
     ? neighbors.map(neighbor => STRUCTURES[neighbor.structure.type].name).join(', ')

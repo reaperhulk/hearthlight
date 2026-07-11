@@ -31,7 +31,7 @@ export const STRUCTURES = {
     slowsAdjacent: 1.6,
     weight: 2,
     defensive: true,
-    description: 'Shades approach lit neighbors far more slowly.',
+    description: 'Never targeted \u2014 shades don\u2019t eat light. Lit neighbors: slower attackers, faster banishes, +1 bolt for towers.',
   },
   watchtower: {
     id: 'watchtower',
@@ -66,12 +66,12 @@ export const STRUCTURES = {
   belltower: {
     id: 'belltower',
     name: 'Bell Tower',
-    cost: 14,
+    cost: 12,
     hp: 1,
     nightDelay: 2,
     weight: 1,
     defensive: true,
-    description: 'Its toll slows every shade tonight by 2 seconds.',
+    description: 'Its toll delays every shade 2s and hastens the Warden\u2019s step.',
   },
   emberKiln: {
     id: 'emberKiln',

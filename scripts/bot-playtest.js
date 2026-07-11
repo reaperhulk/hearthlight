@@ -47,7 +47,7 @@ const PROFILES = {
 };
 
 const ECONOMY_FIRST = ['farm', 'granary', 'well', 'shrine', 'emberKiln', 'watchtower', 'belltower', 'lantern', 'palisade'];
-const DEFENSE_FIRST = ['watchtower', 'belltower', 'palisade', 'lantern', 'farm', 'well', 'granary', 'shrine', 'emberKiln'];
+const DEFENSE_FIRST = ['watchtower', 'belltower', 'palisade', 'farm', 'lantern', 'well', 'granary', 'shrine', 'emberKiln'];
 
 function chooseCard(state, style, rng) {
   const round = state.round;
@@ -85,11 +85,12 @@ function chooseSlot(state, structureId, style, rng) {
   const inner = empty.filter(slot => slot.ring === 0);
   const pool = STRUCTURES[structureId].defensive && inner.length > 0 ? inner : empty;
   if (structureId === 'watchtower' || structureId === 'lantern' || structureId === 'belltower') {
-    return pool.reduce((best, candidate) => {
-      const covers = getAdjacentSlots(round.slots, candidate.id).filter(neighbor => neighbor.structure).length;
-      const bestCovers = getAdjacentSlots(round.slots, best.id).filter(neighbor => neighbor.structure).length;
-      return covers > bestCovers ? candidate : best;
-    }, pool[0]);
+    // Lanterns weigh towers double: light finds targets.
+    const value = slot => getAdjacentSlots(round.slots, slot.id).reduce((sum, neighbor) => {
+      if (!neighbor.structure) return sum;
+      return sum + (structureId === 'lantern' && neighbor.structure.type === 'watchtower' ? 2 : 1);
+    }, 0);
+    return pool.reduce((best, candidate) => (value(candidate) > value(best) ? candidate : best), pool[0]);
   }
   if (structureId === 'well') {
     return empty.find(candidate =>

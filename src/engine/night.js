@@ -55,6 +55,10 @@ export const PALISADE_SHIELD_PER_NIGHT = 2;
 // position repeats. Simultaneous threats are the game; convergence on a
 // single slot was its death.
 function planTargets(round, occupied, count, rng) {
+  // Shades don't eat light: lanterns are never targets. A town of only
+  // lanterns leaves the Heart itself exposed.
+  occupied = occupied.filter(slot => slot.structure.type !== 'lantern');
+  if (occupied.length === 0) return [];
   const shieldLeft = new Map();
   for (const slot of occupied) {
     if (slot.structure.type === 'palisade') shieldLeft.set(slot.id, PALISADE_SHIELD_PER_NIGHT);
@@ -111,9 +115,18 @@ export function getHoldTime(state) {
   return state.meta.swiftWarden ? SHADE_HOLD_TIME_SWIFT : SHADE_HOLD_TIME;
 }
 
+// The bell's toll guides the watch: each standing bell tower shaves a
+// second off the Warden's reposition, floored at the swift cooldown.
 export function getWardenCooldown(state) {
-  return state.meta.swiftWarden ? WARDEN_COOLDOWN_SWIFT : WARDEN_COOLDOWN;
+  const base = state.meta.swiftWarden ? WARDEN_COOLDOWN_SWIFT : WARDEN_COOLDOWN;
+  const bells = state.round
+    ? state.round.slots.filter(slot => slot.structure?.type === 'belltower').length
+    : 0;
+  return Math.max(WARDEN_COOLDOWN_SWIFT, base - bells);
 }
+
+// Lamplight is the Warden's ally: banishing on lit ground is faster.
+export const LANTERN_HOLD_FACTOR = 0.6;
 
 function lanternSlow(round, slotId) {
   const lit = getAdjacentSlots(round.slots, slotId).some(neighbor =>
@@ -176,8 +189,10 @@ export function spawnShades(state, rng) {
   const towerCharges = {};
   for (const slot of round.slots) {
     if (slot.structure?.type === 'watchtower') {
-      // Veteran towers earn a third bolt.
-      towerCharges[slot.id] = STRUCTURES.watchtower.nightCharges + (slot.structure.level >= 3 ? 1 : 0);
+      // Veteran towers earn a third bolt; light finds targets — a
+      // lantern-lit tower earns one more.
+      const lit = getAdjacentSlots(round.slots, slot.id).some(neighbor => neighbor.structure?.type === 'lantern');
+      towerCharges[slot.id] = STRUCTURES.watchtower.nightCharges + (slot.structure.level >= 3 ? 1 : 0) + (lit ? 1 : 0);
     }
   }
 
@@ -259,6 +274,13 @@ export function advanceNightSlice(state, round) {
   // funneling every shade into a single guarded slot is an immortal bunker.
   // The Heart itself is a guardable position (key HEART_SLOT).
   const keyOf = shade => shade.targetSlotId ?? HEART_SLOT;
+  // Time-to-banish for THIS shade: lamplight quickens the grip, at a lit
+  // building or at a lit Heart.
+  const heartLit = round.slots.some(slot => slot.structure?.type === 'lantern' && nearHeart(slot));
+  const holdFor = shade => {
+    const lit = shade.targetSlotId ? lanternSlow(round, shade.targetSlotId) > 1 : heartLit;
+    return holdTime * (lit ? LANTERN_HOLD_FACTOR : 1);
+  };
   const holderBySlot = new Map();
   for (const shade of round.shades) {
     if (shade.phase === 'held' && guarded.has(keyOf(shade)) && !holderBySlot.has(keyOf(shade))) {
@@ -334,7 +356,7 @@ export function advanceNightSlice(state, round) {
           continue;
         }
         current = { ...current, phase: 'feeding', heldSince: null, feedsAt: now + SHADE_FEED_TIME };
-      } else if (now - current.heldSince >= holdTime) {
+      } else if (now - current.heldSince >= holdFor(current)) {
         holderBySlot.delete(keyOf(current));
         nightEntry.banished += 1;
         log.push('The Warden holds the line. A shade is banished.');
