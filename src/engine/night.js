@@ -5,14 +5,14 @@ import { getAdjacentSlots } from './map.js';
 
 export const NIGHT_MIN_LENGTH = 14;
 export const SHADE_FEED_TIME = 5;
-export const SHADE_HOLD_TIME = 4.5;
-export const SHADE_HOLD_TIME_SWIFT = 3;
+export const SHADE_HOLD_TIME = 3.5;
+export const SHADE_HOLD_TIME_SWIFT = 2.4;
 export const WARDEN_COOLDOWN = 6;
 export const WARDEN_COOLDOWN_SWIFT = 3;
 export const HEART_HIT = 15;      // a shade that reaches the Heart
-export const STRUCTURE_HIT = 8;   // heart-light lost when a structure falls
-export const EMPTY_ARRIVAL_HIT = 8;
-export const NIGHT_ESCALATION = 1.15;
+export const STRUCTURE_HIT = 14;  // heart-light lost when a structure falls
+export const EMPTY_ARRIVAL_HIT = 12;
+export const NIGHT_ESCALATION = 1.18;
 
 // Uncapped and linear: night N sends N shades. The dark always wins
 // eventually — how long you delay it is the scoreboard.

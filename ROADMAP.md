@@ -10,11 +10,10 @@ commit pushed to main. Update checkboxes as work lands.
 - [x] **Multi-seed harness** — run the bot across ~5 seeds, assert hard
       invariants per seed and pacing bands on the mean. Single-seed arcs are
       too noisy to tune against (measured: 13 → 17 → 15 → 25 → 19 nights).
-- [ ] **Round-1 pacing** — keeper round 1 is 13 nights / ~5.3 min on every
-      seed; target mean 6–9 nights without flattening the passive floor.
-      Multi-seed also exposed: builder 12n vs keeper 13n — night play barely
-      matters. Widen the active gap (warden strength vs tower crutch) while
-      steepening. Encode both as assertions.
+- [x] **Round-1 pacing** — tuned to mean 9.6 nights / ~4 min (was 13/5.3);
+      losses now cost 14 heart, escalation 1.18, warden holds 3.5s. Active
+      gap widened: keeper 9.6n vs builder 7.0n. Meta arc 9.6 -> 17.0 nights.
+      Bands asserted: keeper mean 6-11n, <=300s, active gap >=1n.
 - [ ] **Widen the build space** — +3 structures (Granary: dawn economy;
       Bell Tower: slows the whole night's approach; Ember Kiln: converts
       held Glow to Embers at the fall) and +2 meta upgrades (Heartstone:

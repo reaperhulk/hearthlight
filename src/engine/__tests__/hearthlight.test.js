@@ -3,7 +3,7 @@ import { createInitialState, loadState, migrateState, saveState } from '../state
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowRate, placeStructure } from '../round.js';
-import { getShadeCount, moveWarden, SHADE_FEED_TIME, SHADE_HOLD_TIME, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { getShadeCount, moveWarden, SHADE_FEED_TIME, SHADE_HOLD_TIME, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
 
@@ -107,7 +107,7 @@ describe('hearthlight', () => {
     const rng = makeRng();
     state = runSeconds(state, Math.ceil(13 + SHADE_FEED_TIME + 2), rng);
     expect(state.round.slots[0].structure).toBeNull();
-    expect(state.round.heart).toBe(100 - 8);
+    expect(state.round.heart).toBe(100 - STRUCTURE_HIT);
 
     // An empty town: shades go straight for the Heart
     let bare = startedRound();
