@@ -63,6 +63,13 @@ commit pushed to main. Update checkboxes as work lands.
 - [ ] **Sound + juice** — placement thunk, seal chime, fall toll; screen
       grain at low Heart. Keep it subtle.
 
+- [x] **Heartseekers (death-channel variety)** — from night 7, every fifth
+      shade ignores the town and goes for the Heart. Counterplay keeps the
+      one-verb rule: tap the center to post the warden AT the Heart;
+      watchtowers near the center burn seekers at the threshold. The
+      forecast announces them. Keeper deaths now split 63% falls / 13%
+      heart strikes / 24% vents (was 100% falls).
+
 ## Later / ideas
 
 - Second map ring content pass (outer-ring-only structures?).

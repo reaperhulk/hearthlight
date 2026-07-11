@@ -25,7 +25,12 @@ export function createSlots(unlockedRings = 1) {
   return slots;
 }
 
-const ADJACENT_DISTANCE = 0.23;
+export const ADJACENT_DISTANCE = 0.23;
+
+// Slots close enough to the Heart (the map center) to defend it.
+export function nearHeart(slot) {
+  return Math.hypot(slot.x - 0.5, slot.y - 0.5) <= ADJACENT_DISTANCE;
+}
 
 export function slotsAdjacent(a, b) {
   if (a.id === b.id) return false;

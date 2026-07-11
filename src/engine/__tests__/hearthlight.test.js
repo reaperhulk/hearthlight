@@ -3,7 +3,7 @@ import { createInitialState, loadState, migrateState, saveState } from '../state
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, HEART_MAX } from '../round.js';
-import { getShadeCount, moveWarden, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { getShadeCount, moveWarden, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
 
@@ -117,6 +117,65 @@ describe('hearthlight', () => {
     const nextNight = endDay(collected, makeRng([0.5]));
     expect(nextNight.round.shades).toHaveLength(getShadeCount(5) + STILL_DEBT);
     expect(nextNight.round.stillDebt).toBe(false);
+  });
+
+  it('heartseekers spawn late, are held at the Heart, and are burned by inner towers', () => {
+    // From night 7, every fifth shade seeks the Heart.
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['palisade'], glow: 20 } };
+    state = placeStructure(state, 'palisade', 'r0s2');
+    state = { ...state, round: { ...state.round, day: 7 } };
+    state = endDay(state, makeRng([0.5]));
+    const seekers = state.round.shades.filter(shade => shade.targetSlotId === null);
+    expect(state.round.shades).toHaveLength(getShadeCount(7));
+    expect(seekers).toHaveLength(Math.floor(getShadeCount(7) / 5));
+
+    // A warden standing AT the Heart grapples one; the second strikes.
+    let vigil = startedRound();
+    const start = vigil.round.time;
+    vigil = {
+      ...vigil,
+      round: {
+        ...vigil.round,
+        phase: 'night',
+        phaseStart: start,
+        placedToday: false,
+        towerCharges: {},
+        shades: [1, 2].map(id => ({
+          id, targetSlotId: null, spawnAngle: 0, spawnedAt: start,
+          arrivesAt: start + 1, phase: 'approach', heldSince: null, feedsAt: null,
+        })),
+      },
+    };
+    vigil = moveWarden(vigil, 1, HEART_SLOT);
+    expect(vigil).toBeTruthy();
+    vigil = runSeconds(vigil, 12, makeRng());
+    expect(vigil.round.shades).toHaveLength(0);
+    expect(vigil.round.heart).toBe(HEART_MAX - HEART_HIT); // one held+banished, one struck
+    expect(vigil.round.stats.heartLoss.heartHits).toBe(HEART_HIT);
+
+    // A tower near the center burns a heartseeker at the threshold.
+    let towered = startedRound();
+    towered = { ...towered, round: { ...towered.round, draft: ['watchtower'], glow: 40 } };
+    towered = placeStructure(towered, 'watchtower', 'r0s0');
+    const at = towered.round.time;
+    towered = {
+      ...towered,
+      round: {
+        ...towered.round,
+        phase: 'night',
+        phaseStart: at,
+        placedToday: false,
+        towerCharges: { r0s0: 2 },
+        shades: [{
+          id: 1, targetSlotId: null, spawnAngle: 0, spawnedAt: at,
+          arrivesAt: at + 1, phase: 'approach', heldSince: null, feedsAt: null,
+        }],
+      },
+    };
+    towered = runSeconds(towered, 3, makeRng());
+    expect(towered.round.heart).toBe(HEART_MAX);
+    expect(towered.round.stats.nights.at(-1).towerKills).toBe(1);
   });
 
   it('structures reach veteran level 3 after seven nights', () => {

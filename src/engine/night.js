@@ -1,7 +1,7 @@
 // The night: shades creep from the rim toward what you built.
 // One verb — move the Warden. Everything else is what you built by day.
 import { STRUCTURES } from './structures.js';
-import { getAdjacentSlots } from './map.js';
+import { getAdjacentSlots, nearHeart } from './map.js';
 
 export const NIGHT_MIN_LENGTH = 10;
 export const SHADE_FEED_TIME = 5;
@@ -34,13 +34,23 @@ export function rollOmen(day, rng) {
   return { night: day, type: rng() < 0.5 ? 'hungry' : 'still' };
 }
 
+// Heartseekers: from this night on, every fourth shade ignores the town
+// and goes for the Heart itself. Counterplay: a warden standing AT the
+// Heart holds them; watchtowers near the center intercept them.
+export const HEARTSEEKER_NIGHT = 7;
+export const HEART_SLOT = 'heart';
+
+export function getHeartseekerCount(night, count) {
+  return night >= HEARTSEEKER_NIGHT ? Math.floor(count / 5) : 0;
+}
+
 // What dusk will actually bring tonight, omens and debts included.
 // The UI forecast and spawnShades both read this — one source of truth.
 export function getNightForecast(round) {
   const omen = round.omen && round.omen.night === round.day ? round.omen.type : null;
-  if (omen === 'still') return { count: 0, omen };
+  if (omen === 'still') return { count: 0, omen, heartseekers: 0 };
   const count = getShadeCount(round.day) + (omen === 'hungry' ? HUNGRY_EXTRA : 0) + (round.stillDebt ? STILL_DEBT : 0);
-  return { count, omen };
+  return { count, omen, heartseekers: getHeartseekerCount(round.day, count) };
 }
 
 export function getHoldTime(state) {
@@ -60,7 +70,7 @@ function lanternSlow(round, slotId) {
 // Dusk: spawn the night's shades with the injected rng.
 export function spawnShades(state, rng) {
   const round = state.round;
-  const { count, omen } = getNightForecast(round);
+  const { count, omen, heartseekers } = getNightForecast(round);
   const speed = Math.pow(NIGHT_ESCALATION, round.day - 1);
   const occupied = round.slots.filter(slot => slot.structure);
   const bellDelay = occupied.reduce((sum, slot) =>
@@ -70,6 +80,21 @@ export function spawnShades(state, rng) {
 
   for (let index = 0; index < count; index++) {
     let targetSlotId = null;
+    // The first shades of a late night seek the Heart itself.
+    if (index < heartseekers) {
+      const approach = ((8 + 5 * rng()) / speed) + bellDelay;
+      shades.push({
+        id: nextId++,
+        targetSlotId: null,
+        spawnAngle: rng() * Math.PI * 2,
+        spawnedAt: round.time,
+        arrivesAt: round.time + approach,
+        phase: 'approach',
+        heldSince: null,
+        feedsAt: null,
+      });
+      continue;
+    }
     if (occupied.length > 0) {
       const totalWeight = occupied.reduce((sum, slot) =>
         sum + (STRUCTURES[slot.structure.type].tauntWeight || 1), 0);
@@ -143,7 +168,7 @@ export function moveWarden(state, wardenId, slotId) {
   const warden = round.wardens.find(candidate => candidate.id === wardenId);
   if (!warden || warden.slotId === slotId) return null;
   if (round.time - warden.movedAt < getWardenCooldown(state)) return null;
-  if (!round.slots.some(slot => slot.id === slotId)) return null;
+  if (slotId !== HEART_SLOT && !round.slots.some(slot => slot.id === slotId)) return null;
   if (round.wardens.some(other => other.id !== wardenId && other.slotId === slotId)) return null;
 
   return {
@@ -178,14 +203,23 @@ export function advanceNightSlice(state, round) {
 
   // A warden grapples ONE shade at a time; the rest feed. Without this,
   // funneling every shade into a single guarded slot is an immortal bunker.
+  // The Heart itself is a guardable position (key HEART_SLOT).
+  const keyOf = shade => shade.targetSlotId ?? HEART_SLOT;
   const holderBySlot = new Map();
   for (const shade of round.shades) {
-    if (shade.phase === 'held' && guarded.has(shade.targetSlotId) && !holderBySlot.has(shade.targetSlotId)) {
-      holderBySlot.set(shade.targetSlotId, shade.id);
+    if (shade.phase === 'held' && guarded.has(keyOf(shade)) && !holderBySlot.has(keyOf(shade))) {
+      holderBySlot.set(keyOf(shade), shade.id);
     }
   }
-  const canHold = shade => guarded.has(shade.targetSlotId) &&
-    (holderBySlot.get(shade.targetSlotId) ?? shade.id) === shade.id;
+  const canHold = shade => guarded.has(keyOf(shade)) &&
+    (holderBySlot.get(keyOf(shade)) ?? shade.id) === shade.id;
+
+  const strikeHeart = () => {
+    heart -= HEART_HIT;
+    heartLoss.heartHits += HEART_HIT;
+    nightEntry.heartLost += HEART_HIT;
+    log.push('A shade reaches the Heart. The light gutters.');
+  };
 
   for (const shade of round.shades) {
     let current = shade;
@@ -201,10 +235,24 @@ export function advanceNightSlice(state, round) {
         continue;
       }
       if (!current.targetSlotId) {
-        heart -= HEART_HIT;
-        heartLoss.heartHits += HEART_HIT;
-        nightEntry.heartLost += HEART_HIT;
-        log.push('A shade reaches the Heart. The light gutters.');
+        // A heartseeker at the Heart's edge: a tower near the center may
+        // burn it; a warden standing at the Heart grapples it; otherwise
+        // it strikes.
+        const heartTower = slots.find(slot =>
+          slot.structure?.type === 'watchtower' && towerCharges[slot.id] > 0 && nearHeart(slot));
+        if (heartTower) {
+          towerCharges = { ...towerCharges, [heartTower.id]: towerCharges[heartTower.id] - 1 };
+          nightEntry.towerKills += 1;
+          log.push('The watchtower burns a shade at the Heart’s threshold.');
+          continue;
+        }
+        if (canHold(current)) {
+          holderBySlot.set(HEART_SLOT, current.id);
+          current = { ...current, phase: 'held', heldSince: current.arrivesAt };
+          shades.push(current);
+          continue;
+        }
+        strikeHeart();
         continue;
       }
       // Watchtower intercept: one banish per tower per night.
@@ -226,9 +274,14 @@ export function advanceNightSlice(state, round) {
 
     if (current.phase === 'held') {
       if (!canHold(current)) {
+        if (!current.targetSlotId) {
+          // The warden stepped away from the Heart — the grip breaks.
+          strikeHeart();
+          continue;
+        }
         current = { ...current, phase: 'feeding', heldSince: null, feedsAt: now + SHADE_FEED_TIME };
       } else if (now - current.heldSince >= holdTime) {
-        holderBySlot.delete(current.targetSlotId);
+        holderBySlot.delete(keyOf(current));
         nightEntry.banished += 1;
         log.push('The Warden holds the line. A shade is banished.');
         continue;

@@ -3,7 +3,7 @@ import { loadState, saveState } from '../engine/state.js';
 import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, levelGlowMult, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
-import { getNightForecast, getWardenCooldown, moveWarden } from '../engine/night.js';
+import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT } from '../engine/night.js';
 import { buyMetaUpgrade, META_UPGRADES } from '../engine/meta.js';
 import { STRUCTURES } from '../engine/structures.js';
 
@@ -181,12 +181,12 @@ function drawTown(ctx, state, selectedCard, animTime, inspectedId) {
     }
   }
 
-  // Wardens
+  // Wardens (a warden may stand at the Heart itself)
   for (const warden of round.wardens) {
     if (!warden.slotId) continue;
     const slot = round.slots.find(candidate => candidate.id === warden.slotId);
-    if (!slot) continue;
-    const { x, y } = slotPixel(slot);
+    if (!slot && warden.slotId !== HEART_SLOT) continue;
+    const { x, y } = slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
     ctx.strokeStyle = '#9ff2ff';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -263,7 +263,7 @@ export function App() {
     setState(current => {
       const round = current.round;
       if (!round || round.phase !== 'night') return current;
-      const held = new Set(round.shades.filter(shade => shade.phase === 'held').map(shade => shade.targetSlotId));
+      const held = new Set(round.shades.filter(shade => shade.phase === 'held').map(shade => shade.targetSlotId ?? HEART_SLOT));
       const free = round.wardens.find(warden =>
         round.time - warden.movedAt >= getWardenCooldown(current) && !held.has(warden.slotId));
       if (!free) return current;
@@ -284,6 +284,12 @@ export function App() {
       const px = slotPixel(slot);
       const distance = Math.hypot(px.x - x, px.y - y);
       if (distance < nearestDistance) { nearestDistance = distance; nearest = slot; }
+    }
+    // At night the Heart itself is a post — tap the center to guard it.
+    const heartDistance = Math.hypot(CANVAS / 2 - x, CANVAS / 2 - y);
+    if (current.round.phase === 'night' && heartDistance < Math.min(HIT_RADIUS, nearestDistance)) {
+      sendWarden(HEART_SLOT);
+      return;
     }
     if (!nearest || nearestDistance > HIT_RADIUS) return;
 
@@ -344,8 +350,8 @@ export function App() {
   const inspected = inspectedSlot ? describeSlot(round, inspectedSlot) : null;
   const dayRemaining = Math.max(0, DAY_LENGTH - (round.time - round.phaseStart));
   const threats = round.shades
-    .filter(shade => shade.targetSlotId && shade.phase !== 'held' &&
-      !round.wardens.some(warden => warden.slotId === shade.targetSlotId))
+    .filter(shade => shade.phase !== 'held' &&
+      !round.wardens.some(warden => warden.slotId === (shade.targetSlotId ?? HEART_SLOT)))
     .slice(0, 3);
 
   return (
@@ -363,7 +369,7 @@ export function App() {
               <span className={`forecast${forecast.omen ? ' omen' : ''}`} title="Shades due at dusk">
                 {forecast.omen === 'still'
                   ? 'Still Night — the dark holds its breath'
-                  : `${omenName}tonight: ${forecast.count} shade${forecast.count === 1 ? '' : 's'}`}
+                  : `${omenName}tonight: ${forecast.count} shade${forecast.count === 1 ? '' : 's'}${forecast.heartseekers > 0 ? `, ${forecast.heartseekers} seek the Heart` : ''}`}
               </span>
             );
           })()}
@@ -439,10 +445,11 @@ export function App() {
             <div className="night-controls">
               {threats.length > 0 ? threats.map(shade => {
                 const slot = round.slots.find(candidate => candidate.id === shade.targetSlotId);
-                const name = slot?.structure ? STRUCTURES[slot.structure.type].name : 'ruin';
+                const name = !shade.targetSlotId ? 'the Heart'
+                  : slot?.structure ? STRUCTURES[slot.structure.type].name : 'ruin';
                 return (
-                  <button key={shade.id} onClick={() => sendWarden(shade.targetSlotId)}>
-                    Warden → {name} ({Math.max(0, Math.ceil((shade.phase === 'approach' ? shade.arrivesAt : shade.feedsAt) - round.time))}s)
+                  <button key={shade.id} onClick={() => sendWarden(shade.targetSlotId ?? HEART_SLOT)}>
+                    Warden → {name} ({Math.max(0, Math.ceil((shade.phase === 'approach' ? shade.arrivesAt : shade.feedsAt ?? round.time) - round.time))}s)
                   </button>
                 );
               }) : <span className="hint">The Warden watches. Hold the line.</span>}

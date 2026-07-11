@@ -12,7 +12,7 @@ import { beginRound, collectEmbers, placeStructure, getEmbersEarned, getGlowRate
 import { STRUCTURES, STRUCTURE_IDS } from '../src/engine/structures.js';
 import { getAdjacentSlots } from '../src/engine/map.js';
 import { endDay, tick } from '../src/engine/tick.js';
-import { moveWarden, getWardenCooldown } from '../src/engine/night.js';
+import { moveWarden, getWardenCooldown, HEART_SLOT } from '../src/engine/night.js';
 import { buyMetaUpgrade, META_UPGRADES } from '../src/engine/meta.js';
 
 function mulberry32(seed) {
@@ -151,17 +151,18 @@ function botNight(state, profile, t, rng) {
     if (t % 7 !== 0) return state;      // slow reactions
     if (rng() < 0.55) return state;     // often misses the threat entirely
   }
+  const keyOf = shade => shade.targetSlotId ?? HEART_SLOT;
   const guarded = new Set(round.wardens.map(warden => warden.slotId).filter(Boolean));
   const threats = round.shades
-    .filter(shade => shade.targetSlotId && shade.phase !== 'held' && !guarded.has(shade.targetSlotId))
+    .filter(shade => shade.phase !== 'held' && !guarded.has(keyOf(shade)))
     .sort((a, b) => (a.arrivesAt ?? 0) - (b.arrivesAt ?? 0));
   if (threats.length === 0) return state;
-  const busy = new Set(round.shades.map(shade => shade.targetSlotId));
+  const busy = new Set(round.shades.map(keyOf));
   const free = round.wardens.find(warden =>
     round.time - warden.movedAt >= getWardenCooldown(state) &&
     (!warden.slotId || !busy.has(warden.slotId)));
   if (!free) return state;
-  const moved = moveWarden(state, free.id, threats[0].targetSlotId);
+  const moved = moveWarden(state, free.id, keyOf(threats[0]));
   return moved || state;
 }
 
