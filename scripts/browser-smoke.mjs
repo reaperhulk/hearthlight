@@ -98,6 +98,18 @@ try {
   await page.waitForFunction(() => window.__game.getState().round.phase === 'night', { timeout: 3000 });
   note('dusk falls');
 
+  // Night: the mirror button posts the warden at the threat.
+  const posted = await page.waitForSelector('.night-controls button', { timeout: 12000 })
+    .then(async () => {
+      await page.click('.night-controls button');
+      return page.waitForFunction(
+        () => window.__game.getState().round.wardens.some(warden => warden.slotId),
+        { timeout: 3000 }).then(() => true).catch(() => false);
+    })
+    .catch(() => false);
+  if (!posted) failures.push('night threat button did not post the warden');
+  else note('warden posted from the night panel');
+
   // Fast-forward the whole round to its inevitable end.
   for (let hops = 0; hops < 20; hops++) {
     const phase = await page.evaluate(() => {

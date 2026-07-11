@@ -353,6 +353,7 @@ export function App() {
   const threats = round.shades
     .filter(shade => shade.phase !== 'held' &&
       !round.wardens.some(warden => warden.slotId === (shade.targetSlotId ?? HEART_SLOT)))
+    .sort((a, b) => (a.phase === 'approach' ? a.arrivesAt : a.feedsAt ?? 0) - (b.phase === 'approach' ? b.arrivesAt : b.feedsAt ?? 0))
     .slice(0, 3);
 
   return (
