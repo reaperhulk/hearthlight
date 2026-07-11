@@ -5,7 +5,7 @@ commit pushed to main. Update checkboxes as work lands.
 
 ## Now
 
-- [ ] **Persistence** — localStorage save/load with a versioned migrate.
+- [x] **Persistence** — localStorage save/load with a versioned migrate.
       Without it a refresh erases the meta layer; most fundamental gap.
 - [ ] **Multi-seed harness** — run the bot across ~5 seeds, assert hard
       invariants per seed and pacing bands on the mean. Single-seed arcs are

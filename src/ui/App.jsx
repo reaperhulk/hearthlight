@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createInitialState } from '../engine/state.js';
+import { loadState, saveState } from '../engine/state.js';
 import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, placeStructure, DAY_LENGTH, HEART_MAX } from '../engine/round.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getWardenCooldown, moveWarden } from '../engine/night.js';
@@ -134,7 +134,7 @@ function drawTown(ctx, state, selectedCard, animTime) {
 }
 
 export function App() {
-  const [state, setState] = useState(createInitialState);
+  const [state, setState] = useState(() => loadState(window.localStorage));
   const [selectedCard, setSelectedCard] = useState(null);
   const hasRound = state.round != null;
   const stateRef = useRef(state);
@@ -144,6 +144,20 @@ export function App() {
     stateRef.current = state;
     selectedRef.current = selectedCard;
   }, [state, selectedCard]);
+
+  // Persistence: save every 2s and whenever the tab hides.
+  useEffect(() => {
+    const save = () => saveState(window.localStorage, stateRef.current);
+    const interval = setInterval(save, 2000);
+    document.addEventListener('visibilitychange', save);
+    window.addEventListener('beforeunload', save);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', save);
+      window.removeEventListener('beforeunload', save);
+      save();
+    };
+  }, []);
 
   // Game loop: engine ticks at wall-clock speed.
   useEffect(() => {

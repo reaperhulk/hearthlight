@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialState } from '../state.js';
+import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowRate, placeStructure } from '../round.js';
@@ -187,5 +187,32 @@ describe('hearthlight', () => {
 
   it('warden cooldown constant stays humane for a snappy night', () => {
     expect(WARDEN_COOLDOWN).toBeLessThanOrEqual(8);
+  });
+
+  it('persists through storage and migrates unreadable saves safely', () => {
+    const store = new Map();
+    const storage = {
+      getItem: key => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => store.set(key, value),
+    };
+
+    // Round-trip: a mid-round state survives save/load exactly
+    let state = startedRound();
+    state = { ...state, embers: 7, bestNights: 4 };
+    saveState(storage, state);
+    const loaded = loadState(storage);
+    expect(loaded.embers).toBe(7);
+    expect(loaded.bestNights).toBe(4);
+    expect(JSON.stringify(loaded.round)).toBe(JSON.stringify(state.round));
+
+    // Corrupt JSON falls back to a fresh start
+    storage.setItem('hearthlight-save', '{nope');
+    expect(loadState(storage).embers).toBe(0);
+
+    // Old saves gain new fields; broken values are repaired
+    expect(migrateState({ embers: -5, round: 'garbage' }).embers).toBe(0);
+    expect(migrateState({ embers: 12 }).round).toBeNull();
+    expect(migrateState(null).totalRounds).toBe(0);
+    expect(migrateState({ meta: { swiftWarden: true } }).meta.swiftWarden).toBe(true);
   });
 });
