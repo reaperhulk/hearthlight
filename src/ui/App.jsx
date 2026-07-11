@@ -98,6 +98,7 @@ export function App() {
   const prevRoundRef = useRef(null);
   const effectsRef = useRef([]);
   const visualsRef = useRef({ wardens: new Map() });
+  const hoverRef = useRef(null);
   useEffect(() => {
     const prev = prevRoundRef.current;
     const round = state.round;
@@ -160,7 +161,7 @@ export function App() {
     const draw = () => {
       const animTime = performance.now() / 1000;
       if (stateRef.current.round) {
-        drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current, visualsRef.current);
+        drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current, visualsRef.current, hoverRef.current);
         effectsRef.current = effectsRef.current.filter(effect => animTime - effect.start < 1);
         drawEffects(ctx, effectsRef.current, animTime);
       }
@@ -182,6 +183,17 @@ export function App() {
       return moveWarden(current, free.id, slotId) || current;
     });
   }, []);
+
+  const handleCanvasMove = useCallback(event => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    hoverRef.current = {
+      x: (event.clientX - rect.left) * (CANVAS / rect.width),
+      y: (event.clientY - rect.top) * (CANVAS / rect.height),
+    };
+  }, []);
+  const handleCanvasLeave = useCallback(() => { hoverRef.current = null; }, []);
 
   const handleCanvasClick = useCallback(event => {
     unlockAudio();
@@ -331,6 +343,8 @@ export function App() {
             width={CANVAS}
             height={CANVAS}
             onClick={handleCanvasClick}
+            onPointerMove={handleCanvasMove}
+            onPointerLeave={handleCanvasLeave}
             role="img"
             aria-label={isDay ? 'Town map — pick a card, then tap an empty slot' : 'Night — tap a slot to send the Warden'}
           />

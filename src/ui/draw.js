@@ -2,7 +2,7 @@
 // mutates it. The engine stays headless; this file is the game's face.
 import { HEART_MAX } from '../engine/round.js';
 import { getNightForecast, HEART_SLOT } from '../engine/night.js';
-import { RINGS } from '../engine/map.js';
+import { getAdjacentSlots, RINGS } from '../engine/map.js';
 import { STRUCTURES } from '../engine/structures.js';
 
 export const CANVAS = 420;
@@ -311,11 +311,13 @@ export function drawStructureGlyph(ctx, type, x, y, r, color) {
   ctx.restore();
 }
 
-function drawSlots(ctx, round, selectedCard, inspectedId) {
+function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
   for (const slot of round.slots) {
     const { x, y } = slotPixel(slot);
     if (!slot.structure) {
-      ctx.strokeStyle = selectedCard ? 'rgba(230, 199, 102, 0.8)' : 'rgba(140, 140, 170, 0.4)';
+      // With a card in hand, open ground beckons.
+      const pulse = selectedCard ? 0.55 + 0.3 * Math.sin(animTime * 3.2 + slot.x * 7) : 0.4;
+      ctx.strokeStyle = selectedCard ? `rgba(230, 199, 102, ${pulse})` : `rgba(140, 140, 170, ${pulse})`;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.arc(x, y, 11, 0, Math.PI * 2);
@@ -359,6 +361,68 @@ function drawSlots(ctx, round, selectedCard, inspectedId) {
       ctx.stroke();
       ctx.setLineDash([]);
     }
+  }
+}
+
+// Which neighbors would a card placed here actually touch?
+function affectedNeighbors(round, slotId, cardType) {
+  const neighbors = getAdjacentSlots(round.slots, slotId).filter(neighbor => neighbor.structure);
+  if (cardType === 'well') return neighbors.filter(neighbor => neighbor.structure.type === 'farm');
+  if (cardType === 'farm') return neighbors.filter(neighbor => neighbor.structure.type === 'well');
+  if (cardType === 'palisade') return neighbors.filter(neighbor => neighbor.structure.type !== 'palisade');
+  if (cardType === 'watchtower' || cardType === 'lantern' || cardType === 'belltower') return neighbors;
+  return [];
+}
+
+function drawLink(ctx, a, b, color, alpha, animTime) {
+  ctx.strokeStyle = color.replace('ALPHA', String(alpha));
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([2, 4]);
+  ctx.lineDashOffset = -animTime * 8;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// Ghost preview: with a card in hand, the pointer shows the building where
+// it would land — and glowing links show exactly who it would touch.
+function drawPlacementPreview(ctx, round, selectedCard, hover, animTime) {
+  if (!selectedCard || !hover) return;
+  let nearest = null;
+  let nearestDistance = 40;
+  for (const slot of round.slots) {
+    if (slot.structure) continue;
+    const px = slotPixel(slot);
+    const distance = Math.hypot(px.x - hover.x, px.y - hover.y);
+    if (distance < nearestDistance) { nearestDistance = distance; nearest = slot; }
+  }
+  if (!nearest) return;
+  const { x, y } = slotPixel(nearest);
+  const color = STRUCTURE_COLORS[selectedCard] || '#aeb8c5';
+  for (const neighbor of affectedNeighbors(round, nearest.id, selectedCard)) {
+    drawLink(ctx, { x, y }, slotPixel(neighbor), `rgba(230, 199, 102, ALPHA)`, 0.7, animTime);
+  }
+  ctx.globalAlpha = 0.5 + 0.15 * Math.sin(animTime * 4);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(x, y, 13, 0, Math.PI * 2);
+  ctx.stroke();
+  drawStructureGlyph(ctx, selectedCard, x, y, 8.5, color);
+  ctx.globalAlpha = 1;
+}
+
+// Inspecting a building lights up its actual relationships.
+function drawInspectLinks(ctx, round, inspectedId, animTime) {
+  if (!inspectedId) return;
+  const slot = round.slots.find(candidate => candidate.id === inspectedId);
+  if (!slot?.structure) return;
+  const origin = slotPixel(slot);
+  for (const neighbor of getAdjacentSlots(round.slots, inspectedId)) {
+    if (!neighbor.structure) continue;
+    drawLink(ctx, origin, slotPixel(neighbor), 'rgba(159, 242, 255, ALPHA)', 0.45, animTime);
   }
 }
 
@@ -427,7 +491,7 @@ function drawWardens(ctx, round, animTime, visuals) {
   }
 }
 
-export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visuals = { wardens: new Map() }) {
+export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visuals = { wardens: new Map() }, hover = null) {
   const round = state.round;
   const darkness = getDarkness(round);
   ctx.clearRect(0, 0, CANVAS, CANVAS);
@@ -437,7 +501,9 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   drawVignette(ctx, round, animTime);
   drawHeart(ctx, round, animTime);
   drawShades(ctx, round, animTime);
-  drawSlots(ctx, round, selectedCard, inspectedId);
+  drawSlots(ctx, round, selectedCard, inspectedId, animTime);
+  drawInspectLinks(ctx, round, inspectedId, animTime);
+  if (round.phase === 'day') drawPlacementPreview(ctx, round, selectedCard, hover, animTime);
   drawWardens(ctx, round, animTime, visuals);
 }
 
