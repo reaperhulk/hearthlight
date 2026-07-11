@@ -113,6 +113,9 @@ describe('hearthlight', () => {
     still = endDay(still, makeRng([0.5]));
     expect(still.round.shades).toHaveLength(0);
     expect(still.round.stillDebt).toBe(true);
+    // An empty night passes quickly — no dead time.
+    const quickDawn = runSeconds(still, 5, makeRng([0.5]));
+    expect(quickDawn.round.phase).toBe('day');
     const collected = { ...still, round: { ...still.round, day: 5, phase: 'day', omen: null } };
     const nextNight = endDay(collected, makeRng([0.5]));
     expect(nextNight.round.shades).toHaveLength(getShadeCount(5) + STILL_DEBT);

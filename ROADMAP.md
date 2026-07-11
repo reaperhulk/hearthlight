@@ -106,6 +106,12 @@ commit pushed to main. Update checkboxes as work lands.
       sealed cards with their requirement; measured +0.8n/+1.0e and +1.4e
       on round 1, +3.8 and +0.6 arc nights.
 
+- [x] **Night UX + pacing** — empty nights (Still Nights) resolve in 4s
+      instead of idling the full 10s minimum; the night panel shows each
+      warden's readiness; first-run home screen teaches the loop in three
+      lines. Realtime hit feedback: feeding shades visibly gnaw, bites and
+      falls flash where they land, Heart strikes flash at the center.
+
 ## Later / ideas
 
 - Browser smoke test in CI (puppeteer) once the UI stabilizes.

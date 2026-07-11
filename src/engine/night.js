@@ -4,6 +4,7 @@ import { STRUCTURES } from './structures.js';
 import { getAdjacentSlots, nearHeart } from './map.js';
 
 export const NIGHT_MIN_LENGTH = 10;
+export const NIGHT_MIN_LENGTH_STILL = 4; // a night that spawned nothing passes quickly
 export const SHADE_FEED_TIME = 5;
 export const SHADE_HOLD_TIME = 3.5;
 export const SHADE_HOLD_TIME_SWIFT = 2;
@@ -359,5 +360,7 @@ export function advanceNightSlice(state, round) {
 }
 
 export function nightResolved(round) {
-  return round.shades.length === 0 && round.time - round.phaseStart >= NIGHT_MIN_LENGTH;
+  const spawned = round.stats?.nights.at(-1)?.spawned ?? 1;
+  const minimum = spawned === 0 ? NIGHT_MIN_LENGTH_STILL : NIGHT_MIN_LENGTH;
+  return round.shades.length === 0 && round.time - round.phaseStart >= minimum;
 }

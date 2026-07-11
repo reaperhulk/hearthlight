@@ -9,15 +9,15 @@
   "agg": {
     "passiveNights": 2,
     "keeperNights": 5.4,
-    "keeperSeconds": 132,
+    "keeperSeconds": 128.4,
     "keeperEmbers": 6.6,
     "builderNights": 3.6,
     "villagerNights": 3.6,
-    "villagerSeconds": 112.4,
+    "villagerSeconds": 109.8,
     "arcFirst": 5.4,
     "arcLast": 8.4,
-    "arcFirstSeconds": 132,
-    "arcLastSeconds": 181.8,
+    "arcFirstSeconds": 128.4,
+    "arcLastSeconds": 174.6,
     "tension": 0.93,
     "banishesPerNight": 1.46,
     "arcLeveled": 4.2,
@@ -67,11 +67,11 @@
     "picks": {
       "lantern": 37,
       "emberKiln": 7,
-      "palisade": 126,
+      "palisade": 127,
       "watchtower": 71,
       "granary": 13,
       "farm": 29,
-      "belltower": 44,
+      "belltower": 43,
       "well": 8,
       "shrine": 2
     }

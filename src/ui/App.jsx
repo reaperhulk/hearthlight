@@ -413,6 +413,13 @@ export function App() {
       <div className="home">
         <h1>Hearthlight</h1>
         <p className="lore">Something in the dark keeps eating the towns. Light the Heart. Last longer.</p>
+        {state.totalRounds === 0 && (
+          <ul className="how-to">
+            <li>By day: pick one structure and tap an empty slot. Build farms for Glow, walls and towers for the night.</li>
+            <li>By night: shades creep from the rim. Tap a threatened building to send the Warden.</li>
+            <li>The dark always wins. Nights survived become Embers — spend them to last longer next time.</li>
+          </ul>
+        )}
         {state.lastRound && (
           <p className="last-round">
             The last town stood {state.lastRound.nights} night{state.lastRound.nights === 1 ? '' : 's'} and left {state.lastRound.embers} Embers.
@@ -555,6 +562,16 @@ export function App() {
             </div>
           ) : (
             <div className="night-controls">
+              <div className="warden-status">
+                {round.wardens.map(warden => {
+                  const wait = Math.ceil(getWardenCooldown(state) - (round.time - warden.movedAt));
+                  return (
+                    <span key={warden.id} className={wait > 0 ? 'cooling' : 'ready'}>
+                      Warden {round.wardens.length > 1 ? warden.id : ''} {wait > 0 ? `moves in ${wait}s` : 'ready'}
+                    </span>
+                  );
+                })}
+              </div>
               {threats.length > 0 ? threats.map(shade => {
                 const slot = round.slots.find(candidate => candidate.id === shade.targetSlotId);
                 const name = !shade.targetSlotId ? 'the Heart'

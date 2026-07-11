@@ -93,6 +93,10 @@ canvas { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; border:
 }
 
 .night-controls { display: flex; gap: 6px; flex-wrap: wrap; }
+.warden-status { width: 100%; display: flex; gap: 10px; font-size: 0.72em; margin-bottom: 2px; }
+.warden-status .ready { color: #9ff2ff; }
+.warden-status .cooling { color: #6d788a; }
+.how-to { margin: 10px 0 4px 1.2em; color: #8793a2; font-size: 0.8em; display: grid; gap: 5px; line-height: 1.35; }
 .night-controls button {
   padding: 8px 10px; background: #191325; border: 1px solid #b06ad0; border-radius: 5px;
   color: #d8b8ec; font-family: inherit; font-size: 0.78em; cursor: pointer;
