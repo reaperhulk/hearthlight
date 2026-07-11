@@ -96,29 +96,32 @@ commit pushed to main. Update checkboxes as work lands.
       expanded wall when the inner keep fills, plus covered frontier farms.
       Trap/shelf-warmer assertions now consult both round-1 and arc axes.
 
+- [x] **Mobile PWA** — manifest, standalone display, SVG icon, theme
+      color; install-to-homescreen works from the Pages deploy.
+
 ## Later / ideas
 
 - A third meta tier gated on best-nights milestones rather than Embers.
 - Browser smoke test in CI (puppeteer) once the UI stabilizes.
-- Mobile PWA manifest for install-to-homescreen.
 - Lore: the shades are the Forgetting; this town becomes the ruins that
   remember (bridge to theruinsremember).
 
 ## Measured state (5-seed means)
 
-- Round 1: passive 2.0 nights, villager (median human) 4.8n / 137s — inside
-  the 1-2 minute first-play band — builder 4.0, keeper 6.0n / 155s.
-- Keeper meta arc: 6.0 -> 10.2 nights (155s -> 221s real time).
-- Depth: keeper 6.0n vs randomPlace 5.0 / economyGreedy 4.8 / defenseGreedy
-  6.0 / bunker 5.8. Placement spread is exactly the 1.0n floor and bunker is
-  only 0.2n behind keeper — both are watch items; widen with more
-  adjacency/coverage play, not warden buffs.
-- Fun: 81% of heart loss lands in the final third (strong crescendo); all
-  deaths via structure falls (heart hits and vents never kill — a lever to
-  vary); ~1.7 banishes/night; 2-3 leveled structures by arc end.
-- Meta marginal value (Δ nights vs bare keeper): stoneFoundations +2.0,
-  secondWarden +1.4, heartstone +0.8; morningStockpile/deeperDrafts/
-  outerRing/emberChoir ≈ 0 on round 1 (arc/economy value only — recheck
-  when measuring arcs per-upgrade).
-- 9 structures, 8 meta upgrades; 18 unit tests; CI runs the five fixed
-  seeds deterministically (`--ci`), local runs add a random lane.
+- Round 1: passive 2.0 nights, villager (median human) 3.6n / 112s — inside
+  the 1-2 minute first-play band — builder ~4n, keeper 5.4n / 132s.
+- Keeper meta arc: 5.4 -> 8.4 nights (132s -> 182s real time), with veteran
+  snowball seeds reaching 12+.
+- Depth: keeper 5.4n vs randomPlace 4.0 (spread 1.4) / economyGreedy 3.4 /
+  defenseGreedy 5.4 / bunker 4.4 (turtle gap 1.0). Placement is a real
+  choice; turtling always loses; the wall always wins.
+- Fun: 93% of heart loss lands in the final third; deaths split 59% falls /
+  4% heart strikes / 38% vents; ~4 leveled structures by arc end.
+- Meta: every upgrade earns its slot on some axis (round-1 nights, round-1
+  embers, or arc nights — asserted). Arc values: secondWarden +16.2n,
+  morningStockpile +8.8, swiftWarden +7.0, emberChoir +6.4, deeperDrafts
+  +6.0, outerRing +5.0, stoneFoundations +4.8, heartstone +4.6.
+  secondWarden's dominance is the next tuning watch item.
+- 9 structures, 8 meta upgrades, omens, heartseekers, veteran tier, the
+  frontier; 23 unit tests; PWA installable; CI runs the five fixed seeds
+  deterministically (`--ci`), local runs add a random lane.

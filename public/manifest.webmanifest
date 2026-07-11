@@ -1,0 +1,15 @@
+{
+  "name": "Hearthlight",
+  "short_name": "Hearthlight",
+  "description": "Light the Heart. Last longer. A round-based city-defense incremental.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07080f",
+  "theme_color": "#07080f",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
