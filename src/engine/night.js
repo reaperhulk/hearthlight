@@ -11,13 +11,36 @@ export const WARDEN_COOLDOWN = 6;
 export const WARDEN_COOLDOWN_SWIFT = 3;
 export const HEART_HIT = 20;      // a shade that reaches the Heart
 export const STRUCTURE_HIT = 18;  // heart-light lost when a structure falls
-export const EMPTY_ARRIVAL_HIT = 12;
+// A shade that finds only ash vents its hunger at the Heart. Priced close
+// to a fall on purpose: a tiny town that lets overflow shades vent must
+// not out-economize a built town absorbing them with structures.
+export const EMPTY_ARRIVAL_HIT = 14;
 export const NIGHT_ESCALATION = 1.22;
 
 // Uncapped and superlinear: gentle for two nights, then the dark
 // compounds. It always wins eventually — that is the scoreboard.
 export function getShadeCount(night) {
   return night + Math.floor((night - 1) / 2);
+}
+
+// Omens: every fourth night carries a named event, rolled and announced at
+// the dawn before. Bounded, visible randomness — never an ambush.
+export const OMEN_INTERVAL = 4;
+export const HUNGRY_EXTRA = 2;
+export const STILL_DEBT = 3;
+
+export function rollOmen(day, rng) {
+  if (day < OMEN_INTERVAL || day % OMEN_INTERVAL !== 0) return null;
+  return { night: day, type: rng() < 0.5 ? 'hungry' : 'still' };
+}
+
+// What dusk will actually bring tonight, omens and debts included.
+// The UI forecast and spawnShades both read this — one source of truth.
+export function getNightForecast(round) {
+  const omen = round.omen && round.omen.night === round.day ? round.omen.type : null;
+  if (omen === 'still') return { count: 0, omen };
+  const count = getShadeCount(round.day) + (omen === 'hungry' ? HUNGRY_EXTRA : 0) + (round.stillDebt ? STILL_DEBT : 0);
+  return { count, omen };
 }
 
 export function getHoldTime(state) {
@@ -37,7 +60,7 @@ function lanternSlow(round, slotId) {
 // Dusk: spawn the night's shades with the injected rng.
 export function spawnShades(state, rng) {
   const round = state.round;
-  const count = getShadeCount(round.day);
+  const { count, omen } = getNightForecast(round);
   const speed = Math.pow(NIGHT_ESCALATION, round.day - 1);
   const occupied = round.slots.filter(slot => slot.structure);
   const bellDelay = occupied.reduce((sum, slot) =>
@@ -93,6 +116,8 @@ export function spawnShades(state, rng) {
       nextShadeId: nextId,
       towerCharges,
       placedToday: false,
+      // A Still Night banks its shades; the next night collects.
+      stillDebt: omen === 'still',
       stats: {
         ...stats,
         nights: [...stats.nights, {
@@ -104,6 +129,7 @@ export function spawnShades(state, rng) {
           fed: 0,
           heartLost: 0,
           minHeart: round.heart,
+          omen,
         }],
       },
     },
@@ -216,6 +242,15 @@ export function advanceNightSlice(state, round) {
       } else if (now >= current.feedsAt) {
         const index = slots.findIndex(slot => slot.id === current.targetSlotId);
         const structure = slots[index]?.structure;
+        if (!structure) {
+          // Its prize fell to another's teeth — the shade vents at the
+          // Heart. Overflow shades are never free.
+          heart -= EMPTY_ARRIVAL_HIT;
+          heartLoss.vents += EMPTY_ARRIVAL_HIT;
+          nightEntry.heartLost += EMPTY_ARRIVAL_HIT;
+          log.push('A shade finds only ash and howls at the Heart.');
+          continue;
+        }
         if (structure) {
           const hp = structure.hp - 1;
           slots = [...slots];

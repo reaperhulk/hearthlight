@@ -17,14 +17,19 @@ export function levelGlowMult(level) {
 export const HEART_MAX = 80;
 
 // Draw today's draft: distinct structures, with visible pity — at least one
-// defensive option is always offered.
+// defensive option is always offered. Always consumes a FIXED number of
+// rolls so a bigger draft (deeperDrafts) cannot shift the rng stream and
+// butterfly every later night — upgrades must never perturb the dark.
+const MAX_DRAFT_ROLLS = 4;
+
 export function drawDraft(state, rng) {
   const size = getDraftSize(state);
+  const rolls = Array.from({ length: MAX_DRAFT_ROLLS }, () => rng());
   const pool = [...STRUCTURE_IDS];
   const draft = [];
   while (draft.length < size && pool.length > 0) {
     const totalWeight = pool.reduce((sum, id) => sum + STRUCTURES[id].weight, 0);
-    let roll = rng() * totalWeight;
+    let roll = rolls[draft.length] * totalWeight;
     let pick = pool[0];
     for (const id of pool) {
       roll -= STRUCTURES[id].weight;
@@ -60,6 +65,8 @@ export function beginRound(state, rng = Math.random) {
     })),
     towerCharges: {},
     nextShadeId: 1,
+    omen: null,
+    stillDebt: false,
     stats: { heartLoss: { falls: 0, heartHits: 0, vents: 0 }, nights: [] },
     log: [{ day: 1, message: 'The Heart is lit. The dark is patient.' }],
   };
@@ -142,7 +149,7 @@ export function getEmbersEarned(round, meta = {}) {
   const alive = countStructures(round);
   const shrines = countStructures(round, slot => slot.structure.type === 'shrine');
   const kilns = countStructures(round, slot => slot.structure.type === 'emberKiln');
-  const kilnEmbers = kilns * Math.min(2, Math.floor(round.glow / 30));
+  const kilnEmbers = kilns * Math.min(3, Math.floor(round.glow / 20));
   const choirEmbers = meta.emberChoir ? Math.floor(nights / 2) : 0;
   return Math.max(1, nights + Math.floor(alive / 2) + shrines * 2 + kilnEmbers + choirEmbers);
 }

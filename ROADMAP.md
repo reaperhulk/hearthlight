@@ -52,9 +52,14 @@ commit pushed to main. Update checkboxes as work lands.
       glow ×2, watchtowers gain a third nightly bolt. Level pips on the map,
       progress in the inspector. Round 1 untouched (nothing survives 7
       nights bare); arcs now spike to 12-14 nights when veterans snowball.
-- [ ] **Night variety** — named night events every ~4th night (a Hungry
-      Night: +2 shades; a Still Night: none, but the next is worse), always
-      announced the dawn before. Bounded, visible randomness only.
+- [x] **Night variety** — omens on every 4th night, rolled and announced at
+      the dawn before: a Hungry Night (+2 shades) or a Still Night (none,
+      but +3 bank into the next). The forecast/telegraph includes them; the
+      draft now consumes a fixed number of rng rolls so upgrades can never
+      butterfly the night rolls. Side catch: overflow shades whose prize
+      fell used to evaporate free — they now vent at the Heart (14), which
+      finally prices turtling out (bunker 4.2n vs keeper 5.0n) and opened a
+      second death channel (25% of keeper deaths are vents).
 - [ ] **Sound + juice** — placement thunk, seal chime, fall toll; screen
       grain at low Heart. Keep it subtle.
 

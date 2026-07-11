@@ -2,7 +2,7 @@
 // slices. All randomness flows through the injected rng.
 import { DAY_LENGTH, DAWN_GLOW_PER_STRUCTURE, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN, drawDraft, getGlowRate } from './round.js';
 import { STRUCTURES } from './structures.js';
-import { advanceNightSlice, nightResolved, spawnShades } from './night.js';
+import { advanceNightSlice, nightResolved, rollOmen, spawnShades, HUNGRY_EXTRA } from './night.js';
 
 function appendLog(round, day, messages) {
   if (!messages || messages.length === 0) return round.log;
@@ -27,6 +27,12 @@ function dawn(state, rng) {
   });
 
   const day = round.day + 1;
+  // Roll tonight's omen now, at dawn — announced a full day ahead.
+  const omen = rollOmen(day, rng);
+  const messages = [`Dawn. Night ${round.day} survived.`];
+  if (omen?.type === 'hungry') messages.push(`Omen: a Hungry Night — the dark brings ${HUNGRY_EXTRA} more teeth.`);
+  if (omen?.type === 'still') messages.push('Omen: a Still Night — the dark holds its breath, and gathers.');
+  if (round.stillDebt) messages.push('The held breath releases. Tonight the dark collects.');
   const withDawn = {
     ...round,
     day,
@@ -34,7 +40,8 @@ function dawn(state, rng) {
     phaseStart: round.time,
     glow,
     slots,
-    log: appendLog(round, day, [`Dawn. Night ${round.day} survived.`]),
+    omen,
+    log: appendLog(round, day, messages),
   };
   withDawn.draft = drawDraft({ ...state, round: withDawn }, rng);
   return { ...state, round: withDawn };

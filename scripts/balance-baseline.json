@@ -8,50 +8,50 @@
   ],
   "agg": {
     "passiveNights": 2,
-    "keeperNights": 6,
-    "keeperSeconds": 154.8,
-    "keeperEmbers": 6.4,
-    "builderNights": 4.2,
-    "villagerNights": 4.8,
-    "villagerSeconds": 136.8,
-    "arcFirst": 6,
-    "arcLast": 10,
-    "arcFirstSeconds": 154.8,
-    "arcLastSeconds": 224.6,
-    "tension": 0.81,
-    "banishesPerNight": 1.68,
-    "arcLeveled": 2.8,
-    "lossFalls": 1,
+    "keeperNights": 5,
+    "keeperSeconds": 124.4,
+    "keeperEmbers": 5.6,
+    "builderNights": 3.2,
+    "villagerNights": 3.4,
+    "villagerSeconds": 107.2,
+    "arcFirst": 5,
+    "arcLast": 7.6,
+    "arcFirstSeconds": 124.4,
+    "arcLastSeconds": 176.2,
+    "tension": 0.9,
+    "banishesPerNight": 1.4,
+    "arcLeveled": 3,
+    "lossFalls": 0.75,
     "lossHeartHits": 0,
-    "lossVents": 0
+    "lossVents": 0.25
   },
   "depth": {
     "ablations": {
-      "randomPlace": 5,
-      "economyGreedy": 4.8,
-      "defenseGreedy": 6,
-      "bunker": 5.8
+      "randomPlace": 4,
+      "economyGreedy": 3.4,
+      "defenseGreedy": 5,
+      "bunker": 4.2
     },
     "metaValue": {
-      "stoneFoundations": 2,
-      "morningStockpile": 0.2,
+      "stoneFoundations": 1.2,
+      "morningStockpile": 2.4,
       "swiftWarden": 0.2,
-      "deeperDrafts": 0,
-      "outerRing": 0,
+      "deeperDrafts": 0.2,
+      "outerRing": 0.2,
       "heartstone": 0.8,
       "emberChoir": 0,
-      "secondWarden": 1.6
+      "secondWarden": 2.6
     },
     "picks": {
-      "lantern": 52,
-      "palisade": 107,
-      "farm": 34,
-      "belltower": 71,
-      "watchtower": 109,
-      "well": 15,
+      "lantern": 37,
+      "emberKiln": 7,
+      "palisade": 120,
+      "watchtower": 70,
+      "farm": 31,
+      "belltower": 44,
       "granary": 10,
-      "shrine": 4,
-      "emberKiln": 1
+      "well": 10,
+      "shrine": 2
     }
   }
 }

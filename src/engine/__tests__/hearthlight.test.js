@@ -3,7 +3,7 @@ import { createInitialState, loadState, migrateState, saveState } from '../state
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, HEART_MAX } from '../round.js';
-import { getShadeCount, moveWarden, SHADE_FEED_TIME, SHADE_HOLD_TIME, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { getShadeCount, moveWarden, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
 
@@ -98,6 +98,25 @@ describe('hearthlight', () => {
     // Held and banished: the palisade still stands, the Heart untouched
     expect(state.round.slots[2].structure).toBeTruthy();
     expect(state.round.heart).toBe(HEART_MAX);
+  });
+
+  it('omens are announced, bounded, and settle their debts', () => {
+    let state = startedRound();
+    // A Hungry Night adds exactly HUNGRY_EXTRA shades over the base count.
+    state = { ...state, round: { ...state.round, day: 4, omen: { night: 4, type: 'hungry' } } };
+    const hungry = endDay(state, makeRng([0.5]));
+    expect(hungry.round.shades).toHaveLength(getShadeCount(4) + HUNGRY_EXTRA);
+    expect(hungry.round.stats.nights.at(-1).omen).toBe('hungry');
+
+    // A Still Night spawns nothing and banks a debt the next night collects.
+    let still = { ...state, round: { ...state.round, day: 4, omen: { night: 4, type: 'still' } } };
+    still = endDay(still, makeRng([0.5]));
+    expect(still.round.shades).toHaveLength(0);
+    expect(still.round.stillDebt).toBe(true);
+    const collected = { ...still, round: { ...still.round, day: 5, phase: 'day', omen: null } };
+    const nextNight = endDay(collected, makeRng([0.5]));
+    expect(nextNight.round.shades).toHaveLength(getShadeCount(5) + STILL_DEBT);
+    expect(nextNight.round.stillDebt).toBe(false);
   });
 
   it('structures reach veteran level 3 after seven nights', () => {
@@ -297,11 +316,11 @@ describe('hearthlight', () => {
     const dawnGlow = STRUCTURES.granary.dawnGlow;
     expect(dawnGlow).toBe(6);
 
-    // Ember Kiln: converts held Glow at the fall, capped
+    // Ember Kiln: converts held Glow at the fall (+1 per 20, capped at 3)
     const fallen = { day: 5, glow: 65, slots: [
       { id: 'a', structure: { type: 'emberKiln', hp: 1, level: 1, nightsSurvived: 2 } },
     ] };
-    expect(getEmbersEarned(fallen)).toBe(4 + 0 + 2); // nights 4, alive 0(floor .5), kiln 2
+    expect(getEmbersEarned(fallen)).toBe(4 + 0 + 3); // nights 4, alive 0(floor .5), kiln 3
   });
 
   it('heartstone and ember choir shape rounds and payouts', () => {

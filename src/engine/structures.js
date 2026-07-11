@@ -76,11 +76,11 @@ export const STRUCTURES = {
   emberKiln: {
     id: 'emberKiln',
     name: 'Ember Kiln',
-    cost: 15,
+    cost: 10,
     hp: 1,
     weight: 1,
     defensive: false,
-    description: 'At the fall: +1 Ember per 30 Glow held, up to 2.',
+    description: 'At the fall: +1 Ember per 20 Glow held, up to 3.',
   },
   shrine: {
     id: 'shrine',

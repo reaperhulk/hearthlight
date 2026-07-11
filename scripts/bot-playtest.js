@@ -246,7 +246,7 @@ if (storyMode) {
   for (const night of outcome.stats.nights) {
     const placed = storyCollector.placements.filter(entry => entry.day === night.night);
     for (const entry of placed) console.log(`  Day ${entry.day}: placed ${STRUCTURES[entry.card].name} at ${entry.slotId}`);
-    const parts = [`${night.spawned} shade${night.spawned === 1 ? '' : 's'}`];
+    const parts = [`${night.spawned} shade${night.spawned === 1 ? '' : 's'}${night.omen ? ` (${night.omen} night)` : ''}`];
     if (night.slowed) parts.push(`${night.slowed} slowed by lanterns`);
     if (night.towerKills) parts.push(`${night.towerKills} burned by towers`);
     if (night.banished) parts.push(`${night.banished} banished`);

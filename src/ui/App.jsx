@@ -3,7 +3,7 @@ import { loadState, saveState } from '../engine/state.js';
 import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, levelGlowMult, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
-import { getShadeCount, getWardenCooldown, moveWarden } from '../engine/night.js';
+import { getNightForecast, getWardenCooldown, moveWarden } from '../engine/night.js';
 import { buyMetaUpgrade, META_UPGRADES } from '../engine/meta.js';
 import { STRUCTURES } from '../engine/structures.js';
 
@@ -71,7 +71,7 @@ function drawTown(ctx, state, selectedCard, animTime, inspectedId) {
 
   // The rim the dark waits behind. By day it thickens with tonight's
   // count — the telegraph: night is triage, never ambush.
-  const tonight = getShadeCount(round.day);
+  const tonight = getNightForecast(round).count;
   const rimAlpha = night ? 0.5 : Math.min(0.55, 0.18 + tonight * 0.03);
   ctx.strokeStyle = night ? 'rgba(150, 90, 170, 0.5)' : `rgba(150, 90, 170, ${rimAlpha})`;
   ctx.setLineDash([4, 6]);
@@ -356,11 +356,17 @@ export function App() {
           <span className={`phase ${round.phase}`}>
             {fallen ? 'Fallen' : isDay ? `Day ${round.day} — ${Math.ceil(dayRemaining)}s` : `Night ${round.day}`}
           </span>
-          {!fallen && isDay && (
-            <span className="forecast" title="Shades due at dusk">
-              Tonight: {getShadeCount(round.day)} shade{getShadeCount(round.day) === 1 ? '' : 's'}
-            </span>
-          )}
+          {!fallen && isDay && (() => {
+            const forecast = getNightForecast(round);
+            const omenName = forecast.omen === 'hungry' ? 'Hungry Night — ' : forecast.omen === 'still' ? 'Still Night — ' : '';
+            return (
+              <span className={`forecast${forecast.omen ? ' omen' : ''}`} title="Shades due at dusk">
+                {forecast.omen === 'still'
+                  ? 'Still Night — the dark holds its breath'
+                  : `${omenName}tonight: ${forecast.count} shade${forecast.count === 1 ? '' : 's'}`}
+              </span>
+            );
+          })()}
         </div>
         <div className="stats">
           <span>Glow <strong>{Math.floor(round.glow)}</strong> (+{getGlowRate(state).toFixed(1)}/s)</span>
