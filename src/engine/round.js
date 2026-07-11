@@ -168,12 +168,17 @@ export function countStructures(round, predicate = () => true) {
 export function getEmberBreakdown(round, meta = {}) {
   const nights = round.day - 1;
   const alive = countStructures(round);
-  const shrines = countStructures(round, slot => slot.structure.type === 'shrine');
   const kilns = countStructures(round, slot => slot.structure.type === 'emberKiln');
+  // A shrine remembers its neighbors: +1 Ember, +1 per neighbor still
+  // standing at the fall — economy that placement earns.
+  const shrineEmbers = round.slots
+    .filter(slot => slot.structure?.type === 'shrine')
+    .reduce((total, slot) => total + 1 +
+      getAdjacentSlots(round.slots, slot.id).filter(neighbor => neighbor.structure).length, 0);
   const parts = {
     nights,
     standing: Math.floor(alive / 2),
-    shrines: shrines * 2,
+    shrines: shrineEmbers,
     kiln: kilns * Math.min(3, Math.floor(round.glow / 20)),
     choir: meta.emberChoir ? Math.floor(nights / 2) : 0,
     emberheart: meta.emberheart ? Math.max(0, nights - 4) : 0,

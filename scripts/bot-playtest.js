@@ -104,6 +104,12 @@ function chooseSlot(state, structureId, style, rng) {
       return shieldValue(candidate) > shieldValue(best) ? candidate : best;
     }, pool[0]);
   }
+  if (structureId === 'shrine') {
+    return pool.reduce((best, candidate) => {
+      const company = slot => getAdjacentSlots(round.slots, slot.id).filter(neighbor => neighbor.structure).length;
+      return company(candidate) > company(best) ? candidate : best;
+    }, pool[0]);
+  }
   // Economy prefers covered frontier ground: richer soil behind a wall.
   if (!STRUCTURES[structureId].defensive) {
     const frontier = empty.find(candidate => candidate.ring > 0 &&

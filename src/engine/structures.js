@@ -85,11 +85,11 @@ export const STRUCTURES = {
   shrine: {
     id: 'shrine',
     name: 'Shrine',
-    cost: 14,
+    cost: 12,
     hp: 1,
     weight: 1,
     defensive: false,
-    description: '+2 Embers at the fall if it still stands.',
+    description: 'At the fall: +1 Ember, +1 more per neighbor still standing.',
   },
 };
 
