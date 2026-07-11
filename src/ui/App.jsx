@@ -296,8 +296,18 @@ export function App() {
         <div className="records">
           <span>Embers: <strong>{state.embers}</strong></span>
           <span>Best: <strong>{state.bestNights} nights</strong></span>
-          <span>Rounds: <strong>{state.totalRounds}</strong></span>
+          <span>Vigils: <strong>{state.totalRounds}</strong></span>
         </div>
+        {state.lifetime?.nights > 0 && (
+          <details className="ledger">
+            <summary>The Keeper's Ledger</summary>
+            <div><span>Nights withstood</span><strong>{state.lifetime.nights}</strong></div>
+            <div><span>Embers gathered</span><strong>{state.lifetime.embers}</strong></div>
+            <div><span>Shades banished by hand</span><strong>{state.lifetime.banished}</strong></div>
+            <div><span>Bolts loosed from towers</span><strong>{state.lifetime.towerKills}</strong></div>
+            <div><span>Buildings taken by the dark</span><strong>{state.lifetime.structuresLost}</strong></div>
+          </details>
+        )}
         {[
           { title: 'Start faster', ids: ['morningStockpile', 'stoneFoundations', 'deeperDrafts'] },
           { title: 'Go longer', ids: ['swiftWarden', 'heartstone', 'secondWarden'] },

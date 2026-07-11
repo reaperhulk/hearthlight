@@ -3,6 +3,7 @@
 import { createSlots, getAdjacentSlots } from './map.js';
 import { STRUCTURES, STRUCTURE_IDS } from './structures.js';
 import { getDraftSize, getHeartMax, getUnlockedRings, getWardenCount } from './meta.js';
+import { STRUCTURE_HIT } from './night.js';
 
 export const DAY_LENGTH = 15;
 export const START_GLOW = 12;
@@ -171,16 +172,26 @@ export function getEmbersEarned(round, meta = {}) {
   return getEmberBreakdown(round, meta).total;
 }
 
-// Bank a fallen round: Embers home, round cleared.
+// Bank a fallen round: Embers home, the Ledger updated, round cleared.
 export function collectEmbers(state) {
   const round = state.round;
   if (!round || round.phase !== 'fallen') return state;
   const earned = getEmbersEarned(round, state.meta);
+  const nightsStats = round.stats?.nights || [];
+  const sum = key => nightsStats.reduce((total, night) => total + (night[key] || 0), 0);
+  const lifetime = { nights: 0, embers: 0, banished: 0, towerKills: 0, structuresLost: 0, ...state.lifetime };
   return {
     ...state,
     embers: state.embers + earned,
     bestNights: Math.max(state.bestNights, round.day - 1),
     lastRound: { nights: round.day - 1, embers: earned },
+    lifetime: {
+      nights: lifetime.nights + (round.day - 1),
+      embers: lifetime.embers + earned,
+      banished: lifetime.banished + sum('banished'),
+      towerKills: lifetime.towerKills + sum('towerKills'),
+      structuresLost: lifetime.structuresLost + Math.round((round.stats?.heartLoss.falls || 0) / STRUCTURE_HIT),
+    },
     round: null,
   };
 }

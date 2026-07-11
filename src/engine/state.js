@@ -10,6 +10,8 @@ export function createInitialState() {
     bestNights: 0,
     totalRounds: 0,
     lastRound: null,   // { nights, embers } from the most recent fall
+    // The Keeper's Ledger: everything ever endured, across all vigils.
+    lifetime: { nights: 0, embers: 0, banished: 0, towerKills: 0, structuresLost: 0 },
     round: null,
   };
 }
@@ -24,8 +26,12 @@ export function migrateState(saved) {
     ...fresh,
     ...saved,
     meta: { ...(saved.meta || {}) },
+    lifetime: { ...fresh.lifetime, ...(saved.lifetime || {}) },
     saveVersion: SAVE_VERSION,
   };
+  for (const key of Object.keys(fresh.lifetime)) {
+    if (!Number.isFinite(migrated.lifetime[key]) || migrated.lifetime[key] < 0) migrated.lifetime[key] = 0;
+  }
   if (!Number.isFinite(migrated.embers) || migrated.embers < 0) migrated.embers = 0;
   if (!Number.isFinite(migrated.bestNights) || migrated.bestNights < 0) migrated.bestNights = 0;
   if (!Number.isFinite(migrated.totalRounds) || migrated.totalRounds < 0) migrated.totalRounds = 0;

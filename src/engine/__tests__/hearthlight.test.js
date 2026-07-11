@@ -354,6 +354,38 @@ describe('hearthlight', () => {
     expect(state.round.slots[0].structure.hp).toBe(4);
   });
 
+  it('the ledger accumulates across vigils and survives old saves', () => {
+    // A fallen round with telemetry banks into the lifetime ledger.
+    let state = startedRound();
+    state = {
+      ...state,
+      round: {
+        ...state.round,
+        day: 4,
+        phase: 'fallen',
+        heart: 0,
+        slots: state.round.slots,
+        stats: {
+          heartLoss: { falls: STRUCTURE_HIT * 2, heartHits: 0, vents: 0 },
+          nights: [
+            { night: 1, spawned: 1, banished: 1, towerKills: 0, fed: 0, heartLost: 0, minHeart: 80, slowed: 0 },
+            { night: 2, spawned: 2, banished: 1, towerKills: 2, fed: 2, heartLost: 36, minHeart: 44, slowed: 0 },
+          ],
+        },
+      },
+    };
+    const banked = collectEmbers(state);
+    expect(banked.lifetime.nights).toBe(3);
+    expect(banked.lifetime.banished).toBe(2);
+    expect(banked.lifetime.towerKills).toBe(2);
+    expect(banked.lifetime.structuresLost).toBe(2);
+    expect(banked.lifetime.embers).toBe(banked.lastRound.embers);
+
+    // An old save without a ledger gets a zeroed one, not a crash.
+    const migrated = migrateState({ embers: 5, bestNights: 3, totalRounds: 2 });
+    expect(migrated.lifetime).toEqual({ nights: 0, embers: 0, banished: 0, towerKills: 0, structuresLost: 0 });
+  });
+
   it('milestone upgrades are sealed until the vigil is proven', () => {
     // Rich but unproven: the seal holds.
     let state = { ...createInitialState(), embers: 60, bestNights: 5 };

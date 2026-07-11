@@ -191,3 +191,8 @@ button:focus-visible, canvas:focus-visible {
   .begin, .heart-fill .wick { animation: none; }
   .heart-fill, .chip.phase .day-fill, .heart-bar div { transition: none; }
 }
+
+.ledger { margin: 6px 0 10px; font-size: 0.78em; }
+.ledger summary { color: #8793a2; cursor: pointer; letter-spacing: 0.06em; }
+.ledger div { display: flex; justify-content: space-between; max-width: 300px; color: #5f6b7d; padding: 2px 0 0 14px; }
+.ledger strong { color: #c99ae0; }
