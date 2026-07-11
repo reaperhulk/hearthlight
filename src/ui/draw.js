@@ -601,6 +601,33 @@ export function drawEffects(ctx, effects, animTime) {
       ctx.beginPath();
       ctx.arc(CANVAS / 2, CANVAS / 2, 16 + age * 60, 0, Math.PI * 2);
       ctx.stroke();
+    } else if (effect.type === 'sweep' && age < 0.9) {
+      // Dusk rolls out from the Heart; dawn washes back in.
+      const alpha = 0.5 * (1 - age / 0.9);
+      ctx.strokeStyle = `${effect.color}${alpha})`;
+      ctx.lineWidth = 14 * (1 - age / 0.9) + 2;
+      ctx.beginPath();
+      ctx.arc(CANVAS / 2, CANVAS / 2, 10 + (age / 0.9) * CANVAS * 0.52, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (effect.type === 'banner' && age < 2.6) {
+      // A title card for the night: fades in, holds, fades out.
+      const fadeIn = Math.min(1, age / 0.35);
+      const fadeOut = Math.max(0, 1 - Math.max(0, age - 2.0) / 0.6);
+      const alpha = fadeIn * fadeOut;
+      ctx.font = 'bold 19px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.save();
+      ctx.shadowColor = effect.color ? `${effect.color}0.9)` : 'rgba(255, 208, 130, 0.9)';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = `rgba(240, 240, 250, ${alpha})`;
+      ctx.fillText(effect.text, CANVAS / 2, 56 - (1 - fadeIn) * 8);
+      ctx.restore();
+      if (effect.subtext) {
+        ctx.font = '12px "Courier New", monospace';
+        ctx.fillStyle = `rgba(190, 196, 212, ${alpha * 0.9})`;
+        ctx.fillText(effect.subtext, CANVAS / 2, 78);
+      }
     }
   }
 }

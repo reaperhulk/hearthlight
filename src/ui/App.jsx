@@ -105,8 +105,33 @@ export function App() {
     prevRoundRef.current = round;
     if (!prev || !round) return;
     const now = performance.now() / 1000;
-    if (prev.phase === 'day' && round.phase === 'night') sfx.dusk();
-    if (round.day > prev.day) sfx.dawn();
+    if (prev.phase === 'day' && round.phase === 'night') {
+      sfx.dusk();
+      const entry = round.stats?.nights.at(-1);
+      const omen = entry?.omen === 'hungry' ? 'A Hungry Night' : entry?.omen === 'still' ? 'A Still Night' : null;
+      effectsRef.current.push({ type: 'sweep', color: 'rgba(150, 90, 170, ', start: now });
+      effectsRef.current.push({
+        type: 'banner',
+        text: `Night ${round.day}`,
+        subtext: omen ?? (entry?.spawned ? `${entry.spawned} shade${entry.spawned === 1 ? '' : 's'} come` : 'the dark holds its breath'),
+        color: 'rgba(176, 106, 208, ',
+        start: now,
+      });
+    }
+    if (round.day > prev.day) {
+      sfx.dawn();
+      const omen = round.omen?.night === round.day
+        ? (round.omen.type === 'hungry' ? 'omen: a Hungry Night comes' : 'omen: a Still Night comes')
+        : null;
+      effectsRef.current.push({ type: 'sweep', color: 'rgba(255, 208, 130, ', start: now });
+      effectsRef.current.push({
+        type: 'banner',
+        text: `Day ${round.day}`,
+        subtext: omen ?? `night ${prev.day} survived`,
+        color: 'rgba(255, 208, 130, ',
+        start: now,
+      });
+    }
     // Bites and falls flash where they land, the moment they land.
     for (const slot of round.slots) {
       const before = prev.slots.find(candidate => candidate.id === slot.id)?.structure;
@@ -162,7 +187,7 @@ export function App() {
       const animTime = performance.now() / 1000;
       if (stateRef.current.round) {
         drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current, visualsRef.current, hoverRef.current);
-        effectsRef.current = effectsRef.current.filter(effect => animTime - effect.start < 1);
+        effectsRef.current = effectsRef.current.filter(effect => animTime - effect.start < 3);
         drawEffects(ctx, effectsRef.current, animTime);
       }
       raf = requestAnimationFrame(draw);
