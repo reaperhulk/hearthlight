@@ -54,6 +54,7 @@ export function beginRound(state, rng = Math.random) {
     })),
     towerCharges: {},
     nextShadeId: 1,
+    stats: { heartLoss: { falls: 0, heartHits: 0, vents: 0 }, nights: [] },
     log: [{ day: 1, message: 'The Heart is lit. The dark is patient.' }],
   };
   roundState.draft = drawDraft(state, rng);
@@ -64,24 +65,30 @@ export function getStructureHp(state, structureId) {
   return STRUCTURES[structureId].hp + (state.meta.stoneFoundations ? 1 : 0);
 }
 
-// Glow production per second, including well adjacency and levels.
-export function getGlowRate(state) {
+// Glow production per second, split so adjacency's real contribution is
+// measurable (depth telemetry: is spatial placement earning its keep?).
+export function getGlowBreakdown(state) {
   const round = state.round;
-  if (!round) return 0;
-  let rate = 1; // the Heart's own trickle
+  if (!round) return { total: 0, adjacency: 0 };
+  let base = 1; // the Heart's own trickle
+  let adjacency = 0;
   for (const slot of round.slots) {
     if (!slot.structure) continue;
     const def = STRUCTURES[slot.structure.type];
     const levelMult = slot.structure.level >= 2 ? 1.5 : 1;
-    rate += (def.glowPerSecond || 0) * levelMult;
+    base += (def.glowPerSecond || 0) * levelMult;
     if (def.adjacencyBonus) {
       for (const neighbor of getAdjacentSlots(round.slots, slot.id)) {
         const bonus = neighbor.structure && def.adjacencyBonus[neighbor.structure.type];
-        if (bonus) rate += bonus * levelMult;
+        if (bonus) adjacency += bonus * levelMult;
       }
     }
   }
-  return rate;
+  return { total: base + adjacency, adjacency };
+}
+
+export function getGlowRate(state) {
+  return getGlowBreakdown(state).total;
 }
 
 // The one day decision: place a drafted structure on an empty slot.

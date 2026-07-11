@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowRate, placeStructure, HEART_MAX } from '../round.js';
+import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, placeStructure, HEART_MAX } from '../round.js';
 import { getShadeCount, moveWarden, SHADE_FEED_TIME, SHADE_HOLD_TIME, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
@@ -248,5 +248,29 @@ describe('hearthlight', () => {
 
     const fallen = { day: 7, glow: 0, slots: [] };
     expect(getEmbersEarned(fallen, state.meta)).toBe(6 + 3); // 6 nights + choir floor(6/2)
+  });
+
+  it('records round telemetry: attribution, per-night stats, glow breakdown', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['farm', 'well', 'palisade'], glow: 50 } };
+    state = placeStructure(state, 'farm', 'r0s0');
+    state = { ...state, round: { ...state.round, placedToday: false, draft: ['well'] } };
+    state = placeStructure(state, 'well', 'r0s1');
+
+    // Adjacency contribution is measurable
+    const breakdown = getGlowBreakdown(state);
+    expect(breakdown.adjacency).toBeCloseTo(0.4);
+    expect(breakdown.total).toBeGreaterThan(breakdown.adjacency);
+
+    // A night that eats the farm attributes the loss
+    state = endDay(state, makeRng([0.01, 0.5, 0.5]));
+    expect(state.round.stats.nights).toHaveLength(1);
+    expect(state.round.stats.nights[0].spawned).toBe(1);
+    state = runSeconds(state, 25, makeRng());
+    const stats = state.round.stats;
+    expect(stats.heartLoss.falls + stats.heartLoss.heartHits + stats.heartLoss.vents).toBeGreaterThan(0);
+    const night = stats.nights[0];
+    expect(night.fed + night.banished + night.towerKills).toBeGreaterThan(0);
+    expect(night.minHeart).toBeLessThanOrEqual(HEART_MAX);
   });
 });

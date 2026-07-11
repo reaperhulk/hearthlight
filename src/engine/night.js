@@ -76,6 +76,10 @@ export function spawnShades(state, rng) {
     if (slot.structure?.type === 'watchtower') towerCharges[slot.id] = 1;
   }
 
+  const slowedCount = shades.filter(shade =>
+    shade.targetSlotId && lanternSlow(round, shade.targetSlotId) > 1).length;
+  const stats = round.stats || { heartLoss: { falls: 0, heartHits: 0, vents: 0 }, nights: [] };
+
   return {
     ...state,
     round: {
@@ -86,6 +90,19 @@ export function spawnShades(state, rng) {
       nextShadeId: nextId,
       towerCharges,
       placedToday: false,
+      stats: {
+        ...stats,
+        nights: [...stats.nights, {
+          night: round.day,
+          spawned: shades.length,
+          slowed: slowedCount,
+          banished: 0,
+          towerKills: 0,
+          fed: 0,
+          heartLost: 0,
+          minHeart: round.heart,
+        }],
+      },
     },
   };
 }
@@ -124,6 +141,9 @@ export function advanceNightSlice(state, round) {
   let towerCharges = { ...round.towerCharges };
   const shades = [];
   const log = [];
+  const stats = round.stats || { heartLoss: { falls: 0, heartHits: 0, vents: 0 }, nights: [] };
+  const heartLoss = { ...stats.heartLoss };
+  const nightEntry = { ...(stats.nights[stats.nights.length - 1] || { night: round.day, spawned: 0, slowed: 0, banished: 0, towerKills: 0, fed: 0, heartLost: 0, minHeart: heart }) };
 
   const slotById = id => slots.find(slot => slot.id === id);
 
@@ -135,11 +155,15 @@ export function advanceNightSlice(state, round) {
       if (current.targetSlotId && (!target || !target.structure)) {
         // The prize is already gone — the shade vents at the Heart.
         heart -= EMPTY_ARRIVAL_HIT;
+        heartLoss.vents += EMPTY_ARRIVAL_HIT;
+        nightEntry.heartLost += EMPTY_ARRIVAL_HIT;
         log.push('A shade finds only ash and howls at the Heart.');
         continue;
       }
       if (!current.targetSlotId) {
         heart -= HEART_HIT;
+        heartLoss.heartHits += HEART_HIT;
+        nightEntry.heartLost += HEART_HIT;
         log.push('A shade reaches the Heart. The light gutters.');
         continue;
       }
@@ -148,6 +172,7 @@ export function advanceNightSlice(state, round) {
         .find(neighbor => neighbor.structure?.type === 'watchtower' && towerCharges[neighbor.id] > 0);
       if (towerSlot) {
         towerCharges = { ...towerCharges, [towerSlot.id]: towerCharges[towerSlot.id] - 1 };
+        nightEntry.towerKills += 1;
         log.push('The watchtower burns a shade out of the dark.');
         continue;
       }
@@ -160,6 +185,7 @@ export function advanceNightSlice(state, round) {
       if (!guarded.has(current.targetSlotId)) {
         current = { ...current, phase: 'feeding', heldSince: null, feedsAt: now + SHADE_FEED_TIME };
       } else if (now - current.heldSince >= holdTime) {
+        nightEntry.banished += 1;
         log.push('The Warden holds the line. A shade is banished.');
         continue;
       }
@@ -174,9 +200,12 @@ export function advanceNightSlice(state, round) {
         if (structure) {
           const hp = structure.hp - 1;
           slots = [...slots];
+          nightEntry.fed += 1;
           if (hp <= 0) {
             slots[index] = { ...slots[index], structure: null };
             heart -= STRUCTURE_HIT;
+            heartLoss.falls += STRUCTURE_HIT;
+            nightEntry.heartLost += STRUCTURE_HIT;
             log.push(`The dark takes the ${STRUCTURES[structure.type].name}.`);
           } else {
             slots[index] = { ...slots[index], structure: { ...structure, hp } };
@@ -190,7 +219,15 @@ export function advanceNightSlice(state, round) {
     shades.push(current);
   }
 
-  return { ...round, heart, slots, towerCharges, shades, pendingLog: log };
+  nightEntry.minHeart = Math.min(nightEntry.minHeart, Math.max(0, heart));
+  const nights = stats.nights.length > 0
+    ? [...stats.nights.slice(0, -1), nightEntry]
+    : [nightEntry];
+  return {
+    ...round, heart, slots, towerCharges, shades,
+    stats: { heartLoss, nights },
+    pendingLog: log,
+  };
 }
 
 export function nightResolved(round) {
