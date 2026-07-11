@@ -60,6 +60,36 @@ function describeSlot(round, slot) {
   return { name: def.name, levelLine, rows };
 }
 
+// Transient hit feedback: bites, falls, and Heart strikes flash on the
+// map the moment the engine registers them.
+function drawEffects(ctx, effects, animTime) {
+  for (const effect of effects) {
+    const age = animTime - effect.start;
+    if (effect.type === 'bite' && age < 0.35) {
+      const alpha = 0.8 * (1 - age / 0.35);
+      ctx.strokeStyle = `rgba(224, 138, 90, ${alpha})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, 13 + age * 14, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (effect.type === 'fall' && age < 0.7) {
+      const alpha = 0.7 * (1 - age / 0.7);
+      ctx.strokeStyle = `rgba(224, 90, 90, ${alpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, 12 + age * 46, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (effect.type === 'heartFlash' && age < 0.5) {
+      const alpha = 0.6 * (1 - age / 0.5);
+      ctx.strokeStyle = `rgba(224, 90, 90, ${alpha})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(CANVAS / 2, CANVAS / 2, 16 + age * 60, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+}
+
 function drawTown(ctx, state, selectedCard, animTime, inspectedId) {
   const round = state.round;
   ctx.clearRect(0, 0, CANVAS, CANVAS);
@@ -143,9 +173,19 @@ function drawTown(ctx, state, selectedCard, animTime, inspectedId) {
     ctx.lineTo(headX, headY);
     ctx.stroke();
     ctx.setLineDash([]);
+    // Feeding shades visibly gnaw: they jitter against the structure and
+    // pulse — damage is never silent.
+    let radius = shade.phase === 'approach' ? 4 : 6;
+    let drawX = headX;
+    let drawY = headY;
+    if (shade.phase === 'feeding') {
+      drawX += Math.cos(animTime * 9 + shade.id * 2.7) * 2.5;
+      drawY += Math.sin(animTime * 11 + shade.id * 1.9) * 2.5;
+      radius = 6 + Math.sin(animTime * 8 + shade.id) * 1.5;
+    }
     ctx.fillStyle = shade.phase === 'held' ? '#e6c766' : '#b06ad0';
     ctx.beginPath();
-    ctx.arc(headX, headY, shade.phase === 'approach' ? 4 : 6, 0, Math.PI * 2);
+    ctx.arc(drawX, drawY, radius, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -243,25 +283,38 @@ export function App() {
     window.localStorage.setItem('hearthlight-sound', sound ? 'on' : 'off');
   }, [sound]);
 
-  // Sound: diff the engine's telemetry between renders — the engine stays
-  // pure; the UI listens to what changed.
+  // Sound and hit feedback: diff the engine's telemetry between renders —
+  // the engine stays pure; the UI voices and flashes what changed.
   const prevRoundRef = useRef(null);
+  const effectsRef = useRef([]);
   useEffect(() => {
     const prev = prevRoundRef.current;
     const round = state.round;
     prevRoundRef.current = round;
     if (!prev || !round) return;
+    const now = performance.now() / 1000;
     if (prev.phase === 'day' && round.phase === 'night') sfx.dusk();
     if (round.day > prev.day) sfx.dawn();
-    if (prev.phase !== 'fallen' && round.phase === 'fallen') { sfx.toll(); return; }
-    const built = slots => slots.filter(slot => slot.structure).length;
-    if (built(round.slots) > built(prev.slots) && round.phase === 'day') sfx.place();
+    // Bites and falls flash where they land, the moment they land.
+    for (const slot of round.slots) {
+      const before = prev.slots.find(candidate => candidate.id === slot.id)?.structure;
+      if (!before) continue;
+      const { x, y } = slotPixel(slot);
+      if (!slot.structure) effectsRef.current.push({ type: 'fall', x, y, start: now });
+      else if (slot.structure.hp < before.hp) effectsRef.current.push({ type: 'bite', x, y, start: now });
+    }
     const prevLoss = prev.stats?.heartLoss;
     const loss = round.stats?.heartLoss;
     if (prevLoss && loss) {
       if (loss.falls > prevLoss.falls) sfx.fall();
       else if (loss.heartHits > prevLoss.heartHits || loss.vents > prevLoss.vents) sfx.heartHit();
+      if (loss.heartHits > prevLoss.heartHits || loss.vents > prevLoss.vents) {
+        effectsRef.current.push({ type: 'heartFlash', start: now });
+      }
     }
+    if (prev.phase !== 'fallen' && round.phase === 'fallen') { sfx.toll(); return; }
+    const built = slots => slots.filter(slot => slot.structure).length;
+    if (built(round.slots) > built(prev.slots) && round.phase === 'day') sfx.place();
     const nightSum = (stats, key) => (stats?.nights || []).reduce((sum, night) => sum + night[key], 0);
     if (nightSum(round.stats, 'banished') > nightSum(prev.stats, 'banished')) sfx.banish();
     if (nightSum(round.stats, 'towerKills') > nightSum(prev.stats, 'towerKills')) sfx.tower();
@@ -294,7 +347,12 @@ export function App() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     let raf = null;
     const draw = () => {
-      if (stateRef.current.round) drawTown(ctx, stateRef.current, selectedRef.current, performance.now() / 1000, inspectedRef.current);
+      const animTime = performance.now() / 1000;
+      if (stateRef.current.round) {
+        drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current);
+        effectsRef.current = effectsRef.current.filter(effect => animTime - effect.start < 1);
+        drawEffects(ctx, effectsRef.current, animTime);
+      }
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
