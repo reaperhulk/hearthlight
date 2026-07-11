@@ -100,6 +100,44 @@ describe('hearthlight', () => {
     expect(state.round.heart).toBe(HEART_MAX);
   });
 
+  it('a warden grapples one shade at a time — no immortal bunker', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['palisade'], glow: 20 } };
+    state = placeStructure(state, 'palisade', 'r0s2');
+    const start = state.round.time;
+    state = {
+      ...state,
+      round: {
+        ...state.round,
+        phase: 'night',
+        phaseStart: start,
+        placedToday: false,
+        towerCharges: {},
+        shades: [1, 2].map(id => ({
+          id,
+          targetSlotId: 'r0s2',
+          spawnAngle: 0,
+          spawnedAt: start,
+          arrivesAt: start + 1,
+          phase: 'approach',
+          heldSince: null,
+          feedsAt: null,
+        })),
+      },
+    };
+    state = moveWarden(state, 1, 'r0s2');
+    expect(state).toBeTruthy();
+    state = runSeconds(state, 3, makeRng());
+    // Both shades are at the guarded slot, but only one is being held.
+    const phases = state.round.shades.map(shade => shade.phase).sort();
+    expect(phases).toEqual(['feeding', 'held']);
+    // The warden works through them serially; the palisade outlasts both.
+    state = runSeconds(state, 12, makeRng());
+    expect(state.round.shades).toHaveLength(0);
+    expect(state.round.slots[2].structure).toBeTruthy();
+    expect(state.round.stats.nights.at(-1).banished).toBe(2);
+  });
+
   it('feeds on unguarded structures and drains the Heart when nothing stands', () => {
     let state = startedRound();
     state = { ...state, round: { ...state.round, draft: ['farm'], glow: 20 } };

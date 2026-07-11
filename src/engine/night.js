@@ -73,7 +73,9 @@ export function spawnShades(state, rng) {
 
   const towerCharges = {};
   for (const slot of round.slots) {
-    if (slot.structure?.type === 'watchtower') towerCharges[slot.id] = 1;
+    if (slot.structure?.type === 'watchtower') {
+      towerCharges[slot.id] = STRUCTURES.watchtower.nightCharges;
+    }
   }
 
   const slowedCount = shades.filter(shade =>
@@ -147,6 +149,17 @@ export function advanceNightSlice(state, round) {
 
   const slotById = id => slots.find(slot => slot.id === id);
 
+  // A warden grapples ONE shade at a time; the rest feed. Without this,
+  // funneling every shade into a single guarded slot is an immortal bunker.
+  const holderBySlot = new Map();
+  for (const shade of round.shades) {
+    if (shade.phase === 'held' && guarded.has(shade.targetSlotId) && !holderBySlot.has(shade.targetSlotId)) {
+      holderBySlot.set(shade.targetSlotId, shade.id);
+    }
+  }
+  const canHold = shade => guarded.has(shade.targetSlotId) &&
+    (holderBySlot.get(shade.targetSlotId) ?? shade.id) === shade.id;
+
   for (const shade of round.shades) {
     let current = shade;
 
@@ -176,15 +189,19 @@ export function advanceNightSlice(state, round) {
         log.push('The watchtower burns a shade out of the dark.');
         continue;
       }
-      current = guarded.has(current.targetSlotId)
-        ? { ...current, phase: 'held', heldSince: current.arrivesAt }
-        : { ...current, phase: 'feeding', feedsAt: current.arrivesAt + SHADE_FEED_TIME };
+      if (canHold(current)) {
+        holderBySlot.set(current.targetSlotId, current.id);
+        current = { ...current, phase: 'held', heldSince: current.arrivesAt };
+      } else {
+        current = { ...current, phase: 'feeding', feedsAt: current.arrivesAt + SHADE_FEED_TIME };
+      }
     }
 
     if (current.phase === 'held') {
-      if (!guarded.has(current.targetSlotId)) {
+      if (!canHold(current)) {
         current = { ...current, phase: 'feeding', heldSince: null, feedsAt: now + SHADE_FEED_TIME };
       } else if (now - current.heldSince >= holdTime) {
+        holderBySlot.delete(current.targetSlotId);
         nightEntry.banished += 1;
         log.push('The Warden holds the line. A shade is banished.');
         continue;
@@ -192,7 +209,8 @@ export function advanceNightSlice(state, round) {
     }
 
     if (current.phase === 'feeding') {
-      if (guarded.has(current.targetSlotId)) {
+      if (canHold(current)) {
+        holderBySlot.set(current.targetSlotId, current.id);
         current = { ...current, phase: 'held', heldSince: now, feedsAt: null };
       } else if (now >= current.feedsAt) {
         const index = slots.findIndex(slot => slot.id === current.targetSlotId);

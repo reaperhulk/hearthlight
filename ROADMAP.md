@@ -19,6 +19,19 @@ commit pushed to main. Update checkboxes as work lands.
       Bell Tower: slows the whole night's approach; Ember Kiln: converts
       held Glow to Embers at the fall) and +2 meta upgrades (Heartstone:
       +25 Heart; Ember Choir: +1 Ember per 2 nights at the fall). Re-measure.
+- [x] **Harness visibility** — engine telemetry (per-night stats, heart-loss
+      attribution, glow breakdown); villager profile (median human) asserts
+      the 45-150s first-play band directly; ablation profiles (randomPlace /
+      economyGreedy / defenseGreedy / bunker) assert placement is a real
+      choice; per-upgrade marginal value panel catches meta traps; pick-rate
+      collector catches dead cards; tension + banish-rate fun metrics.
+- [x] **Single-hold warden rule** — the depth panels caught an immortal
+      bunker: one warden could hold unlimited shades at a guarded slot, so a
+      two-structure turtle never fell. A warden now grapples ONE shade at a
+      time (the rest feed); watchtowers compensate with two intercepts per
+      night, which also makes tower placement (coverage) the key skill lever.
+      Guards: a unit test plus a permanent `bunker` harness profile that must
+      always fall and never beat building.
 
 ## Next
 
@@ -45,8 +58,19 @@ commit pushed to main. Update checkboxes as work lands.
 
 ## Measured state (5-seed means)
 
-- Round 1: passive 2.0 nights, builder 4.2, keeper 6.2 / 156s. The optimal
-  bot is the ceiling — a first-time human dies around night 3-4, landing
-  first-play lifetime in the target 1-2 minutes.
-- Keeper meta arc: 6.2 -> 8.6 nights (156s -> 196s real time).
-- 9 structures, 8 meta upgrades; 16 unit tests; CI green.
+- Round 1: passive 2.0 nights, villager (median human) 4.8n / 137s — inside
+  the 1-2 minute first-play band — builder 4.0, keeper 6.0n / 155s.
+- Keeper meta arc: 6.0 -> 10.2 nights (155s -> 221s real time).
+- Depth: keeper 6.0n vs randomPlace 5.0 / economyGreedy 4.8 / defenseGreedy
+  6.0 / bunker 5.8. Placement spread is exactly the 1.0n floor and bunker is
+  only 0.2n behind keeper — both are watch items; widen with more
+  adjacency/coverage play, not warden buffs.
+- Fun: 81% of heart loss lands in the final third (strong crescendo); all
+  deaths via structure falls (heart hits and vents never kill — a lever to
+  vary); ~1.7 banishes/night; 2-3 leveled structures by arc end.
+- Meta marginal value (Δ nights vs bare keeper): stoneFoundations +2.0,
+  secondWarden +1.4, heartstone +0.8; morningStockpile/deeperDrafts/
+  outerRing/emberChoir ≈ 0 on round 1 (arc/economy value only — recheck
+  when measuring arcs per-upgrade).
+- 9 structures, 8 meta upgrades; 18 unit tests; CI runs the five fixed
+  seeds deterministically (`--ci`), local runs add a random lane.

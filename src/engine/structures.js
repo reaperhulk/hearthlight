@@ -38,9 +38,10 @@ export const STRUCTURES = {
     name: 'Watchtower',
     cost: 16,
     hp: 1,
+    nightCharges: 2,
     weight: 2,
     defensive: true,
-    description: 'Banishes the first shade to reach a neighbor each night.',
+    description: 'Banishes the first two shades to reach a neighbor each night.',
   },
   palisade: {
     id: 'palisade',
