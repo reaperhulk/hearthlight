@@ -19,7 +19,10 @@ h1 { color: #ffd082; font-size: 1.4em; letter-spacing: 0.06em; }
 .lore { margin: 8px 0; color: #8793a2; font-style: italic; font-size: 0.85em; }
 .last-round { margin: 8px 0; color: #c99ae0; font-size: 0.85em; }
 
-.records { display: flex; gap: 14px; margin: 10px 0; font-size: 0.85em; color: #8793a2; }
+.records { display: flex; gap: 8px; margin: 12px 0; font-size: 0.8em; color: #8793a2; flex-wrap: wrap; }
+.records span {
+  padding: 3px 10px; border: 1px solid #2c3140; border-radius: 20px; background: #10131d;
+}
 .records strong { color: #ffd082; }
 
 .shop { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 12px 0; }
@@ -36,11 +39,20 @@ h1 { color: #ffd082; font-size: 1.4em; letter-spacing: 0.06em; }
 .shop button span { color: #8793a2; line-height: 1.3; }
 
 .begin {
-  width: 100%; padding: 12px; margin-top: 6px;
-  background: #2a2416; border: 1px solid #ffd082; border-radius: 6px;
+  width: 100%; padding: 13px; margin-top: 10px;
+  background: linear-gradient(180deg, #33290f, #241d0c); border: 1px solid #ffd082; border-radius: 8px;
   color: #ffd082; font-family: inherit; font-size: 1em; cursor: pointer;
+  letter-spacing: 0.06em; box-shadow: 0 0 16px rgba(255, 208, 130, 0.12);
+  animation: beckon 2.6s ease-in-out infinite;
 }
-.begin:hover { background: #3a3220; }
+.begin:hover { background: linear-gradient(180deg, #40331a, #2d2410); }
+@keyframes beckon { 50% { box-shadow: 0 0 22px rgba(255, 208, 130, 0.28); } }
+h1 { text-shadow: 0 0 18px rgba(255, 208, 130, 0.35); }
+.shop-tier h3 {
+  margin: 12px 0 5px; font-size: 0.72em; color: #5f6b7d;
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
+.shop-tier .shop { margin: 0; }
 
 .game header { display: grid; gap: 6px; }
 .title-row { display: flex; justify-content: space-between; align-items: center; }

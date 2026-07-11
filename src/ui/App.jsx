@@ -278,23 +278,33 @@ export function App() {
           <span>Best: <strong>{state.bestNights} nights</strong></span>
           <span>Rounds: <strong>{state.totalRounds}</strong></span>
         </div>
-        <div className="shop">
-          {Object.values(META_UPGRADES).map(upgrade => {
-            const unlocked = metaUnlocked(state, upgrade.id);
-            return (
-              <button
-                key={upgrade.id}
-                className={state.meta[upgrade.id] ? 'owned' : !unlocked ? 'locked' : ''}
-                disabled={state.meta[upgrade.id] || !unlocked || state.embers < upgrade.cost}
-                onClick={() => setState(current => buyMetaUpgrade(current, upgrade.id) || current)}
-              >
-                <strong>{upgrade.name}</strong>
-                <span>{unlocked ? upgrade.description : `Sealed. Keep a vigil of ${upgrade.requiresBestNights} nights.`}</span>
-                <em>{state.meta[upgrade.id] ? 'Kept' : unlocked ? `${upgrade.cost} Embers` : `Best: ${state.bestNights} nights`}</em>
-              </button>
-            );
-          })}
-        </div>
+        {[
+          { title: 'Start faster', ids: ['morningStockpile', 'stoneFoundations', 'deeperDrafts'] },
+          { title: 'Go longer', ids: ['swiftWarden', 'heartstone', 'secondWarden'] },
+          { title: 'Wider and richer', ids: ['outerRing', 'emberChoir'] },
+          { title: 'Proven vigils', ids: ['beaconHeart', 'emberheart'] },
+        ].map(tier => (
+          <div key={tier.title} className="shop-tier">
+            <h3>{tier.title}</h3>
+            <div className="shop">
+              {tier.ids.map(id => META_UPGRADES[id]).filter(Boolean).map(upgrade => {
+                const unlocked = metaUnlocked(state, upgrade.id);
+                return (
+                  <button
+                    key={upgrade.id}
+                    className={state.meta[upgrade.id] ? 'owned' : !unlocked ? 'locked' : ''}
+                    disabled={state.meta[upgrade.id] || !unlocked || state.embers < upgrade.cost}
+                    onClick={() => setState(current => buyMetaUpgrade(current, upgrade.id) || current)}
+                  >
+                    <strong>{upgrade.name}</strong>
+                    <span>{unlocked ? upgrade.description : `Sealed. Keep a vigil of ${upgrade.requiresBestNights} nights.`}</span>
+                    <em>{state.meta[upgrade.id] ? '\u2713 Kept' : unlocked ? `${upgrade.cost} \u2726` : `Best: ${state.bestNights} nights`}</em>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
         <button className="begin" onClick={() => { unlockAudio(); setState(current => beginRound(current)); }}>
           Begin the Vigil
         </button>
