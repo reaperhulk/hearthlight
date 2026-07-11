@@ -1,7 +1,7 @@
 // All canvas rendering for the town map. Pure drawing — reads state, never
 // mutates it. The engine stays headless; this file is the game's face.
 import { HEART_MAX } from '../engine/round.js';
-import { getNightForecast, HEART_SLOT } from '../engine/night.js';
+import { getNightForecast, HEART_SLOT, SHADE_FEED_TIME } from '../engine/night.js';
 import { getAdjacentSlots, RINGS } from '../engine/map.js';
 import { STRUCTURES } from '../engine/structures.js';
 
@@ -364,6 +364,73 @@ function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
   }
 }
 
+// ── Threat telegraphy ───────────────────────────────────────────────────────
+// Every targeted position wears a countdown arc: purple shrinking while a
+// shade approaches, red growing while one feeds. Towers show their bolts.
+function drawThreats(ctx, round) {
+  if (round.phase !== 'night') {
+    // By day, towers preview their full quiver.
+    for (const slot of round.slots) {
+      if (slot.structure?.type === 'watchtower') {
+        drawTowerBolts(ctx, slot, STRUCTURES.watchtower.nightCharges + (slot.structure.level >= 3 ? 1 : 0));
+      }
+    }
+    return;
+  }
+  const soonest = new Map(); // targetKey -> shade with the nearest deadline
+  for (const shade of round.shades) {
+    const key = shade.targetSlotId ?? HEART_SLOT;
+    const deadline = shade.phase === 'approach' ? shade.arrivesAt : shade.phase === 'feeding' ? shade.feedsAt : null;
+    if (deadline == null) continue;
+    const current = soonest.get(key);
+    if (!current || deadline < (current.phase === 'approach' ? current.arrivesAt : current.feedsAt)) {
+      soonest.set(key, shade);
+    }
+  }
+  for (const [key, shade] of soonest) {
+    const slot = key === HEART_SLOT ? null : round.slots.find(candidate => candidate.id === key);
+    const { x, y } = slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
+    const radius = key === HEART_SLOT ? 24 : 17;
+    let fraction;
+    let color;
+    if (shade.phase === 'approach') {
+      const span = Math.max(0.001, shade.arrivesAt - shade.spawnedAt);
+      fraction = Math.max(0, Math.min(1, (shade.arrivesAt - round.time) / span));
+      color = 'rgba(176, 106, 208, 0.85)';
+    } else {
+      fraction = Math.max(0, Math.min(1, 1 - (shade.feedsAt - round.time) / SHADE_FEED_TIME));
+      color = 'rgba(224, 90, 90, 0.9)';
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, -Math.PI / 2, -Math.PI / 2 + fraction * Math.PI * 2);
+    ctx.stroke();
+  }
+  for (const slot of round.slots) {
+    if (slot.structure?.type === 'watchtower') {
+      drawTowerBolts(ctx, slot, round.towerCharges[slot.id] ?? 0);
+    }
+  }
+}
+
+// Remaining tower bolts as little gold diamonds beside the tower.
+function drawTowerBolts(ctx, slot, charges) {
+  const { x, y } = slotPixel(slot);
+  for (let bolt = 0; bolt < charges; bolt++) {
+    const bx = x - 11;
+    const by = y - 9 + bolt * 7;
+    ctx.fillStyle = '#ffd082';
+    ctx.beginPath();
+    ctx.moveTo(bx, by - 2.6);
+    ctx.lineTo(bx + 2, by);
+    ctx.lineTo(bx, by + 2.6);
+    ctx.lineTo(bx - 2, by);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
 // Which neighbors would a card placed here actually touch?
 function affectedNeighbors(round, slotId, cardType) {
   const neighbors = getAdjacentSlots(round.slots, slotId).filter(neighbor => neighbor.structure);
@@ -502,6 +569,7 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   drawHeart(ctx, round, animTime);
   drawShades(ctx, round, animTime);
   drawSlots(ctx, round, selectedCard, inspectedId, animTime);
+  drawThreats(ctx, round);
   drawInspectLinks(ctx, round, inspectedId, animTime);
   if (round.phase === 'day') drawPlacementPreview(ctx, round, selectedCard, hover, animTime);
   drawWardens(ctx, round, animTime, visuals);
