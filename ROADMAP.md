@@ -32,6 +32,12 @@ commit pushed to main. Update checkboxes as work lands.
       night, which also makes tower placement (coverage) the key skill lever.
       Guards: a unit test plus a permanent `bunker` harness profile that must
       always fall and never beat building.
+- [x] **Snapshot / compare / story** — `--json` emits a deterministic
+      metrics snapshot; `scripts/balance-baseline.json` is committed and
+      `npm run balance:compare` exits nonzero when any metric drifts past
+      tolerance (regenerate the baseline in the same commit as a deliberate
+      balance change); `npm run balance:story` narrates one keeper round
+      night by night for qualitative feel checks.
 
 ## Next
 

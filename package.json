@@ -11,6 +11,9 @@
     "test": "vitest",
     "test:unit": "vitest --run",
     "test:balance": "node scripts/bot-playtest.js --assert --ci",
+    "balance:story": "node scripts/bot-playtest.js --story",
+    "balance:baseline": "node scripts/bot-playtest.js --json > scripts/balance-baseline.json",
+    "balance:compare": "node scripts/bot-playtest.js --compare scripts/balance-baseline.json",
     "test:quality": "npm run lint && npm run test:unit && npm run test:balance && npm run build"
   },
   "dependencies": {

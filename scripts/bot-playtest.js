@@ -2,6 +2,11 @@
 // Hearthlight bot playtest: deterministic profiles play rounds; assertions
 // guard the loop's promises; depth panels measure whether choices matter.
 // Usage: node scripts/bot-playtest.js [--seed N] [--assert] [--quick] [--ci]
+//        --json                emit a machine-readable snapshot (fixed seeds only)
+//        --compare <file>      diff current numbers against a --json baseline;
+//                              exits nonzero when a metric drifts past tolerance
+//        --story               narrate one keeper round night by night
+import { readFileSync } from 'node:fs';
 import { createInitialState } from '../src/engine/state.js';
 import { beginRound, collectEmbers, placeStructure, getEmbersEarned, getGlowRate } from '../src/engine/round.js';
 import { STRUCTURES, STRUCTURE_IDS } from '../src/engine/structures.js';
@@ -119,6 +124,7 @@ function botDay(state, profile, t, rng, collector) {
         const placed = slot && placeStructure(state, card, slot.id);
         if (placed) {
           collector.picks[card] = (collector.picks[card] || 0) + 1;
+          collector.placements?.push({ day: round.day, card, slotId: slot.id });
           state = placed;
         }
       }
@@ -178,8 +184,9 @@ function playRound(state, profile, rng, collector = emptyCollector(), maxSeconds
   const fell = round?.phase === 'fallen';
   const stats = round?.stats || { heartLoss: { falls: 0, heartHits: 0, vents: 0 }, nights: [] };
   const leveled = round ? round.slots.filter(slot => slot.structure?.level >= 2).length : 0;
+  const log = round?.log || [];
   state = fell ? collectEmbers(state) : state;
-  return { state, nights, embers, seconds, fell, stats, leveled };
+  return { state, nights, embers, seconds, fell, stats, leveled, log };
 }
 
 function spendEmbers(state) {
@@ -212,18 +219,52 @@ const FIXED_SEEDS = [424242, 133742, 271828, 314159, 861861];
 // failure here means real-play variance is too wide. The seed is printed —
 // reproduce any failure exactly with --seed N.
 const randomSeed = Math.floor(Math.random() * 2147483647);
-const assertMode = process.argv.includes('--assert');
 const quick = process.argv.includes('--quick');
+const jsonMode = process.argv.includes('--json');
+const storyMode = process.argv.includes('--story');
+const compareIndex = process.argv.indexOf('--compare');
+const compareFile = compareIndex >= 0 ? process.argv[compareIndex + 1] : null;
+const assertMode = process.argv.includes('--assert') && !jsonMode;
 // --ci: the five fixed seeds only — fully deterministic for the gate. The
 // random lane is for local runs, where a failure prints its repro seed.
-const ciMode = process.argv.includes('--ci');
+// Snapshots and comparisons must be deterministic too.
+const ciMode = process.argv.includes('--ci') || jsonMode || Boolean(compareFile);
 const SEEDS = seedArg >= 0 ? [Number(process.argv[seedArg + 1])]
   : ciMode ? FIXED_SEEDS
   : [...FIXED_SEEDS, randomSeed];
 // Depth panels must compare against the same seeds the headline means use.
 const DEPTH_SEEDS = seedArg >= 0 ? SEEDS : FIXED_SEEDS;
+// In --json mode the snapshot is the only stdout.
+const say = (...args) => { if (!jsonMode) console.log(...args); };
 
-console.log(`Hearthlight playtest | fixed seeds ${FIXED_SEEDS.join(', ')}${seedArg >= 0 ? ` (overridden: ${SEEDS[0]})` : ciMode ? ' | ci' : ` | random seed ${randomSeed}`}\n`);
+// ── Story mode: narrate one keeper round, then exit ─────────────────────────
+if (storyMode) {
+  const seed = seedArg >= 0 ? SEEDS[0] : FIXED_SEEDS[0];
+  const storyCollector = { picks: {}, placements: [] };
+  const outcome = playRound(createInitialState(), 'keeper', mulberry32(seed), storyCollector);
+  console.log(`Story | seed ${seed} | keeper\n`);
+  for (const night of outcome.stats.nights) {
+    const placed = storyCollector.placements.filter(entry => entry.day === night.night);
+    for (const entry of placed) console.log(`  Day ${entry.day}: placed ${STRUCTURES[entry.card].name} at ${entry.slotId}`);
+    const parts = [`${night.spawned} shade${night.spawned === 1 ? '' : 's'}`];
+    if (night.slowed) parts.push(`${night.slowed} slowed by lanterns`);
+    if (night.towerKills) parts.push(`${night.towerKills} burned by towers`);
+    if (night.banished) parts.push(`${night.banished} banished`);
+    if (night.fed) parts.push(`${night.fed} fed`);
+    parts.push(night.heartLost ? `-${night.heartLost} heart (min ${night.minHeart})` : 'no heart lost');
+    console.log(`  Night ${night.night}: ${parts.join(', ')}`);
+  }
+  console.log(outcome.fell
+    ? `\n  The town falls during night ${outcome.nights + 1} — ${outcome.nights} nights survived, ${outcome.embers} embers, ${outcome.seconds}s real time.`
+    : `\n  Still standing after ${outcome.nights} nights — ${outcome.embers} embers, ${outcome.seconds}s real time.`);
+  console.log(`\n  Log tail:`);
+  for (const entry of outcome.log.slice(-12)) {
+    console.log(`    [d${entry.day}] ${entry.message}`);
+  }
+  process.exit(0);
+}
+
+say(`Hearthlight playtest | fixed seeds ${FIXED_SEEDS.join(', ')}${seedArg >= 0 ? ` (overridden: ${SEEDS[0]})` : ciMode ? ' | ci' : ` | random seed ${randomSeed}`}\n`);
 
 const collector = emptyCollector();
 const perSeed = [];
@@ -247,7 +288,7 @@ for (const seed of SEEDS) {
     replay.embers === result.keeper.embers && replay.seconds === result.keeper.seconds;
   result.isRandom = seed === randomSeed && seedArg < 0;
   perSeed.push(result);
-  console.log(
+  say(
     `  seed ${String(seed).padEnd(10)}${result.isRandom ? '*' : ' '}| r1 passive ${String(result.passive.nights).padStart(2)}n` +
     ` villager ${String(result.villager.nights).padStart(2)}n/${result.villager.seconds}s builder ${String(result.builder.nights).padStart(2)}n keeper ${String(result.keeper.nights).padStart(2)}n/${result.keeper.seconds}s` +
     ` | arc ${fmtArc(result.arc)} | meta ${result.metaOwned}/${Object.keys(META_UPGRADES).length}` +
@@ -280,8 +321,8 @@ const agg = {
   agg.lossVents = losses.reduce((sum, loss) => sum + loss.vents, 0) / total;
 }
 
-console.log(`\n  means: passive ${agg.passiveNights.toFixed(1)}n | villager ${agg.villagerNights.toFixed(1)}n/${Math.round(agg.villagerSeconds)}s | keeper r1 ${agg.keeperNights.toFixed(1)}n/${Math.round(agg.keeperSeconds)}s/${agg.keeperEmbers.toFixed(1)} embers | arc ${agg.arcFirst.toFixed(1)} -> ${agg.arcLast.toFixed(1)}n (${Math.round(agg.arcFirstSeconds)}s -> ${Math.round(agg.arcLastSeconds)}s)`);
-console.log(`  fun: final-third loss share ${(agg.tension * 100).toFixed(0)}% | warden banishes/night ${agg.banishesPerNight.toFixed(1)} | deaths from falls ${(agg.lossFalls * 100).toFixed(0)}% / heart ${(agg.lossHeartHits * 100).toFixed(0)}% / vents ${(agg.lossVents * 100).toFixed(0)}% | leveled structures per arc-best ${agg.arcLeveled.toFixed(1)}`);
+say(`\n  means: passive ${agg.passiveNights.toFixed(1)}n | villager ${agg.villagerNights.toFixed(1)}n/${Math.round(agg.villagerSeconds)}s | keeper r1 ${agg.keeperNights.toFixed(1)}n/${Math.round(agg.keeperSeconds)}s/${agg.keeperEmbers.toFixed(1)} embers | arc ${agg.arcFirst.toFixed(1)} -> ${agg.arcLast.toFixed(1)}n (${Math.round(agg.arcFirstSeconds)}s -> ${Math.round(agg.arcLastSeconds)}s)`);
+say(`  fun: final-third loss share ${(agg.tension * 100).toFixed(0)}% | warden banishes/night ${agg.banishesPerNight.toFixed(1)} | deaths from falls ${(agg.lossFalls * 100).toFixed(0)}% / heart ${(agg.lossHeartHits * 100).toFixed(0)}% / vents ${(agg.lossVents * 100).toFixed(0)}% | leveled structures per arc-best ${agg.arcLeveled.toFixed(1)}`);
 
 // ── Depth panels (skipped with --quick) ─────────────────────────────────────
 let depth = null;
@@ -292,7 +333,7 @@ if (!quick) {
       playRound(createInitialState(), profile, mulberry32(seed), collector));
     depth.ablations[profile] = mean(depth.ablationRuns[profile].map(run => run.nights));
   }
-  console.log(`\n  depth: keeper ${agg.keeperNights.toFixed(1)}n vs randomPlace ${depth.ablations.randomPlace.toFixed(1)}n | economyGreedy ${depth.ablations.economyGreedy.toFixed(1)}n | defenseGreedy ${depth.ablations.defenseGreedy.toFixed(1)}n | bunker ${depth.ablations.bunker.toFixed(1)}n`);
+  say(`\n  depth: keeper ${agg.keeperNights.toFixed(1)}n vs randomPlace ${depth.ablations.randomPlace.toFixed(1)}n | economyGreedy ${depth.ablations.economyGreedy.toFixed(1)}n | defenseGreedy ${depth.ablations.defenseGreedy.toFixed(1)}n | bunker ${depth.ablations.bunker.toFixed(1)}n`);
 
   const baseline = mean(DEPTH_SEEDS.map(seed =>
     playRound(createInitialState(), 'keeper', mulberry32(seed)).nights));
@@ -301,9 +342,67 @@ if (!quick) {
       playRound({ ...createInitialState(), meta: { [id]: true } }, 'keeper', mulberry32(seed)).nights));
     depth.metaValue[id] = withUpgrade - baseline;
   }
-  console.log(`  meta value (Δn vs bare keeper): ${Object.entries(depth.metaValue).map(([id, delta]) => `${id} ${delta >= 0 ? '+' : ''}${delta.toFixed(1)}`).join(' | ')}`);
-  console.log(`  picks: ${STRUCTURE_IDS.map(id => `${id} ${collector.picks[id] || 0}`).join(' | ')}`);
+  say(`  meta value (Δn vs bare keeper): ${Object.entries(depth.metaValue).map(([id, delta]) => `${id} ${delta >= 0 ? '+' : ''}${delta.toFixed(1)}`).join(' | ')}`);
+  say(`  picks: ${STRUCTURE_IDS.map(id => `${id} ${collector.picks[id] || 0}`).join(' | ')}`);
   depth.picks = { ...collector.picks };
+}
+
+// ── Snapshot + compare ──────────────────────────────────────────────────────
+const round2 = object => Object.fromEntries(
+  Object.entries(object).map(([key, value]) => [key, Math.round(value * 100) / 100]));
+const snapshot = {
+  seeds: DEPTH_SEEDS,
+  agg: round2(agg),
+  depth: depth && {
+    ablations: round2(depth.ablations),
+    metaValue: round2(depth.metaValue),
+    picks: depth.picks,
+  },
+};
+
+if (jsonMode) {
+  console.log(JSON.stringify(snapshot, null, 2));
+}
+
+if (compareFile) {
+  const baseline = JSON.parse(readFileSync(compareFile, 'utf8'));
+  const drifts = [];
+  const tolerance = key =>
+    /Seconds$/.test(key) ? 25
+    : /^(tension|lossFalls|lossHeartHits|lossVents)$/.test(key) ? 0.15
+    : /^banishesPerNight$/.test(key) ? 0.75
+    : /^keeperEmbers$/.test(key) ? 2
+    : 1.0;
+  const diff = (label, was, now) => {
+    for (const [key, value] of Object.entries(was || {})) {
+      const current = now?.[key];
+      if (typeof value !== 'number' || typeof current !== 'number') continue;
+      const bar = tolerance(key);
+      if (Math.abs(current - value) > bar) {
+        drifts.push(`${label}${key}: baseline ${value} -> now ${Math.round(current * 100) / 100} (tolerance ±${bar})`);
+      }
+    }
+  };
+  console.log('\n── Compare ──');
+  if (JSON.stringify(baseline.seeds) !== JSON.stringify(snapshot.seeds)) {
+    console.log(`  ✗ seed sets differ (baseline ${baseline.seeds}, now ${snapshot.seeds}) — not comparable`);
+    process.exit(1);
+  }
+  diff('agg.', baseline.agg, snapshot.agg);
+  if (baseline.depth && snapshot.depth) {
+    diff('ablations.', baseline.depth.ablations, snapshot.depth.ablations);
+    diff('metaValue.', baseline.depth.metaValue, snapshot.depth.metaValue);
+    for (const id of Object.keys(baseline.depth.picks || {})) {
+      if ((baseline.depth.picks[id] || 0) > 0 && !(snapshot.depth.picks?.[id] > 0)) {
+        drifts.push(`picks.${id}: was picked in the baseline, never picked now`);
+      }
+    }
+  }
+  if (drifts.length > 0) {
+    for (const drift of drifts) console.log(`  ✗ ${drift}`);
+    process.exit(1);
+  }
+  console.log('  ✓ within tolerance of the baseline');
 }
 
 // ── Assertions ──────────────────────────────────────────────────────────────

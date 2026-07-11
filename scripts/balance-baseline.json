@@ -1,0 +1,57 @@
+{
+  "seeds": [
+    424242,
+    133742,
+    271828,
+    314159,
+    861861
+  ],
+  "agg": {
+    "passiveNights": 2,
+    "keeperNights": 6,
+    "keeperSeconds": 154.8,
+    "keeperEmbers": 6.4,
+    "builderNights": 4.2,
+    "villagerNights": 4.8,
+    "villagerSeconds": 136.8,
+    "arcFirst": 6,
+    "arcLast": 10.2,
+    "arcFirstSeconds": 154.8,
+    "arcLastSeconds": 221.2,
+    "tension": 0.81,
+    "banishesPerNight": 1.68,
+    "arcLeveled": 2.4,
+    "lossFalls": 1,
+    "lossHeartHits": 0,
+    "lossVents": 0
+  },
+  "depth": {
+    "ablations": {
+      "randomPlace": 5,
+      "economyGreedy": 4.8,
+      "defenseGreedy": 6,
+      "bunker": 5.8
+    },
+    "metaValue": {
+      "stoneFoundations": 2,
+      "morningStockpile": 0.2,
+      "swiftWarden": 0.2,
+      "deeperDrafts": 0,
+      "outerRing": 0,
+      "heartstone": 0.8,
+      "emberChoir": 0,
+      "secondWarden": 1.4
+    },
+    "picks": {
+      "lantern": 55,
+      "palisade": 114,
+      "farm": 34,
+      "belltower": 59,
+      "watchtower": 108,
+      "well": 15,
+      "granary": 10,
+      "shrine": 4,
+      "emberKiln": 1
+    }
+  }
+}

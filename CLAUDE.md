@@ -14,8 +14,16 @@ always wins; nights survived become Embers; Embers buy permanent upgrades.
 ## Commands
 - `npm run dev` — Vite dev server
 - `npm run test:unit` — engine unit tests
-- `npm run test:balance` — bot profiles + assertions (seeded, deterministic)
+- `npm run test:balance` — bot profiles + assertions (five fixed seeds, deterministic)
 - `npm run test:quality` — lint + unit + balance + build (run before commit)
+- `npm run balance:story` — narrate one keeper round night by night (add `-- --seed N`)
+- `npm run balance:compare` — diff current numbers against scripts/balance-baseline.json;
+  exits nonzero when a metric drifts past tolerance
+- `npm run balance:baseline` — regenerate the committed baseline. Run this in the
+  same commit as any deliberate balance change — the baseline diff documents
+  exactly what the change did to the measured game.
+- `node scripts/bot-playtest.js --assert` — local run: fixed seeds plus one
+  random lane that prints its repro seed
 
 ## Repo policy
 - Commit directly to `main` and push after every coherent, gate-passing
