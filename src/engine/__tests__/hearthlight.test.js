@@ -3,7 +3,7 @@ import { createInitialState, loadState, migrateState, saveState } from '../state
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, FRONTIER_YIELD, HEART_MAX } from '../round.js';
-import { getShadeCount, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { getNightForecast, getShadeCount, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
 
@@ -349,6 +349,30 @@ describe('hearthlight', () => {
     state = { ...state, round: { ...state.round, draft: ['palisade'] } };
     state = placeStructure(state, 'palisade', 'r0s0');
     expect(state.round.slots[0].structure.hp).toBe(4);
+  });
+
+  it('milestone upgrades are sealed until the vigil is proven', () => {
+    // Rich but unproven: the seal holds.
+    let state = { ...createInitialState(), embers: 60, bestNights: 5 };
+    expect(buyMetaUpgrade(state, 'beaconHeart')).toBeNull();
+    // Proven: the seal breaks.
+    state = { ...state, bestNights: 8 };
+    state = buyMetaUpgrade(state, 'beaconHeart');
+    expect(state).toBeTruthy();
+
+    // Beacon Heart burns one shade at each dusk from night 3 — and the
+    // forecast says so before dusk falls.
+    let round = beginRound(state, makeRng([0.1, 0.4, 0.7]));
+    round = { ...round, round: { ...round.round, day: 3, draft: ['palisade'], glow: 20 } };
+    round = placeStructure(round, 'palisade', 'r0s0');
+    expect(getNightForecast(round.round).count).toBe(getShadeCount(3) - 1);
+    const dusk = endDay(round, makeRng([0.5]));
+    expect(dusk.round.shades).toHaveLength(getShadeCount(3) - 1);
+
+    // Emberheart pays +1 per night past the fourth at the fall.
+    const fallen = { day: 8, glow: 0, slots: [] };
+    const base = getEmbersEarned(fallen, {});
+    expect(getEmbersEarned(fallen, { emberheart: true })).toBe(base + 3);
   });
 
   it('is deterministic under the same seed', () => {

@@ -99,9 +99,15 @@ commit pushed to main. Update checkboxes as work lands.
 - [x] **Mobile PWA** — manifest, standalone display, SVG icon, theme
       color; install-to-homescreen works from the Pages deploy.
 
+- [x] **Milestone tier** — two upgrades sealed behind best-nights records,
+      not Embers: Beacon Heart (8-night vigil; the Heart burns one shade at
+      each dusk from night 3, shown in the forecast) and Emberheart
+      (10-night vigil; +1 Ember per night past the fourth). The shop shows
+      sealed cards with their requirement; measured +0.8n/+1.0e and +1.4e
+      on round 1, +3.8 and +0.6 arc nights.
+
 ## Later / ideas
 
-- A third meta tier gated on best-nights milestones rather than Embers.
 - Browser smoke test in CI (puppeteer) once the UI stabilizes.
 - Lore: the shades are the Forgetting; this town becomes the ruins that
   remember (bridge to theruinsremember).

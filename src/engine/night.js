@@ -48,12 +48,18 @@ export function getHeartseekerCount(night, count) {
   return night >= HEARTSEEKER_NIGHT ? Math.floor(count / 5) : 0;
 }
 
-// What dusk will actually bring tonight, omens and debts included.
-// The UI forecast and spawnShades both read this — one source of truth.
+// Beacon Heart: from this night on, the Heart burns one shade at dusk.
+export const BEACON_NIGHT = 3;
+
+// What dusk will actually bring tonight, omens, debts, and the beacon
+// included. The UI forecast and spawnShades both read this — one source
+// of truth.
 export function getNightForecast(round) {
   const omen = round.omen && round.omen.night === round.day ? round.omen.type : null;
   if (omen === 'still') return { count: 0, omen, heartseekers: 0 };
-  const count = getShadeCount(round.day) + (omen === 'hungry' ? HUNGRY_EXTRA : 0) + (round.stillDebt ? STILL_DEBT : 0);
+  const beacon = round.beacon && round.day >= BEACON_NIGHT ? 1 : 0;
+  const count = Math.max(0,
+    getShadeCount(round.day) + (omen === 'hungry' ? HUNGRY_EXTRA : 0) + (round.stillDebt ? STILL_DEBT : 0) - beacon);
   return { count, omen, heartseekers: getHeartseekerCount(round.day, count) };
 }
 

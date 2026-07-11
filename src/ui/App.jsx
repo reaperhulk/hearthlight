@@ -5,7 +5,7 @@ import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
-import { buyMetaUpgrade, META_UPGRADES } from '../engine/meta.js';
+import { buyMetaUpgrade, metaUnlocked, META_UPGRADES } from '../engine/meta.js';
 import { STRUCTURES } from '../engine/structures.js';
 
 const CANVAS = 420;
@@ -424,18 +424,21 @@ export function App() {
           <span>Rounds: <strong>{state.totalRounds}</strong></span>
         </div>
         <div className="shop">
-          {Object.values(META_UPGRADES).map(upgrade => (
-            <button
-              key={upgrade.id}
-              className={state.meta[upgrade.id] ? 'owned' : ''}
-              disabled={state.meta[upgrade.id] || state.embers < upgrade.cost}
-              onClick={() => setState(current => buyMetaUpgrade(current, upgrade.id) || current)}
-            >
-              <strong>{upgrade.name}</strong>
-              <span>{upgrade.description}</span>
-              <em>{state.meta[upgrade.id] ? 'Kept' : `${upgrade.cost} Embers`}</em>
-            </button>
-          ))}
+          {Object.values(META_UPGRADES).map(upgrade => {
+            const unlocked = metaUnlocked(state, upgrade.id);
+            return (
+              <button
+                key={upgrade.id}
+                className={state.meta[upgrade.id] ? 'owned' : !unlocked ? 'locked' : ''}
+                disabled={state.meta[upgrade.id] || !unlocked || state.embers < upgrade.cost}
+                onClick={() => setState(current => buyMetaUpgrade(current, upgrade.id) || current)}
+              >
+                <strong>{upgrade.name}</strong>
+                <span>{unlocked ? upgrade.description : `Sealed. Keep a vigil of ${upgrade.requiresBestNights} nights.`}</span>
+                <em>{state.meta[upgrade.id] ? 'Kept' : unlocked ? `${upgrade.cost} Embers` : `Best: ${state.bestNights} nights`}</em>
+              </button>
+            );
+          })}
         </div>
         <button className="begin" onClick={() => { unlockAudio(); setState(current => beginRound(current)); }}>
           Begin the Vigil

@@ -51,11 +51,33 @@ export const META_UPGRADES = {
     cost: 22,
     description: 'Another keeper walks the night.',
   },
+  // Milestone tier: bought with Embers, but unlocked by proving a vigil —
+  // permanent goals the Ember count alone can't buy.
+  beaconHeart: {
+    id: 'beaconHeart',
+    name: 'Beacon Heart',
+    cost: 14,
+    requiresBestNights: 8,
+    description: 'The Heart itself burns one shade to ash at each dusk from night 3.',
+  },
+  emberheart: {
+    id: 'emberheart',
+    name: 'Emberheart',
+    cost: 16,
+    requiresBestNights: 10,
+    description: '+1 Ember for every night survived past the fourth.',
+  },
 };
+
+export function metaUnlocked(state, upgradeId) {
+  const upgrade = META_UPGRADES[upgradeId];
+  return Boolean(upgrade) && state.bestNights >= (upgrade.requiresBestNights || 0);
+}
 
 export function buyMetaUpgrade(state, upgradeId) {
   const upgrade = META_UPGRADES[upgradeId];
   if (!upgrade || state.meta[upgradeId] || state.embers < upgrade.cost) return null;
+  if (!metaUnlocked(state, upgradeId)) return null;
   return {
     ...state,
     embers: state.embers - upgrade.cost,

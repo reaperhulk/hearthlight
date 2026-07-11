@@ -30,6 +30,8 @@ h1 { color: #ffd082; font-size: 1.4em; letter-spacing: 0.06em; }
 }
 .shop button:disabled { opacity: 0.55; cursor: default; }
 .shop button.owned { border-color: #6a8f5f; opacity: 0.8; }
+.shop button.locked { border-style: dashed; opacity: 0.6; }
+.shop button.locked strong { color: #8793a2; }
 .shop button em { color: #ffd082; font-style: normal; }
 .shop button span { color: #8793a2; line-height: 1.3; }
 

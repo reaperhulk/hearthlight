@@ -71,6 +71,7 @@ export function beginRound(state, rng = Math.random) {
     nextShadeId: 1,
     omen: null,
     stillDebt: false,
+    beacon: Boolean(state.meta.beaconHeart),
     stats: { heartLoss: { falls: 0, heartHits: 0, vents: 0 }, nights: [] },
     log: [{ day: 1, message: 'The Heart is lit. The dark is patient.' }],
   };
@@ -155,7 +156,8 @@ export function getEmbersEarned(round, meta = {}) {
   const kilns = countStructures(round, slot => slot.structure.type === 'emberKiln');
   const kilnEmbers = kilns * Math.min(3, Math.floor(round.glow / 20));
   const choirEmbers = meta.emberChoir ? Math.floor(nights / 2) : 0;
-  return Math.max(1, nights + Math.floor(alive / 2) + shrines * 2 + kilnEmbers + choirEmbers);
+  const heartEmbers = meta.emberheart ? Math.max(0, nights - 4) : 0;
+  return Math.max(1, nights + Math.floor(alive / 2) + shrines * 2 + kilnEmbers + choirEmbers + heartEmbers);
 }
 
 // Bank a fallen round: Embers home, round cleared.
