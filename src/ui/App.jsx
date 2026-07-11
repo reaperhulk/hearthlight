@@ -160,7 +160,7 @@ export function App() {
       const { x, y } = slotPixel(slot);
       if (!slot.structure) {
         effectsRef.current.push({ type: 'fall', x, y, start: now });
-        effectsRef.current.push({ type: 'number', text: '\u221218', x, y: y - 6, start: now });
+        effectsRef.current.push({ type: 'number', text: '−18', x, y: y - 6, start: now });
       } else if (slot.structure.hp < before.hp) {
         effectsRef.current.push({ type: 'bite', x, y, start: now });
       }
@@ -183,7 +183,7 @@ export function App() {
       const heartDelta = (loss.heartHits - prevLoss.heartHits) + (loss.vents - prevLoss.vents);
       if (heartDelta > 0) {
         effectsRef.current.push({ type: 'heartFlash', start: now });
-        effectsRef.current.push({ type: 'number', text: `\u2212${heartDelta}`, x: CANVAS / 2, y: CANVAS / 2 - 30, start: now });
+        effectsRef.current.push({ type: 'number', text: `−${heartDelta}`, x: CANVAS / 2, y: CANVAS / 2 - 30, start: now });
       }
     }
     if (prev.phase !== 'fallen' && round.phase === 'fallen') { sfx.toll(); return; }
@@ -329,8 +329,8 @@ export function App() {
         {state.totalRounds === 0 && (
           <ul className="how-to">
             <li>By day: pick one structure and tap an empty slot. Build farms for Glow, walls and towers for the night.</li>
-            <li>By night: shades creep from the rim and chew for five seconds before each bite \u2014 send the Warden in time and the building is saved.</li>
-            <li>The Warden grapples one shade at a time and cannot be hurt; watchtowers fire two bolts a night at shades reaching their neighbors \u2014 never at their own attackers.</li>
+            <li>By night: shades creep from the rim and chew for five seconds before each bite — send the Warden in time and the building is saved.</li>
+            <li>The Warden grapples one shade at a time and cannot be hurt; watchtowers fire two bolts a night at shades reaching their neighbors — never at their own attackers.</li>
             <li>The dark always wins. Nights survived become Embers — spend them to last longer next time.</li>
           </ul>
         )}
@@ -374,7 +374,7 @@ export function App() {
                   >
                     <strong>{upgrade.name}</strong>
                     <span>{unlocked ? upgrade.description : `Sealed. Keep a vigil of ${upgrade.requiresBestNights} nights.`}</span>
-                    <em>{state.meta[upgrade.id] ? '\u2713 Kept' : unlocked ? `${upgrade.cost} \u2726` : `Best: ${state.bestNights} nights`}</em>
+                    <em>{state.meta[upgrade.id] ? '✓ Kept' : unlocked ? `${upgrade.cost} ✦` : `Best: ${state.bestNights} nights`}</em>
                   </button>
                 );
               })}
@@ -426,7 +426,7 @@ export function App() {
             aria-label={sound ? 'Mute sound' : 'Unmute sound'}
             onClick={() => { unlockAudio(); setSound(current => !current); }}
           >
-            {sound ? '\u266a' : '\u2205'}
+            {sound ? '♪' : '∅'}
           </button>
         </div>
         <div className="chips">
@@ -434,16 +434,16 @@ export function App() {
             {!fallen && isDay && (
               <i className="day-fill" style={{ width: `${(dayRemaining / DAY_LENGTH) * 100}%` }} />
             )}
-            <span>{fallen ? 'Fallen' : isDay ? `\u2600 Day ${round.day} \u00b7 ${Math.ceil(dayRemaining)}s` : `\u263e Night ${round.day}`}</span>
+            <span>{fallen ? 'Fallen' : isDay ? `☀ Day ${round.day} · ${Math.ceil(dayRemaining)}s` : `☾ Night ${round.day}`}</span>
           </span>
           {!fallen && isDay && (() => {
             const forecast = getNightForecast(round);
-            const omenName = forecast.omen === 'hungry' ? 'Hungry Night \u00b7 ' : forecast.omen === 'still' ? 'Still Night \u00b7 ' : '';
+            const omenName = forecast.omen === 'hungry' ? 'Hungry Night · ' : forecast.omen === 'still' ? 'Still Night · ' : '';
             return (
               <span className={`chip forecast${forecast.omen ? ' omen' : ''}`} title="Shades due at dusk">
                 {forecast.omen === 'still'
-                  ? 'Still Night \u00b7 the dark holds its breath'
-                  : `${omenName}tonight: ${forecast.count}${forecast.heartseekers > 0 ? ` \u00b7 ${forecast.heartseekers} seek the Heart` : ''}`}
+                  ? 'Still Night · the dark holds its breath'
+                  : `${omenName}tonight: ${forecast.count}${forecast.heartseekers > 0 ? ` · ${forecast.heartseekers} seek the Heart` : ''}`}
               </span>
             );
           })()}
@@ -481,7 +481,7 @@ export function App() {
           <p className="epitaph">{[
             'What the dark takes, the ground keeps.',
             'The shades are the Forgetting. The ruins remember.',
-            'Every wall you raised is a word in the stones\u2019 story.',
+            'Every wall you raised is a word in the stones’ story.',
             'The light failed. The remembering begins.',
             'No vigil is wasted. The ruins keep the shape of it.',
           ][(round.day + state.totalRounds) % 5]}</p>
@@ -573,14 +573,14 @@ export function App() {
                   disabled={round.glow < REROLL_COST}
                   onClick={() => setState(current => rerollDraft(current) || current)}
                 >
-                  New faces at the gate \u2014 reroll for {REROLL_COST} Glow
+                  New faces at the gate — reroll for {REROLL_COST} Glow
                 </button>
               )}
               <button className="end-day" onClick={() => setState(current => endDay(current))}>
                 {(() => {
                   const forecast = getNightForecast(round);
                   const brings = forecast.omen === 'still' ? 'a still night' : `${forecast.count} come`;
-                  return round.placedToday ? `Call the Dusk \u2014 ${brings}` : `Skip the day \u2014 ${brings}`;
+                  return round.placedToday ? `Call the Dusk — ${brings}` : `Skip the day — ${brings}`;
                 })()}
               </button>
               {selectedCard && <p className="hint">Tap an empty slot to build the {STRUCTURES[selectedCard].name}.</p>}
@@ -620,8 +620,8 @@ export function App() {
                 const seconds = Math.max(0, Math.ceil((shade.phase === 'approach' ? shade.arrivesAt : shade.feedsAt ?? round.time) - round.time));
                 return (
                   <button key={shade.id} onClick={() => sendWarden(shade.targetSlotId ?? HEART_SLOT)}>
-                    {shade.phase === 'feeding' ? `Save ${name === 'the Heart' ? name : `the ${name}`} \u2014 bites in ${seconds}s`
-                      : `Warden \u2192 ${name} (${seconds}s)`}
+                    {shade.phase === 'feeding' ? `Save ${name === 'the Heart' ? name : `the ${name}`} — bites in ${seconds}s`
+                      : `Warden → ${name} (${seconds}s)`}
                   </button>
                 );
               }) : <span className="hint">The Warden watches. Hold the line.</span>}
@@ -645,7 +645,7 @@ export function App() {
               setState(current => abandonRound(current) || current);
             }}
           >
-            {confirming === 'abandon' ? 'The dark takes it \u2014 tap again to walk away' : 'Abandon the vigil'}
+            {confirming === 'abandon' ? 'The dark takes it — tap again to walk away' : 'Abandon the vigil'}
           </button>
           </div>
         </div>
