@@ -7,9 +7,10 @@ commit pushed to main. Update checkboxes as work lands.
 
 - [x] **Persistence** — localStorage save/load with a versioned migrate.
       Without it a refresh erases the meta layer; most fundamental gap.
-- [x] **Multi-seed harness** — run the bot across ~5 seeds, assert hard
-      invariants per seed and pacing bands on the mean. Single-seed arcs are
-      too noisy to tune against (measured: 13 → 17 → 15 → 25 → 19 nights).
+- [x] **Multi-seed harness** — five fixed seeds plus one fresh random seed
+      every run. Hard invariants assert on every seed; pacing bands on the
+      fixed mean; the random lane guards that real-play variance stays within
+      ±4 nights of the fixed mean, and prints its seed for reproduction.
 - [x] **Round-1 pacing** — tuned to mean 9.6 nights / ~4 min (was 13/5.3);
       losses now cost 14 heart, escalation 1.18, warden holds 3.5s. Active
       gap widened: keeper 9.6n vs builder 7.0n. Meta arc 9.6 -> 17.0 nights.

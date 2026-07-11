@@ -121,15 +121,18 @@ function spendEmbers(state) {
 // seed; pacing bands are asserted on the MEAN, because single-seed arcs are
 // too noisy to tune against.
 const seedArg = process.argv.indexOf('--seed');
-const SEEDS = seedArg >= 0
-  ? [Number(process.argv[seedArg + 1])]
-  : [424242, 133742, 271828, 314159, 861861];
+const FIXED_SEEDS = [424242, 133742, 271828, 314159, 861861];
+// One fresh random seed every run: the fixed set cannot be overfit, and a
+// failure here means real-play variance is too wide. The seed is printed —
+// reproduce any failure exactly with --seed N.
+const randomSeed = Math.floor(Math.random() * 2147483647);
+const SEEDS = seedArg >= 0 ? [Number(process.argv[seedArg + 1])] : [...FIXED_SEEDS, randomSeed];
 const assertMode = process.argv.includes('--assert');
 
 const mean = values => values.reduce((sum, value) => sum + value, 0) / values.length;
 const fmtArc = arc => arc.map(round => round.nights).join('\u2192');
 
-console.log(`Hearthlight playtest | seeds ${SEEDS.join(', ')}\n`);
+console.log(`Hearthlight playtest | fixed seeds ${FIXED_SEEDS.join(', ')}${seedArg >= 0 ? ` (overridden: ${SEEDS[0]})` : ` | random seed ${randomSeed}`}\n`);
 
 const perSeed = [];
 for (const seed of SEEDS) {
@@ -151,23 +154,25 @@ for (const seed of SEEDS) {
   const replay = playRound(createInitialState(), 'keeper', mulberry32(seed));
   result.deterministic = replay.nights === result.keeper.nights &&
     replay.embers === result.keeper.embers && replay.seconds === result.keeper.seconds;
+  result.isRandom = seed === randomSeed && seedArg < 0;
   perSeed.push(result);
   console.log(
-    `  seed ${String(seed).padEnd(6)} | r1 passive ${String(result.passive.nights).padStart(2)}n` +
+    `  seed ${String(seed).padEnd(10)}${result.isRandom ? '*' : ' '}| r1 passive ${String(result.passive.nights).padStart(2)}n` +
     ` builder ${String(result.builder.nights).padStart(2)}n keeper ${String(result.keeper.nights).padStart(2)}n/${result.keeper.seconds}s` +
     ` | arc ${fmtArc(result.arc)} | meta ${result.metaOwned}/${Object.keys(META_UPGRADES).length}` +
     `${result.deterministic ? '' : ' | DETERMINISM BROKEN'}`);
 }
 
+const fixed = perSeed.filter(result => !result.isRandom);
 const agg = {
-  passiveNights: mean(perSeed.map(result => result.passive.nights)),
-  keeperNights: mean(perSeed.map(result => result.keeper.nights)),
-  keeperSeconds: mean(perSeed.map(result => result.keeper.seconds)),
-  keeperEmbers: mean(perSeed.map(result => result.keeper.embers)),
-  arcFirst: mean(perSeed.map(result => result.arc[0].nights)),
-  arcLast: mean(perSeed.map(result => result.arc[result.arc.length - 1].nights)),
-  arcFirstSeconds: mean(perSeed.map(result => result.arc[0].seconds)),
-  arcLastSeconds: mean(perSeed.map(result => result.arc[result.arc.length - 1].seconds)),
+  passiveNights: mean(fixed.map(result => result.passive.nights)),
+  keeperNights: mean(fixed.map(result => result.keeper.nights)),
+  keeperSeconds: mean(fixed.map(result => result.keeper.seconds)),
+  keeperEmbers: mean(fixed.map(result => result.keeper.embers)),
+  arcFirst: mean(fixed.map(result => result.arc[0].nights)),
+  arcLast: mean(fixed.map(result => result.arc[result.arc.length - 1].nights)),
+  arcFirstSeconds: mean(fixed.map(result => result.arc[0].seconds)),
+  arcLastSeconds: mean(fixed.map(result => result.arc[result.arc.length - 1].seconds)),
 };
 console.log(`\n  means: passive ${agg.passiveNights.toFixed(1)}n | keeper r1 ${agg.keeperNights.toFixed(1)}n/${Math.round(agg.keeperSeconds)}s/${agg.keeperEmbers.toFixed(1)} embers | arc ${agg.arcFirst.toFixed(1)} -> ${agg.arcLast.toFixed(1)}n (${Math.round(agg.arcFirstSeconds)}s -> ${Math.round(agg.arcLastSeconds)}s)`);
 
@@ -184,7 +189,13 @@ if (assertMode) {
     if (result.keeper.embers < 3) issues.push(`${tag} first round pays too little to buy anything`);
     if (result.keeper.seconds > 240) issues.push(`${tag} round 1 keeper took ${result.keeper.seconds}s`);
   }
-  // Pacing bands: on the mean.
+  // Variance guard: the random seed must land near the fixed-seed band.
+  for (const result of perSeed.filter(candidate => candidate.isRandom)) {
+    const drift = Math.abs(result.keeper.nights - agg.keeperNights);
+    if (drift > 4) issues.push(`random seed ${result.seed}: keeper round 1 ${result.keeper.nights} nights drifts ${drift.toFixed(1)} from the fixed mean ${agg.keeperNights.toFixed(1)} — variance too wide (reproduce with --seed ${result.seed})`);
+  }
+
+  // Pacing bands: on the fixed-seed mean.
   if (agg.passiveNights < 1.5 || agg.passiveNights > 4) issues.push(`mean passive nights ${agg.passiveNights.toFixed(1)} outside 1.5-4`);
   if (agg.keeperNights < 4) issues.push(`mean keeper round 1 only ${agg.keeperNights.toFixed(1)} nights — too punishing`);
   if (agg.keeperNights > 8) issues.push(`mean keeper round 1 ${agg.keeperNights.toFixed(1)} nights — round 1 drags`);
