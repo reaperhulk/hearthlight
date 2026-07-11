@@ -44,8 +44,10 @@ commit pushed to main. Update checkboxes as work lands.
 - [x] **Dusk telegraph** — the day header forecasts tonight's shade count
       and motes prowl the rim in proportion, so night is triage, never
       ambush. (True directions appear as approach lines once shades spawn.)
-- [ ] **Structure info on tap** — tap an occupied slot by day to see its
-      stats, level progress, and adjacency bonuses.
+- [x] **Structure info on tap** — tapping an occupied slot by day opens an
+      inspector: toughness, live glow (level multiplier applied), adjacency
+      boosts actually in effect, dawn income, defensive stats, neighbors,
+      and level progress.
 - [ ] **Level-up depth** — a second level tier (6 nights) and visible level
       pips; consider letting Wells level from adjacent leveled Farms.
 - [ ] **Night variety** — named night events every ~4th night (a Hungry

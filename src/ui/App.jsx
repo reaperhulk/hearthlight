@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadState, saveState } from '../engine/state.js';
-import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, placeStructure, DAY_LENGTH, HEART_MAX } from '../engine/round.js';
+import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, HEART_MAX, LEVEL_UP_NIGHTS } from '../engine/round.js';
+import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getShadeCount, getWardenCooldown, moveWarden } from '../engine/night.js';
 import { buyMetaUpgrade, META_UPGRADES } from '../engine/meta.js';
@@ -25,7 +26,36 @@ function slotPixel(slot) {
   return { x: slot.x * CANVAS, y: slot.y * CANVAS };
 }
 
-function drawTown(ctx, state, selectedCard, animTime) {
+// What one occupied slot is worth right now — the tap-to-inspect readout.
+function describeSlot(round, slot) {
+  const structure = slot.structure;
+  const def = STRUCTURES[structure.type];
+  const levelMult = structure.level >= 2 ? 1.5 : 1;
+  const neighbors = getAdjacentSlots(round.slots, slot.id).filter(neighbor => neighbor.structure);
+  const rows = [];
+  rows.push(['Toughness', `${structure.hp} bite${structure.hp === 1 ? '' : 's'}`]);
+  if (def.glowPerSecond) rows.push(['Glow', `${(def.glowPerSecond * levelMult).toFixed(1)}/s`]);
+  if (def.adjacencyBonus) {
+    const boosted = neighbors.filter(neighbor => def.adjacencyBonus[neighbor.structure.type]);
+    rows.push(['Boosting', boosted.length > 0
+      ? boosted.map(neighbor => `${STRUCTURES[neighbor.structure.type].name} +${(def.adjacencyBonus[neighbor.structure.type] * levelMult).toFixed(1)}/s`).join(', ')
+      : 'nothing adjacent yet']);
+  }
+  rows.push(['At dawn', `+${DAWN_GLOW_PER_STRUCTURE + (def.dawnGlow || 0)} Glow`]);
+  if (def.slowsAdjacent) rows.push(['Slows', `shades on lit neighbors ×${def.slowsAdjacent}`]);
+  if (def.nightCharges) rows.push(['Banishes', `${def.nightCharges} shades/night on neighbors`]);
+  if (def.nightDelay) rows.push(['Toll', `every shade +${def.nightDelay}s approach`]);
+  if (def.tauntWeight) rows.push(['Taunt', 'draws shades to itself']);
+  rows.push(['Neighbors', neighbors.length > 0
+    ? neighbors.map(neighbor => STRUCTURES[neighbor.structure.type].name).join(', ')
+    : 'none']);
+  const levelLine = structure.level >= 2
+    ? `Level 2 — glow ×1.5, +1 toughness`
+    : `Level 1 — levels up in ${Math.max(0, LEVEL_UP_NIGHTS - structure.nightsSurvived)} more night${LEVEL_UP_NIGHTS - structure.nightsSurvived === 1 ? '' : 's'}`;
+  return { name: def.name, levelLine, rows };
+}
+
+function drawTown(ctx, state, selectedCard, animTime, inspectedId) {
   const round = state.round;
   ctx.clearRect(0, 0, CANVAS, CANVAS);
   const night = round.phase === 'night';
@@ -136,6 +166,15 @@ function drawTown(ctx, state, selectedCard, animTime) {
       ctx.font = '9px monospace';
       ctx.fillText(String(slot.structure.hp), x, y + 19);
     }
+    if (slot.id === inspectedId) {
+      ctx.strokeStyle = '#ffd082';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(x, y, 16, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
 
   // Wardens
@@ -155,14 +194,17 @@ function drawTown(ctx, state, selectedCard, animTime) {
 export function App() {
   const [state, setState] = useState(() => loadState(window.localStorage));
   const [selectedCard, setSelectedCard] = useState(null);
+  const [inspectedId, setInspectedId] = useState(null);
   const hasRound = state.round != null;
   const stateRef = useRef(state);
   const selectedRef = useRef(selectedCard);
+  const inspectedRef = useRef(inspectedId);
   const canvasRef = useRef(null);
   useEffect(() => {
     stateRef.current = state;
     selectedRef.current = selectedCard;
-  }, [state, selectedCard]);
+    inspectedRef.current = inspectedId;
+  }, [state, selectedCard, inspectedId]);
 
   // Persistence: save every 2s and whenever the tab hides.
   useEffect(() => {
@@ -205,7 +247,7 @@ export function App() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     let raf = null;
     const draw = () => {
-      if (stateRef.current.round) drawTown(ctx, stateRef.current, selectedRef.current, performance.now() / 1000);
+      if (stateRef.current.round) drawTown(ctx, stateRef.current, selectedRef.current, performance.now() / 1000, inspectedRef.current);
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
@@ -244,6 +286,9 @@ export function App() {
     if (current.round.phase === 'day' && selectedRef.current) {
       setState(prev => placeStructure(prev, selectedRef.current, nearest.id) || prev);
       setSelectedCard(null);
+      setInspectedId(null);
+    } else if (current.round.phase === 'day') {
+      setInspectedId(previous => (nearest.structure && previous !== nearest.id ? nearest.id : null));
     } else if (current.round.phase === 'night') {
       sendWarden(nearest.id);
     }
@@ -289,6 +334,10 @@ export function App() {
 
   const isDay = round.phase === 'day';
   const fallen = round.phase === 'fallen';
+  const inspectedSlot = isDay && inspectedId
+    ? round.slots.find(slot => slot.id === inspectedId && slot.structure)
+    : null;
+  const inspected = inspectedSlot ? describeSlot(round, inspectedSlot) : null;
   const dayRemaining = Math.max(0, DAY_LENGTH - (round.time - round.phaseStart));
   const threats = round.shades
     .filter(shade => shade.targetSlotId && shade.phase !== 'held' &&
@@ -362,6 +411,19 @@ export function App() {
                 {round.placedToday ? 'Call the Dusk' : 'Skip the day (place nothing)'}
               </button>
               {selectedCard && <p className="hint">Tap an empty slot to build the {STRUCTURES[selectedCard].name}.</p>}
+              {!selectedCard && !inspected && <p className="hint">Tap a building to inspect it.</p>}
+              {inspected && (
+                <div className="inspect">
+                  <div className="inspect-head">
+                    <strong>{inspected.name}</strong>
+                    <button onClick={() => setInspectedId(null)} aria-label="Close inspector">×</button>
+                  </div>
+                  <em>{inspected.levelLine}</em>
+                  {inspected.rows.map(([label, value]) => (
+                    <div key={label} className="inspect-row"><span>{label}</span><span>{value}</span></div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="night-controls">

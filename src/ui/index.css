@@ -101,3 +101,17 @@ canvas { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; border:
 .fallen-panel h2 { color: #e05a5a; font-size: 1.05em; margin-bottom: 8px; }
 .fallen-panel p { color: #8793a2; font-size: 0.85em; margin-bottom: 14px; }
 .fallen-panel strong { color: #ffd082; }
+
+.inspect {
+  margin-top: 8px; padding: 8px 10px; font-size: 0.78em;
+  background: #12141f; border: 1px solid #3a3450; border-radius: 6px;
+}
+.inspect-head { display: flex; justify-content: space-between; align-items: center; }
+.inspect-head strong { color: #ffd082; }
+.inspect-head button {
+  background: none; border: none; color: #8793a2; font-size: 1.1em;
+  cursor: pointer; padding: 0 2px; line-height: 1;
+}
+.inspect em { display: block; color: #8fc97a; font-style: normal; font-size: 0.9em; margin: 2px 0 6px; }
+.inspect-row { display: flex; justify-content: space-between; gap: 10px; color: #8793a2; }
+.inspect-row span:last-child { color: #c8d0dc; text-align: right; }
