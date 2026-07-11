@@ -148,6 +148,12 @@ try {
   if (!abandoned) failures.push('abandoning the vigil did not end the round');
   else note('vigil abandoned by double-tap, chronicle shown');
 
+  // No raw escape sequences leaking into visible text (\uXXXX in JSX
+  // text renders literally — it has happened).
+  const rawEscapes = await page.evaluate(() => /\\u[0-9a-fA-F]{4}/.test(document.body.innerText));
+  if (rawEscapes) failures.push('visible text contains a literal \\uXXXX escape');
+  else note('no raw escapes in visible text');
+
   // No horizontal scroll on a phone-width viewport.
   const overflow = await page.evaluate(() =>
     document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
