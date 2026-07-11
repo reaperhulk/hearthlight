@@ -317,38 +317,43 @@ export function App() {
   return (
     <div className="game">
       <header>
-        <div>
+        <div className="title-row">
           <h1>Hearthlight</h1>
-          <span className={`phase ${round.phase}`}>
-            {fallen ? 'Fallen' : isDay ? `Day ${round.day} — ${Math.ceil(dayRemaining)}s` : `Night ${round.day}`}
-          </span>
-          {!fallen && isDay && (() => {
-            const forecast = getNightForecast(round);
-            const omenName = forecast.omen === 'hungry' ? 'Hungry Night — ' : forecast.omen === 'still' ? 'Still Night — ' : '';
-            return (
-              <span className={`forecast${forecast.omen ? ' omen' : ''}`} title="Shades due at dusk">
-                {forecast.omen === 'still'
-                  ? 'Still Night — the dark holds its breath'
-                  : `${omenName}tonight: ${forecast.count} shade${forecast.count === 1 ? '' : 's'}${forecast.heartseekers > 0 ? `, ${forecast.heartseekers} seek the Heart` : ''}`}
-              </span>
-            );
-          })()}
-        </div>
-        <div className="stats">
-          <span>Glow <strong>{Math.floor(round.glow)}</strong> (+{getGlowRate(state).toFixed(1)}/s)</span>
-          <span>Embers <strong>{state.embers}</strong></span>
           <button
             className="sound-toggle"
             aria-label={sound ? 'Mute sound' : 'Unmute sound'}
             onClick={() => { unlockAudio(); setSound(current => !current); }}
           >
-            {sound ? '♪' : '∅'}
+            {sound ? '\u266a' : '\u2205'}
           </button>
+        </div>
+        <div className="chips">
+          <span className={`chip phase ${round.phase}`}>
+            {!fallen && isDay && (
+              <i className="day-fill" style={{ width: `${(dayRemaining / DAY_LENGTH) * 100}%` }} />
+            )}
+            <span>{fallen ? 'Fallen' : isDay ? `\u2600 Day ${round.day} \u00b7 ${Math.ceil(dayRemaining)}s` : `\u263e Night ${round.day}`}</span>
+          </span>
+          {!fallen && isDay && (() => {
+            const forecast = getNightForecast(round);
+            const omenName = forecast.omen === 'hungry' ? 'Hungry Night \u00b7 ' : forecast.omen === 'still' ? 'Still Night \u00b7 ' : '';
+            return (
+              <span className={`chip forecast${forecast.omen ? ' omen' : ''}`} title="Shades due at dusk">
+                {forecast.omen === 'still'
+                  ? 'Still Night \u00b7 the dark holds its breath'
+                  : `${omenName}tonight: ${forecast.count}${forecast.heartseekers > 0 ? ` \u00b7 ${forecast.heartseekers} seek the Heart` : ''}`}
+              </span>
+            );
+          })()}
+          <span className="chip stat">Glow <strong>{Math.floor(round.glow)}</strong> <em>+{getGlowRate(state).toFixed(1)}/s</em></span>
+          <span className="chip stat">Embers <strong>{state.embers}</strong></span>
         </div>
       </header>
 
       <div className="heart-bar" role="meter" aria-valuemin={0} aria-valuemax={round.heartMax || HEART_MAX} aria-valuenow={Math.round(round.heart)} aria-label="Heart light">
-        <div style={{ width: `${(round.heart / (round.heartMax || HEART_MAX)) * 100}%` }} />
+        <div className="heart-fill" style={{ width: `${(round.heart / (round.heartMax || HEART_MAX)) * 100}%` }}>
+          <i className="wick" />
+        </div>
         <span>{fallen ? 'The Heart is dark.' : `Heart ${Math.ceil(round.heart)} / ${round.heartMax || HEART_MAX}`}</span>
       </div>
 
