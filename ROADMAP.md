@@ -60,8 +60,11 @@ commit pushed to main. Update checkboxes as work lands.
       fell used to evaporate free — they now vent at the Heart (14), which
       finally prices turtling out (bunker 4.2n vs keeper 5.0n) and opened a
       second death channel (25% of keeper deaths are vents).
-- [ ] **Sound + juice** — placement thunk, seal chime, fall toll; screen
-      grain at low Heart. Keep it subtle.
+- [x] **Sound + juice** — a tiny WebAudio synth (no assets): placement
+      thunk, banish chime, tower zap, dusk/dawn tones, fall and final
+      tolls, heart-hit thud. The UI diffs engine telemetry between frames;
+      the engine stays pure. Vignette presses in below 70% Heart and
+      pulses below 30%. Persisted mute toggle.
 
 - [x] **Heartseekers (death-channel variety)** — from night 7, every fifth
       shade ignores the town and goes for the Heart. Counterplay keeps the

@@ -46,8 +46,13 @@ h1 { color: #ffd082; font-size: 1.4em; letter-spacing: 0.06em; }
 .phase.fallen { color: #e05a5a; }
 .forecast { font-size: 0.8em; color: #b06ad0; margin-left: 0.7em; opacity: 0.9; }
 .forecast.omen { color: #e6c766; }
-.stats { display: flex; gap: 12px; font-size: 0.8em; color: #8793a2; }
+.stats { display: flex; gap: 12px; font-size: 0.8em; color: #8793a2; align-items: baseline; }
 .stats strong { color: #ffd082; }
+.sound-toggle {
+  background: none; border: 1px solid #3a4152; border-radius: 4px;
+  color: #8793a2; font-family: inherit; font-size: 1em; cursor: pointer;
+  padding: 0 7px; line-height: 1.4;
+}
 
 .heart-bar {
   position: relative; height: 18px; margin: 8px 0;

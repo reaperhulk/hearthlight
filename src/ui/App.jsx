@@ -4,6 +4,7 @@ import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, levelGlowMult,
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT } from '../engine/night.js';
+import { setMuted, sfx, unlockAudio } from './sound.js';
 import { buyMetaUpgrade, META_UPGRADES } from '../engine/meta.js';
 import { STRUCTURES } from '../engine/structures.js';
 
@@ -92,6 +93,17 @@ function drawTown(ctx, state, selectedCard, animTime, inspectedId) {
       ctx.arc(CANVAS / 2 + Math.cos(angle) * radius, CANVAS / 2 + Math.sin(angle) * radius, 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  // Low light: the dark presses in from the edges.
+  const dread = 1 - round.heart / (round.heartMax || HEART_MAX);
+  if (dread > 0.3) {
+    const vignette = ctx.createRadialGradient(CANVAS / 2, CANVAS / 2, CANVAS * 0.22, CANVAS / 2, CANVAS / 2, CANVAS * 0.62);
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    const pulse = dread > 0.7 ? 0.06 * Math.sin(animTime * 5) : 0;
+    vignette.addColorStop(1, `rgba(20, 4, 24, ${Math.min(0.75, (dread - 0.3) * 1.1 + pulse)})`);
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, CANVAS, CANVAS);
   }
 
   // The Heart: glow scales with remaining light
@@ -200,6 +212,7 @@ export function App() {
   const [state, setState] = useState(() => loadState(window.localStorage));
   const [selectedCard, setSelectedCard] = useState(null);
   const [inspectedId, setInspectedId] = useState(null);
+  const [sound, setSound] = useState(() => window.localStorage.getItem('hearthlight-sound') !== 'off');
   const hasRound = state.round != null;
   const stateRef = useRef(state);
   const selectedRef = useRef(selectedCard);
@@ -224,6 +237,35 @@ export function App() {
       save();
     };
   }, []);
+
+  useEffect(() => {
+    setMuted(!sound);
+    window.localStorage.setItem('hearthlight-sound', sound ? 'on' : 'off');
+  }, [sound]);
+
+  // Sound: diff the engine's telemetry between renders — the engine stays
+  // pure; the UI listens to what changed.
+  const prevRoundRef = useRef(null);
+  useEffect(() => {
+    const prev = prevRoundRef.current;
+    const round = state.round;
+    prevRoundRef.current = round;
+    if (!prev || !round) return;
+    if (prev.phase === 'day' && round.phase === 'night') sfx.dusk();
+    if (round.day > prev.day) sfx.dawn();
+    if (prev.phase !== 'fallen' && round.phase === 'fallen') { sfx.toll(); return; }
+    const built = slots => slots.filter(slot => slot.structure).length;
+    if (built(round.slots) > built(prev.slots) && round.phase === 'day') sfx.place();
+    const prevLoss = prev.stats?.heartLoss;
+    const loss = round.stats?.heartLoss;
+    if (prevLoss && loss) {
+      if (loss.falls > prevLoss.falls) sfx.fall();
+      else if (loss.heartHits > prevLoss.heartHits || loss.vents > prevLoss.vents) sfx.heartHit();
+    }
+    const nightSum = (stats, key) => (stats?.nights || []).reduce((sum, night) => sum + night[key], 0);
+    if (nightSum(round.stats, 'banished') > nightSum(prev.stats, 'banished')) sfx.banish();
+    if (nightSum(round.stats, 'towerKills') > nightSum(prev.stats, 'towerKills')) sfx.tower();
+  }, [state]);
 
   // Game loop: engine ticks at wall-clock speed.
   useEffect(() => {
@@ -273,6 +315,7 @@ export function App() {
   }, []);
 
   const handleCanvasClick = useCallback(event => {
+    unlockAudio();
     const canvas = canvasRef.current;
     const current = stateRef.current;
     if (!canvas || !current.round) return;
@@ -336,7 +379,7 @@ export function App() {
             </button>
           ))}
         </div>
-        <button className="begin" onClick={() => setState(current => beginRound(current))}>
+        <button className="begin" onClick={() => { unlockAudio(); setState(current => beginRound(current)); }}>
           Begin the Vigil
         </button>
       </div>
@@ -378,6 +421,13 @@ export function App() {
         <div className="stats">
           <span>Glow <strong>{Math.floor(round.glow)}</strong> (+{getGlowRate(state).toFixed(1)}/s)</span>
           <span>Embers <strong>{state.embers}</strong></span>
+          <button
+            className="sound-toggle"
+            aria-label={sound ? 'Mute sound' : 'Unmute sound'}
+            onClick={() => { unlockAudio(); setSound(current => !current); }}
+          >
+            {sound ? '♪' : '∅'}
+          </button>
         </div>
       </header>
 
