@@ -50,6 +50,11 @@ export const sfx = {
   dusk() {
     tone({ freq: 220, freqEnd: 110, duration: 0.5, type: 'sine', gain: 0.05 });
   },
+  // A Still Night: the dark inhales, and holds.
+  still() {
+    tone({ freq: 180, freqEnd: 90, duration: 0.8, type: 'sine', gain: 0.045 });
+    tone({ freq: 90, freqEnd: 130, duration: 0.9, type: 'sine', gain: 0.035, delay: 0.8 });
+  },
   // Dawn breaks.
   dawn() {
     tone({ freq: 330, freqEnd: 660, duration: 0.35, type: 'sine', gain: 0.04 });

@@ -3,7 +3,7 @@ import { createInitialState, loadState, saveState } from '../engine/state.js';
 import { abandonRound, beginRound, collectEmbers, getGlowRate, getEmberBreakdown, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
-import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT } from '../engine/night.js';
+import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT, STILL_DEBT } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
 import { drawEffects, drawStructureGlyph, drawTown, slotPixel, CANVAS, STRUCTURE_COLORS } from './draw.js';
 import { buyMetaUpgrade, metaUnlocked, META_UPGRADES } from '../engine/meta.js';
@@ -110,9 +110,10 @@ export function App() {
     if (!prev || !round) return;
     const now = performance.now() / 1000;
     if (prev.phase === 'day' && round.phase === 'night') {
-      sfx.dusk();
       const entry = round.stats?.nights.at(-1);
-      const omen = entry?.omen === 'hungry' ? 'A Hungry Night' : entry?.omen === 'still' ? 'A Still Night' : null;
+      if (entry?.spawned === 0) sfx.still(); else sfx.dusk();
+      const omen = entry?.omen === 'hungry' ? 'A Hungry Night'
+        : entry?.omen === 'still' ? `A Still Night — ${STILL_DEBT} more come tomorrow` : null;
       effectsRef.current.push({ type: 'sweep', color: 'rgba(150, 90, 170, ', start: now });
       effectsRef.current.push({
         type: 'banner',

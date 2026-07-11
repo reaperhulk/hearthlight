@@ -1,7 +1,7 @@
 // All canvas rendering for the town map. Pure drawing — reads state, never
 // mutates it. The engine stays headless; this file is the game's face.
 import { HEART_MAX } from '../engine/round.js';
-import { getHoldTime, getNightForecast, HEART_SLOT, SHADE_FEED_TIME } from '../engine/night.js';
+import { getHoldTime, getNightForecast, getShadeCount, HEART_SLOT, SHADE_FEED_TIME, STILL_DEBT } from '../engine/night.js';
 import { getAdjacentSlots, RINGS } from '../engine/map.js';
 import { STRUCTURES } from '../engine/structures.js';
 
@@ -94,6 +94,21 @@ function drawRim(ctx, round, darkness, animTime) {
   ctx.arc(CANVAS / 2, CANVAS / 2, CANVAS * 0.46, 0, Math.PI * 2);
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // A Still Night: nothing attacks, but the held breath is visible —
+  // tomorrow's swollen host masses on the rim and presses inward.
+  if (round.phase === 'night' && round.stillDebt && round.shades.length === 0) {
+    const tomorrow = getShadeCount(round.day + 1) + STILL_DEBT;
+    for (let index = 0; index < tomorrow; index++) {
+      const angle = (index / tomorrow) * Math.PI * 2 - animTime * 0.35;
+      const press = Math.sin(animTime * 1.4 + index) * 10;
+      const radius = CANVAS * 0.47 - Math.max(0, press);
+      ctx.fillStyle = `rgba(176, 106, 208, ${0.5 + 0.2 * Math.sin(animTime * 3 + index)})`;
+      ctx.beginPath();
+      ctx.arc(CANVAS / 2 + Math.cos(angle) * radius, CANVAS / 2 + Math.sin(angle) * radius, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
   // The gathering: one dim mote per shade due tonight, prowling the rim.
   if (round.phase === 'day') {
