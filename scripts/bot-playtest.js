@@ -116,67 +116,85 @@ function spendEmbers(state) {
   return current;
 }
 
-// ── Scenarios ───────────────────────────────────────────────────────────────
+// ── Scenarios ──────────────────────────────────────────────────────────────
+// Rounds are run across several seeds: hard invariants must hold on EVERY
+// seed; pacing bands are asserted on the MEAN, because single-seed arcs are
+// too noisy to tune against.
 const seedArg = process.argv.indexOf('--seed');
-const seed = seedArg >= 0 ? Number(process.argv[seedArg + 1]) : 424242;
+const SEEDS = seedArg >= 0
+  ? [Number(process.argv[seedArg + 1])]
+  : [424242, 133742, 271828, 314159, 861861];
 const assertMode = process.argv.includes('--assert');
 
-console.log(`Hearthlight playtest | seed ${seed}\n`);
-const results = {};
+const mean = values => values.reduce((sum, value) => sum + value, 0) / values.length;
+const fmtArc = arc => arc.map(round => round.nights).join('\u2192');
 
-for (const profile of ['passive', 'builder', 'keeper']) {
-  const rng = mulberry32(seed);
-  const outcome = playRound(createInitialState(), profile, rng);
-  results[profile] = outcome;
-  console.log(`  round 1 ${profile.padEnd(8)} nights ${String(outcome.nights).padStart(2)} | embers ${String(outcome.embers).padStart(2)} | ${outcome.seconds}s | ${outcome.fell ? 'fell' : 'SURVIVED CAP'}`);
-}
+console.log(`Hearthlight playtest | seeds ${SEEDS.join(', ')}\n`);
 
-// The meta arc: a keeper plays five rounds, spending Embers between them.
-{
+const perSeed = [];
+for (const seed of SEEDS) {
+  const result = { seed };
+  for (const profile of ['passive', 'builder', 'keeper']) {
+    result[profile] = playRound(createInitialState(), profile, mulberry32(seed));
+  }
+  // The meta arc: a keeper plays five rounds, spending Embers between them.
   const rng = mulberry32(seed);
   let state = createInitialState();
-  const arc = [];
+  result.arc = [];
   for (let roundIndex = 0; roundIndex < 5; roundIndex++) {
     const outcome = playRound(state, 'keeper', rng);
     state = spendEmbers(outcome.state);
-    arc.push(outcome);
+    result.arc.push(outcome);
   }
-  results.arc = arc;
-  console.log(`\n  keeper meta arc: nights ${arc.map(r => r.nights).join(' → ')} | embers banked ${state.embers} | meta owned ${Object.keys(state.meta).length}/${Object.keys(META_UPGRADES).length}`);
-  console.log(`  round lengths:   ${arc.map(r => `${r.seconds}s`).join(' → ')}`);
+  result.metaOwned = Object.keys(state.meta).length;
+  // Determinism: replay the keeper round on the same seed.
+  const replay = playRound(createInitialState(), 'keeper', mulberry32(seed));
+  result.deterministic = replay.nights === result.keeper.nights &&
+    replay.embers === result.keeper.embers && replay.seconds === result.keeper.seconds;
+  perSeed.push(result);
+  console.log(
+    `  seed ${String(seed).padEnd(6)} | r1 passive ${String(result.passive.nights).padStart(2)}n` +
+    ` builder ${String(result.builder.nights).padStart(2)}n keeper ${String(result.keeper.nights).padStart(2)}n/${result.keeper.seconds}s` +
+    ` | arc ${fmtArc(result.arc)} | meta ${result.metaOwned}/${Object.keys(META_UPGRADES).length}` +
+    `${result.deterministic ? '' : ' | DETERMINISM BROKEN'}`);
 }
 
-// Determinism: identical seeds, identical rounds.
-{
-  const play = () => {
-    const rng = mulberry32(seed);
-    return playRound(createInitialState(), 'keeper', rng);
-  };
-  const a = play();
-  const b = play();
-  results.deterministic = a.nights === b.nights && a.embers === b.embers && a.seconds === b.seconds;
-  console.log(`\n  determinism: ${results.deterministic ? 'OK' : 'BROKEN'}`);
-}
+const agg = {
+  passiveNights: mean(perSeed.map(result => result.passive.nights)),
+  keeperNights: mean(perSeed.map(result => result.keeper.nights)),
+  keeperSeconds: mean(perSeed.map(result => result.keeper.seconds)),
+  keeperEmbers: mean(perSeed.map(result => result.keeper.embers)),
+  arcFirst: mean(perSeed.map(result => result.arc[0].nights)),
+  arcLast: mean(perSeed.map(result => result.arc[result.arc.length - 1].nights)),
+  arcFirstSeconds: mean(perSeed.map(result => result.arc[0].seconds)),
+  arcLastSeconds: mean(perSeed.map(result => result.arc[result.arc.length - 1].seconds)),
+};
+console.log(`\n  means: passive ${agg.passiveNights.toFixed(1)}n | keeper r1 ${agg.keeperNights.toFixed(1)}n/${Math.round(agg.keeperSeconds)}s/${agg.keeperEmbers.toFixed(1)} embers | arc ${agg.arcFirst.toFixed(1)} -> ${agg.arcLast.toFixed(1)}n (${Math.round(agg.arcFirstSeconds)}s -> ${Math.round(agg.arcLastSeconds)}s)`);
 
 if (assertMode) {
-  const arc = results.arc;
   const issues = [];
-  if (!results.deterministic) issues.push('same seed produced different rounds');
-  if (!results.passive.fell) issues.push('a do-nothing round never ends');
-  if (results.passive.seconds > 400) issues.push(`passive round dragged ${results.passive.seconds}s`);
-  if (results.keeper.seconds > 420) issues.push(`round 1 keeper took ${results.keeper.seconds}s — first round must be snappy`);
-  if (results.keeper.nights < 2) issues.push('a played first round dies before night 2');
-  if (results.keeper.nights < results.passive.nights) issues.push('playing is worse than doing nothing');
-  if (results.keeper.embers < 3) issues.push('first round pays too little to buy anything');
-  const first = arc[0].nights;
-  const last = arc[arc.length - 1].nights;
-  if (last <= first) issues.push(`meta does not lengthen runs (${first} → ${last})`);
-  if (arc[arc.length - 1].seconds <= arc[0].seconds) issues.push('later rounds are not longer in real time');
+  // Hard invariants: every seed, no exceptions.
+  for (const result of perSeed) {
+    const tag = `seed ${result.seed}:`;
+    if (!result.deterministic) issues.push(`${tag} same seed produced different rounds`);
+    if (!result.passive.fell) issues.push(`${tag} a do-nothing round never ends`);
+    if (result.passive.embers < 1) issues.push(`${tag} a fall paid nothing`);
+    if (!result.keeper.fell) issues.push(`${tag} the wall never won against the keeper`);
+    if (result.keeper.nights < result.passive.nights) issues.push(`${tag} playing is worse than doing nothing`);
+    if (result.keeper.embers < 3) issues.push(`${tag} first round pays too little to buy anything`);
+    if (result.keeper.seconds > 420) issues.push(`${tag} round 1 keeper took ${result.keeper.seconds}s`);
+  }
+  // Pacing bands: on the mean.
+  if (agg.passiveNights < 2 || agg.passiveNights > 5) issues.push(`mean passive nights ${agg.passiveNights.toFixed(1)} outside 2-5`);
+  if (agg.keeperNights < 5) issues.push(`mean keeper round 1 only ${agg.keeperNights.toFixed(1)} nights — too punishing`);
+  if (agg.keeperNights > 16) issues.push(`mean keeper round 1 ${agg.keeperNights.toFixed(1)} nights — round 1 drags`);
+  if (agg.arcLast <= agg.arcFirst) issues.push(`meta does not lengthen runs on the mean (${agg.arcFirst.toFixed(1)} -> ${agg.arcLast.toFixed(1)})`);
+  if (agg.arcLastSeconds <= agg.arcFirstSeconds) issues.push('later rounds are not longer in real time on the mean');
 
-  console.log('\n── Assertions ──');
+  console.log('\n\u2500\u2500 Assertions \u2500\u2500');
   if (issues.length > 0) {
-    for (const issue of issues) console.log(`  ✗ ${issue}`);
+    for (const issue of issues) console.log(`  \u2717 ${issue}`);
     process.exit(1);
   }
-  console.log('  ✓ all loop promises hold');
+  console.log('  \u2713 all loop promises hold on every seed');
 }
