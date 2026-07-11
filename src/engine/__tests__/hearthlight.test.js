@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, FRONTIER_YIELD, HEART_MAX } from '../round.js';
+import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
 import { getNightForecast, getShadeCount, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
@@ -429,6 +429,22 @@ describe('hearthlight', () => {
     let rebuilt = { ...state, round: { ...state.round, phase: 'day', placedToday: false, draft: ['palisade'], glow: 20 } };
     rebuilt = placeStructure(rebuilt, 'palisade', 'r0s0');
     expect(rebuilt.round.slots[0].ruin).toBe(false);
+  });
+
+  it('rerolling the draft costs glow, once per day, and resets at dawn', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, glow: 10 } };
+    const rerolled = rerollDraft(state, makeRng([0.9, 0.2, 0.6]));
+    expect(rerolled.round.glow).toBe(10 - REROLL_COST);
+    expect(rerolled.round.rerolledToday).toBe(true);
+    expect(rerollDraft(rerolled, makeRng())).toBeNull(); // once per day
+    // Too poor to reroll
+    expect(rerollDraft({ ...state, round: { ...state.round, glow: 2 } }, makeRng())).toBeNull();
+    // Dawn resets the privilege
+    let night = { ...rerolled, round: { ...rerolled.round, phase: 'night', phaseStart: rerolled.round.time, shades: [], placedToday: false, towerCharges: {} } };
+    night = runSeconds(night, 12, makeRng());
+    expect(night.round.phase).toBe('day');
+    expect(night.round.rerolledToday).toBe(false);
   });
 
   it('is deterministic under the same seed', () => {

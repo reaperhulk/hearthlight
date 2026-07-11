@@ -201,3 +201,10 @@ button:focus-visible, canvas:focus-visible {
 .epitaph { color: #8f7fa8; font-style: italic; font-size: 0.8em; margin-bottom: 10px; }
 
 .card-head .eta { color: #5f6b7d; font-size: 0.85em; white-space: nowrap; }
+
+.reroll {
+  width: 100%; margin-top: 6px; padding: 7px;
+  background: #12141f; border: 1px dashed #3a4152; border-radius: 5px;
+  color: #8793a2; font-family: inherit; font-size: 0.75em; cursor: pointer;
+}
+.reroll:disabled { opacity: 0.45; cursor: default; }

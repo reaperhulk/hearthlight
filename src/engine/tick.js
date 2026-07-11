@@ -41,6 +41,7 @@ function dawn(state, rng) {
     glow,
     slots,
     omen,
+    rerolledToday: false,
     log: appendLog(round, day, messages),
   };
   withDawn.draft = drawDraft({ ...state, round: withDawn }, rng);

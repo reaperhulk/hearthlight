@@ -8,6 +8,7 @@ import { STRUCTURE_HIT } from './night.js';
 export const DAY_LENGTH = 15;
 export const START_GLOW = 12;
 export const DAWN_GLOW_PER_STRUCTURE = 3;
+export const REROLL_COST = 4;
 export const LEVEL_UP_NIGHTS = 3;
 export const LEVEL_UP_NIGHTS_VETERAN = 7;
 
@@ -62,6 +63,7 @@ export function beginRound(state, rng = Math.random) {
     slots: createSlots(getUnlockedRings(state)),
     draft: [],
     placedToday: false,
+    rerolledToday: false,
     shades: [],
     wardens: Array.from({ length: getWardenCount(state) }, (_, index) => ({
       id: index + 1,
@@ -140,6 +142,17 @@ export function placeStructure(state, structureId, slotId) {
       placedToday: true,
     },
   };
+}
+
+// Once per day, unspent Glow can buy a fresh draft. A small lever, but
+// a real decision: 4 Glow now versus a shot at the card you need.
+export function rerollDraft(state, rng = Math.random) {
+  const round = state.round;
+  if (!round || round.phase !== 'day' || round.placedToday || round.rerolledToday) return null;
+  if (round.glow < REROLL_COST) return null;
+  const next = { ...round, glow: round.glow - REROLL_COST, rerolledToday: true };
+  next.draft = drawDraft({ ...state, round: next }, rng);
+  return { ...state, round: next };
 }
 
 // End the day early (or the timer does it): dusk falls.

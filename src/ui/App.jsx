@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadState, saveState } from '../engine/state.js';
-import { beginRound, collectEmbers, getGlowRate, getEmberBreakdown, levelGlowMult, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
+import { beginRound, collectEmbers, getGlowRate, getEmberBreakdown, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT } from '../engine/night.js';
@@ -490,6 +490,15 @@ export function App() {
                   );
                 })}
               </div>
+              {!round.placedToday && !round.rerolledToday && (
+                <button
+                  className="reroll"
+                  disabled={round.glow < REROLL_COST}
+                  onClick={() => setState(current => rerollDraft(current) || current)}
+                >
+                  New faces at the gate \u2014 reroll for {REROLL_COST} Glow
+                </button>
+              )}
               <button className="end-day" onClick={() => setState(current => endDay(current))}>
                 {(() => {
                   const forecast = getNightForecast(round);
