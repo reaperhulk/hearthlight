@@ -47,6 +47,13 @@ export function drawDraft(state, rng) {
   if (!draft.some(id => STRUCTURES[id].defensive)) {
     draft[draft.length - 1] = 'palisade';
   }
+  // Deeper Drafts widens the pity too: four cards, at least two defenses.
+  if (size >= 4 && draft.filter(id => STRUCTURES[id].defensive).length < 2) {
+    const spare = ['palisade', 'lantern', 'belltower', 'watchtower'].find(id => !draft.includes(id));
+    for (let index = draft.length - 1; index >= 0; index--) {
+      if (!STRUCTURES[draft[index]].defensive) { draft[index] = spare; break; }
+    }
+  }
   return draft;
 }
 

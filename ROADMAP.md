@@ -155,6 +155,18 @@ commit pushed to main. Update checkboxes as work lands.
       reset ('Burn everything', double-tap confirmed) that wipes the save.
       Both covered by the browser smoke.
 
+- [x] **The dark spreads (fun fix)** — playtest verdict: every shade
+      funneled into one slot, towers watched, and the night was a
+      spectator sport. Root cause: independent weighted targeting plus an
+      uncapped palisade bodyguard. Now the night's targets are sampled
+      WITHOUT replacement in waves (K shades threaten K distinct positions
+      before any repeat) and a palisade shields at most 2 strikes a night.
+      Placement spread jumped 1.4 -> 2.0 nights (keeper 5.8 vs randomPlace
+      3.8); towers proc constantly; the warden's cooldown is now a real
+      choice of who to save. Deeper Drafts, left worthless by the change,
+      re-identified as 'four cards, two of them defenses' (+10.6 arc
+      nights, was +0.2).
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

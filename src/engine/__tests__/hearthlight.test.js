@@ -43,6 +43,14 @@ describe('hearthlight', () => {
       expect(draft.some(id => STRUCTURES[id].defensive)).toBe(true);
       expect(new Set(draft).size).toBe(draft.length);
     }
+    // Deeper Drafts: four cards, at least two of them defenses.
+    const deep = { ...createInitialState(), meta: { deeperDrafts: true } };
+    for (const roll of [0.01, 0.35, 0.6, 0.99]) {
+      const draft = drawDraft(deep, makeRng([roll]));
+      expect(draft.length).toBe(4);
+      expect(draft.filter(id => STRUCTURES[id].defensive).length).toBeGreaterThanOrEqual(2);
+      expect(new Set(draft).size).toBe(draft.length);
+    }
   });
 
   it('starts a round with the Heart lit and one decision pending', () => {
@@ -139,6 +147,20 @@ describe('hearthlight', () => {
     const innerApproach = innerNight.round.shades[0].arrivesAt - innerNight.round.shades[0].spawnedAt;
     const outerApproach = outerNight.round.shades[0].arrivesAt - outerNight.round.shades[0].spawnedAt;
     expect(outerApproach).toBeCloseTo(innerApproach * FRONTIER_APPROACH, 5);
+  });
+
+  it('the dark spreads: a night threatens distinct positions first', () => {
+    // Three separated farms, four shades: every farm is threatened.
+    let state = startedRound();
+    for (const slotId of ['r0s0', 'r0s2', 'r0s4']) {
+      state = { ...state, round: { ...state.round, placedToday: false, draft: ['farm'], glow: 20 } };
+      state = placeStructure(state, 'farm', slotId);
+    }
+    state = { ...state, round: { ...state.round, day: 3 } }; // 4 shades
+    state = endDay(state, makeRng([0.3, 0.6, 0.9, 0.2, 0.5]));
+    expect(state.round.shades).toHaveLength(getShadeCount(3));
+    const distinct = new Set(state.round.shades.map(shade => shade.targetSlotId));
+    expect(distinct.size).toBe(3); // all three positions threatened before any repeat
   });
 
   it('palisades bodyguard their neighbors', () => {

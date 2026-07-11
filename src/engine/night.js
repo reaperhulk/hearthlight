@@ -45,6 +45,49 @@ export const HEART_SLOT = 'heart';
 // this much sooner (pairs with FRONTIER_YIELD in round.js).
 export const FRONTIER_APPROACH = 0.9;
 
+// A palisade shields at most this many strikes a night — a wall, not a
+// black hole. Without the cap every shade funnels into one slot and the
+// night collapses into parking the warden there.
+export const PALISADE_SHIELD_PER_NIGHT = 2;
+
+// The night's target plan: weighted sampling WITHOUT replacement, in
+// waves — K shades threaten min(K, town) DISTINCT positions before any
+// position repeats. Simultaneous threats are the game; convergence on a
+// single slot was its death.
+function planTargets(round, occupied, count, rng) {
+  const shieldLeft = new Map();
+  for (const slot of occupied) {
+    if (slot.structure.type === 'palisade') shieldLeft.set(slot.id, PALISADE_SHIELD_PER_NIGHT);
+  }
+  const targets = [];
+  let pool = [];
+  for (let index = 0; index < count; index++) {
+    if (pool.length === 0) pool = [...occupied];
+    const totalWeight = pool.reduce((sum, slot) =>
+      sum + (STRUCTURES[slot.structure.type].tauntWeight || 1), 0);
+    let roll = rng() * totalWeight;
+    let pick = pool[0];
+    for (const slot of pool) {
+      roll -= STRUCTURES[slot.structure.type].tauntWeight || 1;
+      if (roll <= 0) { pick = slot; break; }
+    }
+    pool = pool.filter(slot => slot.id !== pick.id);
+    // Bodyguard: an adjacent palisade takes the strike — while it has
+    // the arms to. Placement decides who is safe; the cap keeps it a
+    // wall, not a drain.
+    if (pick.structure.type !== 'palisade') {
+      const shield = getAdjacentSlots(round.slots, pick.id).find(neighbor =>
+        neighbor.structure?.type === 'palisade' && (shieldLeft.get(neighbor.id) || 0) > 0);
+      if (shield) {
+        shieldLeft.set(shield.id, shieldLeft.get(shield.id) - 1);
+        pick = shield;
+      }
+    }
+    targets.push(pick);
+  }
+  return targets;
+}
+
 export function getHeartseekerCount(night, count) {
   return night >= HEARTSEEKER_NIGHT ? Math.floor(count / 5) : 0;
 }
@@ -88,6 +131,9 @@ export function spawnShades(state, rng) {
     sum + (STRUCTURES[slot.structure.type].nightDelay || 0), 0);
   const shades = [];
   let nextId = round.nextShadeId;
+  const planned = occupied.length > 0
+    ? planTargets(round, occupied, Math.max(0, count - heartseekers), rng)
+    : [];
 
   for (let index = 0; index < count; index++) {
     let targetSlotId = null;
@@ -109,22 +155,8 @@ export function spawnShades(state, rng) {
       });
       continue;
     }
-    if (occupied.length > 0) {
-      const totalWeight = occupied.reduce((sum, slot) =>
-        sum + (STRUCTURES[slot.structure.type].tauntWeight || 1), 0);
-      let roll = rng() * totalWeight;
-      let pick = occupied[0];
-      for (const slot of occupied) {
-        roll -= STRUCTURES[slot.structure.type].tauntWeight || 1;
-        if (roll <= 0) { pick = slot; break; }
-      }
-      // Bodyguard: a palisade shields its neighbors — the shade strikes
-      // the wall instead. Placement, not luck, decides who is safe.
-      if (pick.structure.type !== 'palisade') {
-        const shield = getAdjacentSlots(round.slots, pick.id)
-          .find(neighbor => neighbor.structure?.type === 'palisade');
-        if (shield) pick = shield;
-      }
+    const pick = planned[index - heartseekers];
+    if (pick) {
       targetSlotId = pick.id;
       ringFactor = pick.ring > 0 ? FRONTIER_APPROACH : 1;
     }

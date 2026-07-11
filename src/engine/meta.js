@@ -25,7 +25,7 @@ export const META_UPGRADES = {
     id: 'deeperDrafts',
     name: 'Deeper Drafts',
     cost: 8,
-    description: 'Each day offers four structures instead of three.',
+    description: 'Each day offers four structures — at least two of them defenses.',
   },
   outerRing: {
     id: 'outerRing',
