@@ -1,7 +1,7 @@
 // All canvas rendering for the town map. Pure drawing — reads state, never
 // mutates it. The engine stays headless; this file is the game's face.
 import { HEART_MAX } from '../engine/round.js';
-import { getNightForecast, HEART_SLOT, SHADE_FEED_TIME } from '../engine/night.js';
+import { getHoldTime, getNightForecast, HEART_SLOT, SHADE_FEED_TIME } from '../engine/night.js';
 import { getAdjacentSlots, RINGS } from '../engine/map.js';
 import { STRUCTURES } from '../engine/structures.js';
 
@@ -376,7 +376,7 @@ function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
 // ── Threat telegraphy ───────────────────────────────────────────────────────
 // Every targeted position wears a countdown arc: purple shrinking while a
 // shade approaches, red growing while one feeds. Towers show their bolts.
-function drawThreats(ctx, round) {
+function drawThreats(ctx, round, holdTime) {
   if (round.phase !== 'night') {
     // By day, towers preview their full quiver.
     for (const slot of round.slots) {
@@ -420,6 +420,41 @@ function drawThreats(ctx, round) {
     if (slot.structure?.type === 'watchtower') {
       drawTowerBolts(ctx, slot, round.towerCharges[slot.id] ?? 0);
     }
+  }
+
+  // Grappled shades wear a gold arc: banished when it closes.
+  const posOf = key => {
+    const slot = key === HEART_SLOT ? null : round.slots.find(candidate => candidate.id === key);
+    return slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
+  };
+  for (const shade of round.shades) {
+    if (shade.phase !== 'held' || shade.heldSince == null) continue;
+    const key = shade.targetSlotId ?? HEART_SLOT;
+    const { x, y } = posOf(key);
+    const radius = key === HEART_SLOT ? 28 : 21;
+    const fraction = Math.max(0, Math.min(1, (round.time - shade.heldSince) / holdTime));
+    ctx.strokeStyle = 'rgba(230, 199, 102, 0.9)';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, -Math.PI / 2, -Math.PI / 2 + fraction * Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Saturation: the warden grapples ONE — shades still chewing at a
+  // guarded post are counted so overload is visible at a glance.
+  const guarded = new Set(round.wardens.map(warden => warden.slotId).filter(Boolean));
+  const queued = new Map();
+  for (const shade of round.shades) {
+    const key = shade.targetSlotId ?? HEART_SLOT;
+    if (shade.phase === 'feeding' && guarded.has(key)) queued.set(key, (queued.get(key) || 0) + 1);
+  }
+  for (const [key, count] of queued) {
+    const { x, y } = posOf(key);
+    ctx.fillStyle = '#e08a8a';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`+${count} feeding`, x, y + (key === HEART_SLOT ? 38 : 30));
   }
 }
 
@@ -490,15 +525,25 @@ function drawPlacementPreview(ctx, round, selectedCard, hover, animTime) {
   ctx.globalAlpha = 1;
 }
 
-// Inspecting a building lights up its actual relationships.
+// Inspecting a building lights up its actual relationships. A watchtower
+// additionally rings the neighbors its bolts cover — and never itself.
 function drawInspectLinks(ctx, round, inspectedId, animTime) {
   if (!inspectedId) return;
   const slot = round.slots.find(candidate => candidate.id === inspectedId);
   if (!slot?.structure) return;
   const origin = slotPixel(slot);
+  const isTower = slot.structure.type === 'watchtower';
   for (const neighbor of getAdjacentSlots(round.slots, inspectedId)) {
     if (!neighbor.structure) continue;
-    drawLink(ctx, origin, slotPixel(neighbor), 'rgba(159, 242, 255, ALPHA)', 0.45, animTime);
+    const px = slotPixel(neighbor);
+    drawLink(ctx, origin, px, 'rgba(159, 242, 255, ALPHA)', 0.45, animTime);
+    if (isTower) {
+      ctx.strokeStyle = 'rgba(255, 208, 130, 0.55)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(px.x, px.y, 16, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 }
 
@@ -578,7 +623,7 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   drawHeart(ctx, round, animTime);
   drawShades(ctx, round, animTime);
   drawSlots(ctx, round, selectedCard, inspectedId, animTime);
-  drawThreats(ctx, round);
+  drawThreats(ctx, round, getHoldTime(state));
   drawInspectLinks(ctx, round, inspectedId, animTime);
   if (round.phase === 'day') drawPlacementPreview(ctx, round, selectedCard, hover, animTime);
   drawWardens(ctx, round, animTime, visuals);
@@ -610,6 +655,19 @@ export function drawEffects(ctx, effects, animTime) {
       ctx.beginPath();
       ctx.arc(CANVAS / 2, CANVAS / 2, 16 + age * 60, 0, Math.PI * 2);
       ctx.stroke();
+    } else if (effect.type === 'bolt' && age < 0.28) {
+      // A tower bolt: a bright lance from tower to victim, then gone.
+      const alpha = 1 - age / 0.28;
+      ctx.strokeStyle = `rgba(255, 208, 130, ${alpha})`;
+      ctx.lineWidth = 2.5 * alpha + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(effect.from.x, effect.from.y);
+      ctx.lineTo(effect.to.x, effect.to.y);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255, 246, 224, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(effect.to.x, effect.to.y, 3 + age * 10, 0, Math.PI * 2);
+      ctx.fill();
     } else if (effect.type === 'sweep' && age < 0.9) {
       // Dusk rolls out from the Heart; dawn washes back in.
       const alpha = 0.5 * (1 - age / 0.9);

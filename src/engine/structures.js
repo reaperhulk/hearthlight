@@ -41,7 +41,7 @@ export const STRUCTURES = {
     nightCharges: 2,
     weight: 2,
     defensive: true,
-    description: 'Banishes the first two shades to reach a neighbor each night.',
+    description: 'Two bolts each night burn shades reaching its neighbors. Cannot save itself.',
   },
   palisade: {
     id: 'palisade',

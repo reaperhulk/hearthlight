@@ -135,6 +135,15 @@ commit pushed to main. Update checkboxes as work lands.
       slots leave visible ash on the map until rebuilt over. Closes the
       lore loop: losses are literally banked as memory.
 
+- [x] **Combat legibility pass** — playtest feedback said the night's rules
+      were sound but untaught. Now: grappled shades wear a gold arc that
+      banishes when it closes; a guarded post under pile-on shows "+N
+      feeding" so warden saturation is visible; tower bolts draw a bright
+      lance from tower to victim at the kill; inspecting a tower rings the
+      neighbors it covers (and its Blind spot row says it cannot save
+      itself); night buttons say "Save the Farm — bites in 3s" for
+      rescuable feeds; the how-to states the three night rules.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

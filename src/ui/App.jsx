@@ -43,7 +43,10 @@ function describeSlot(round, slot) {
   }
   rows.push(['At dawn', `+${DAWN_GLOW_PER_STRUCTURE + (def.dawnGlow || 0)} Glow`]);
   if (def.slowsAdjacent) rows.push(['Slows', `shades on lit neighbors ×${def.slowsAdjacent}`]);
-  if (def.nightCharges) rows.push(['Banishes', `${def.nightCharges + (structure.level >= 3 ? 1 : 0)} shades/night on neighbors`]);
+  if (def.nightCharges) {
+    rows.push(['Banishes', `${def.nightCharges + (structure.level >= 3 ? 1 : 0)} shades/night on neighbors`]);
+    rows.push(['Blind spot', 'cannot save itself']);
+  }
   if (def.nightDelay) rows.push(['Toll', `every shade +${def.nightDelay}s approach`]);
   if (def.tauntWeight) rows.push(['Taunt', 'draws shades to itself']);
   rows.push(['Neighbors', neighbors.length > 0
@@ -131,6 +134,23 @@ export function App() {
         color: 'rgba(255, 208, 130, ',
         start: now,
       });
+    }
+    // Tower bolts: a charge spent mid-night draws a lance to the victim.
+    if (prev.phase === 'night' && round.phase === 'night') {
+      for (const [slotId, before] of Object.entries(prev.towerCharges || {})) {
+        if ((round.towerCharges?.[slotId] ?? 0) >= before) continue;
+        const tower = round.slots.find(candidate => candidate.id === slotId);
+        if (!tower) continue;
+        const victim = prev.shades.find(shade => shade.phase === 'approach' &&
+          !round.shades.some(candidate => candidate.id === shade.id));
+        const victimSlot = victim?.targetSlotId
+          ? round.slots.find(candidate => candidate.id === victim.targetSlotId)
+          : null;
+        const to = victim
+          ? (victimSlot ? slotPixel(victimSlot) : { x: CANVAS / 2, y: CANVAS / 2 })
+          : slotPixel(tower);
+        effectsRef.current.push({ type: 'bolt', from: slotPixel(tower), to, start: now });
+      }
     }
     // Bites and falls flash where they land, the moment they land.
     for (const slot of round.slots) {
@@ -285,7 +305,8 @@ export function App() {
         {state.totalRounds === 0 && (
           <ul className="how-to">
             <li>By day: pick one structure and tap an empty slot. Build farms for Glow, walls and towers for the night.</li>
-            <li>By night: shades creep from the rim. Tap a threatened building to send the Warden.</li>
+            <li>By night: shades creep from the rim and chew for five seconds before each bite \u2014 send the Warden in time and the building is saved.</li>
+            <li>The Warden grapples one shade at a time and cannot be hurt; watchtowers fire two bolts a night at shades reaching their neighbors \u2014 never at their own attackers.</li>
             <li>The dark always wins. Nights survived become Embers — spend them to last longer next time.</li>
           </ul>
         )}
@@ -541,9 +562,11 @@ export function App() {
                 const slot = round.slots.find(candidate => candidate.id === shade.targetSlotId);
                 const name = !shade.targetSlotId ? 'the Heart'
                   : slot?.structure ? STRUCTURES[slot.structure.type].name : 'ruin';
+                const seconds = Math.max(0, Math.ceil((shade.phase === 'approach' ? shade.arrivesAt : shade.feedsAt ?? round.time) - round.time));
                 return (
                   <button key={shade.id} onClick={() => sendWarden(shade.targetSlotId ?? HEART_SLOT)}>
-                    Warden → {name} ({Math.max(0, Math.ceil((shade.phase === 'approach' ? shade.arrivesAt : shade.feedsAt ?? round.time) - round.time))}s)
+                    {shade.phase === 'feeding' ? `Save ${name === 'the Heart' ? name : `the ${name}`} \u2014 bites in ${seconds}s`
+                      : `Warden \u2192 ${name} (${seconds}s)`}
                   </button>
                 );
               }) : <span className="hint">The Warden watches. Hold the line.</span>}
