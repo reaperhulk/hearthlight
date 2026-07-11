@@ -550,9 +550,11 @@ export function App() {
             </div>
           )}
 
-          <div className="log">
-            {round.log.slice(-4).map((entry, index) => (
-              <div key={index}>{entry.message}</div>
+          <div className="log" role="log" aria-live="polite" aria-label="The night's tale">
+            {round.log.slice(-4).map((entry, index, shown) => (
+              <div key={`${round.log.length - shown.length + index}`} className={index === shown.length - 1 ? 'newest' : ''}>
+                {entry.message}
+              </div>
             ))}
           </div>
           </div>

@@ -208,3 +208,7 @@ button:focus-visible, canvas:focus-visible {
   color: #8793a2; font-family: inherit; font-size: 0.75em; cursor: pointer;
 }
 .reroll:disabled { opacity: 0.45; cursor: default; }
+
+.log .newest { color: #98a5b8; animation: logIn 0.5s ease-out; }
+@keyframes logIn { from { opacity: 0; transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .log .newest { animation: none; } }
