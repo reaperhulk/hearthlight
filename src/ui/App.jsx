@@ -281,6 +281,7 @@ export function App() {
       <div className="home">
         <h1>Hearthlight</h1>
         <p className="lore">Something in the dark keeps eating the towns. Light the Heart. Last longer.</p>
+        <p className="lore dim">The shades are the Forgetting. Every town they take becomes ruins — and the ruins remember every wall you raised.</p>
         {state.totalRounds === 0 && (
           <ul className="how-to">
             <li>By day: pick one structure and tap an empty slot. Build farms for Glow, walls and towers for the night.</li>
@@ -400,6 +401,13 @@ export function App() {
       {fallen ? (
         <div className="fallen-panel">
           <h2>The town is memory now.</h2>
+          <p className="epitaph">{[
+            'What the dark takes, the ground keeps.',
+            'The shades are the Forgetting. The ruins remember.',
+            'Every wall you raised is a word in the stones\u2019 story.',
+            'The light failed. The remembering begins.',
+            'No vigil is wasted. The ruins keep the shape of it.',
+          ][(round.day + state.totalRounds) % 5]}</p>
           {(() => {
             const nights = round.day - 1;
             const breakdown = getEmberBreakdown(round, state.meta);
