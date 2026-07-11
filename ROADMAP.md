@@ -121,7 +121,9 @@ commit pushed to main. Update checkboxes as work lands.
   embers, or arc nights — asserted). Arc values: secondWarden +16.2n,
   morningStockpile +8.8, swiftWarden +7.0, emberChoir +6.4, deeperDrafts
   +6.0, outerRing +5.0, stoneFoundations +4.8, heartstone +4.6.
-  secondWarden's dominance is the next tuning watch item.
+  secondWarden repriced 15 -> 22 embers: still the strongest single
+  effect, no longer the best per-ember buy (0.74 n/e vs
+  morningStockpile's 2.3).
 - 9 structures, 8 meta upgrades, omens, heartseekers, veteran tier, the
   frontier; 23 unit tests; PWA installable; CI runs the five fixed seeds
   deterministically (`--ci`), local runs add a random lane.

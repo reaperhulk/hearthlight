@@ -48,7 +48,7 @@ export const META_UPGRADES = {
   secondWarden: {
     id: 'secondWarden',
     name: 'Second Warden',
-    cost: 15,
+    cost: 22,
     description: 'Another keeper walks the night.',
   },
 };
