@@ -334,12 +334,13 @@ describe('hearthlight', () => {
   });
 
   it('meta upgrades are bought with Embers and shape the next round', () => {
-    let state = { ...createInitialState(), embers: 25 };
+    let state = { ...createInitialState(), embers: 40 };
     expect(buyMetaUpgrade(state, 'secondWarden')).toBeTruthy();
     state = buyMetaUpgrade(state, 'morningStockpile');
     state = buyMetaUpgrade(state, 'stoneFoundations');
-    expect(state.embers).toBe(15);
+    expect(state.embers).toBe(30);
     expect(buyMetaUpgrade(state, 'morningStockpile')).toBeNull(); // owned
+    expect(buyMetaUpgrade({ ...state, embers: 10 }, 'secondWarden')).toBeNull(); // pinnacle price
 
     state = buyMetaUpgrade(state, 'secondWarden');
     state = beginRound(state, makeRng());
