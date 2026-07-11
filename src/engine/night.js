@@ -6,9 +6,9 @@ import { getAdjacentSlots, nearHeart } from './map.js';
 export const NIGHT_MIN_LENGTH = 10;
 export const SHADE_FEED_TIME = 5;
 export const SHADE_HOLD_TIME = 3.5;
-export const SHADE_HOLD_TIME_SWIFT = 2.4;
+export const SHADE_HOLD_TIME_SWIFT = 2;
 export const WARDEN_COOLDOWN = 6;
-export const WARDEN_COOLDOWN_SWIFT = 3;
+export const WARDEN_COOLDOWN_SWIFT = 2;
 export const HEART_HIT = 20;      // a shade that reaches the Heart
 export const STRUCTURE_HIT = 18;  // heart-light lost when a structure falls
 // A shade that finds only ash vents its hunger at the Heart. Priced close
@@ -34,7 +34,7 @@ export function rollOmen(day, rng) {
   return { night: day, type: rng() < 0.5 ? 'hungry' : 'still' };
 }
 
-// Heartseekers: from this night on, every fourth shade ignores the town
+// Heartseekers: from this night on, every fifth shade ignores the town
 // and goes for the Heart itself. Counterplay: a warden standing AT the
 // Heart holds them; watchtowers near the center intercept them.
 export const HEARTSEEKER_NIGHT = 7;

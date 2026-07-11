@@ -70,6 +70,13 @@ commit pushed to main. Update checkboxes as work lands.
       forecast announces them. Keeper deaths now split 63% falls / 13%
       heart strikes / 24% vents (was 100% falls).
 
+- [x] **Meta value on both axes** — the marginal-value panel now measures
+      Δnights AND Δembers per upgrade, with a shelf-warmer assertion: every
+      upgrade must earn its slot on at least one axis (outerRing exempted
+      until ring-2 content lands). emberChoir vindicated (+2.2e);
+      swiftWarden was exposed at +0.2n/+0.2e and buffed (hold 2s, cooldown
+      2s) to +0.8n/+1.4e.
+
 ## Later / ideas
 
 - Second map ring content pass (outer-ring-only structures?).

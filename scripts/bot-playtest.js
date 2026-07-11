@@ -336,14 +336,21 @@ if (!quick) {
   }
   say(`\n  depth: keeper ${agg.keeperNights.toFixed(1)}n vs randomPlace ${depth.ablations.randomPlace.toFixed(1)}n | economyGreedy ${depth.ablations.economyGreedy.toFixed(1)}n | defenseGreedy ${depth.ablations.defenseGreedy.toFixed(1)}n | bunker ${depth.ablations.bunker.toFixed(1)}n`);
 
-  const baseline = mean(DEPTH_SEEDS.map(seed =>
-    playRound(createInitialState(), 'keeper', mulberry32(seed)).nights));
+  // Each upgrade's marginal value on BOTH axes: nights (defense/tempo
+  // upgrades) and embers (economy upgrades pay the meta loop directly).
+  const baselineRuns = DEPTH_SEEDS.map(seed =>
+    playRound(createInitialState(), 'keeper', mulberry32(seed)));
+  const baseNights = mean(baselineRuns.map(run => run.nights));
+  const baseEmbers = mean(baselineRuns.map(run => run.embers));
   for (const id of Object.keys(META_UPGRADES)) {
-    const withUpgrade = mean(DEPTH_SEEDS.map(seed =>
-      playRound({ ...createInitialState(), meta: { [id]: true } }, 'keeper', mulberry32(seed)).nights));
-    depth.metaValue[id] = withUpgrade - baseline;
+    const runs = DEPTH_SEEDS.map(seed =>
+      playRound({ ...createInitialState(), meta: { [id]: true } }, 'keeper', mulberry32(seed)));
+    depth.metaValue[`${id}.nights`] = mean(runs.map(run => run.nights)) - baseNights;
+    depth.metaValue[`${id}.embers`] = mean(runs.map(run => run.embers)) - baseEmbers;
   }
-  say(`  meta value (Δn vs bare keeper): ${Object.entries(depth.metaValue).map(([id, delta]) => `${id} ${delta >= 0 ? '+' : ''}${delta.toFixed(1)}`).join(' | ')}`);
+  const fmtDelta = value => `${value >= 0 ? '+' : ''}${value.toFixed(1)}`;
+  say(`  meta value (Δnights/Δembers vs bare keeper): ${Object.keys(META_UPGRADES).map(id =>
+    `${id} ${fmtDelta(depth.metaValue[`${id}.nights`])}n/${fmtDelta(depth.metaValue[`${id}.embers`])}e`).join(' | ')}`);
   say(`  picks: ${STRUCTURE_IDS.map(id => `${id} ${collector.picks[id] || 0}`).join(' | ')}`);
   depth.picks = { ...collector.picks };
 }
@@ -372,7 +379,7 @@ if (compareFile) {
     /Seconds$/.test(key) ? 25
     : /^(tension|lossFalls|lossHeartHits|lossVents)$/.test(key) ? 0.15
     : /^banishesPerNight$/.test(key) ? 0.75
-    : /^keeperEmbers$/.test(key) ? 2
+    : /^keeperEmbers$/.test(key) || /\.embers$/.test(key) ? 2
     : 1.0;
   const diff = (label, was, now) => {
     for (const [key, value] of Object.entries(was || {})) {
@@ -450,10 +457,18 @@ if (assertMode) {
     if (depth.ablations.bunker > agg.keeperNights) {
       issues.push(`turtling beats building: bunker ${depth.ablations.bunker.toFixed(1)}n vs keeper ${agg.keeperNights.toFixed(1)}n`);
     }
-    for (const [id, delta] of Object.entries(depth.metaValue)) {
-      if (delta < -0.5) issues.push(`meta trap: ${id} makes runs shorter (${delta.toFixed(1)}n)`);
+    // outerRing waits on ring-2 content (roadmap: outer ring identity)
+    // before it can show marginal value to a bot that never builds there.
+    const META_WAITING_ON_CONTENT = new Set(['outerRing']);
+    for (const id of Object.keys(META_UPGRADES)) {
+      const nights = depth.metaValue[`${id}.nights`];
+      const embers = depth.metaValue[`${id}.embers`];
+      if (nights < -0.5) issues.push(`meta trap: ${id} makes runs shorter (${nights.toFixed(1)}n)`);
+      if (!META_WAITING_ON_CONTENT.has(id) && nights < 0.3 && embers < 1) {
+        issues.push(`meta shelf-warmer: ${id} neither lengthens runs (${nights.toFixed(1)}n) nor pays (${embers.toFixed(1)}e)`);
+      }
     }
-    if (!Object.values(depth.metaValue).some(delta => delta >= 0.5)) {
+    if (!Object.keys(META_UPGRADES).some(id => depth.metaValue[`${id}.nights`] >= 0.5)) {
       issues.push('no meta upgrade meaningfully lengthens a bare run');
     }
     for (const id of STRUCTURE_IDS) {
