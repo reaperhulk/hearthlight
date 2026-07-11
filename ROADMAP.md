@@ -123,9 +123,14 @@ commit pushed to main. Update checkboxes as work lands.
       ledger via engine getEmberBreakdown); tiered Ember shop; reduced-
       motion and focus-visible support.
 
+- [x] **Browser smoke in CI** — puppeteer-core drives a real Chromium
+      through one full loop (home -> place via canvas tap -> dusk -> night
+      -> fall -> chronicle -> shop) on every push, failing on console
+      errors, progression misses, or horizontal overflow at phone width.
+      `window.__game` exposes getState/setState/fastForward as the handle.
+
 ## Later / ideas
 
-- Browser smoke test in CI (puppeteer) once the UI stabilizes.
 - Lore: the shades are the Forgetting; this town becomes the ruins that
   remember (bridge to theruinsremember).
 

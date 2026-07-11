@@ -157,6 +157,26 @@ export function App() {
     if (nightSum(round.stats, 'towerKills') > nightSum(prev.stats, 'towerKills')) sfx.tower();
   }, [state]);
 
+  // Test handle: lets the browser smoke test (and manual DevTools poking)
+  // drive the game without waiting out real time.
+  useEffect(() => {
+    window.__game = {
+      getState: () => stateRef.current,
+      setState: transform => setState(transform),
+      // Advance in bounded one-second steps, like the engine's own slices.
+      fastForward: seconds => setState(current => {
+        let advanced = current;
+        let remaining = seconds;
+        while (remaining > 0 && advanced.round && advanced.round.phase !== 'fallen') {
+          advanced = tick(advanced, 1);
+          remaining -= 1;
+        }
+        return advanced;
+      }),
+    };
+    return () => { delete window.__game; };
+  }, []);
+
   // Game loop: engine ticks at wall-clock speed.
   useEffect(() => {
     let raf = null;

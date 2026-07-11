@@ -16,6 +16,10 @@ always wins; nights survived become Embers; Embers buy permanent upgrades.
 - `npm run test:unit` — engine unit tests
 - `npm run test:balance` — bot profiles + assertions (five fixed seeds, deterministic)
 - `npm run test:quality` — lint + unit + balance + build (run before commit)
+- `npm run test:smoke` — build + real-Chromium smoke: one full loop through
+  the UI (place, night, fall, collect, shop); fails on console errors or
+  horizontal overflow. Uses CHROME_PATH or the preinstalled Chromium.
+  `window.__game` (getState/setState/fastForward) is the test handle.
 - `npm run balance:story` — narrate one keeper round night by night (add `-- --seed N`)
 - `npm run balance:compare` — diff current numbers against scripts/balance-baseline.json;
   exits nonzero when a metric drifts past tolerance

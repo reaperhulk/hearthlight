@@ -15,5 +15,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      # Lint, 13 deterministic engine tests, bot loop-promise assertions, build
+      # Lint, deterministic engine tests, bot loop-promise assertions, build
       - run: npm run test:quality
+      # A real Chromium drives one full loop: begin -> place -> night -> fall
+      # -> collect -> shop. Fails on console errors or layout overflow.
+      - run: npm run test:smoke
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
