@@ -1,6 +1,7 @@
 // The round clock: day → dusk → night → dawn, in bounded deterministic
 // slices. All randomness flows through the injected rng.
 import { DAY_LENGTH, DAWN_GLOW_PER_STRUCTURE, LEVEL_UP_NIGHTS, drawDraft, getGlowRate } from './round.js';
+import { STRUCTURES } from './structures.js';
 import { advanceNightSlice, nightResolved, spawnShades } from './night.js';
 
 function appendLog(round, day, messages) {
@@ -13,7 +14,7 @@ function dawn(state, rng) {
   let glow = round.glow;
   const slots = round.slots.map(slot => {
     if (!slot.structure) return slot;
-    glow += DAWN_GLOW_PER_STRUCTURE;
+    glow += DAWN_GLOW_PER_STRUCTURE + (STRUCTURES[slot.structure.type].dawnGlow || 0);
     const nightsSurvived = slot.structure.nightsSurvived + 1;
     const levelUp = nightsSurvived >= LEVEL_UP_NIGHTS && slot.structure.level === 1;
     return {

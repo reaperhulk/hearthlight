@@ -33,6 +33,18 @@ export const META_UPGRADES = {
     cost: 12,
     description: 'Unlocks ten more slots beyond the first circle.',
   },
+  heartstone: {
+    id: 'heartstone',
+    name: 'Heartstone',
+    cost: 20,
+    description: 'The Heart burns brighter: +25 maximum light every round.',
+  },
+  emberChoir: {
+    id: 'emberChoir',
+    name: 'Ember Choir',
+    cost: 10,
+    description: 'Every second night survived sings one extra Ember home.',
+  },
   secondWarden: {
     id: 'secondWarden',
     name: 'Second Warden',
@@ -61,4 +73,8 @@ export function getWardenCount(state) {
 
 export function getUnlockedRings(state) {
   return state.meta.outerRing ? 2 : 1;
+}
+
+export function getHeartMax(state) {
+  return 100 + (state.meta.heartstone ? 25 : 0);
 }

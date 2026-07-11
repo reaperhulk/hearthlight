@@ -21,7 +21,7 @@ function mulberry32(seed) {
   };
 }
 
-const META_ORDER = ['stoneFoundations', 'swiftWarden', 'morningStockpile', 'deeperDrafts', 'secondWarden', 'outerRing'];
+const META_ORDER = ['stoneFoundations', 'swiftWarden', 'morningStockpile', 'emberChoir', 'heartstone', 'deeperDrafts', 'secondWarden', 'outerRing'];
 
 // ── Profiles ────────────────────────────────────────────────────────────────
 // passive: never touches anything. builder: places by day, sleeps at night.
@@ -36,8 +36,8 @@ function pickPlacement(state) {
   const affordable = round.draft.filter(id => STRUCTURES[id].cost <= round.glow);
   if (affordable.length === 0) return null;
   const byPreference = wantDefense
-    ? ['watchtower', 'palisade', 'lantern', 'farm', 'well', 'shrine']
-    : ['farm', 'well', 'shrine', 'watchtower', 'lantern', 'palisade'];
+    ? ['watchtower', 'belltower', 'palisade', 'lantern', 'farm', 'well', 'granary', 'shrine', 'emberKiln']
+    : ['farm', 'granary', 'well', 'shrine', 'emberKiln', 'watchtower', 'belltower', 'lantern', 'palisade'];
   const choice = byPreference.find(id => affordable.includes(id)) || affordable[0];
 
   const empty = round.slots.filter(slot => !slot.structure);
@@ -101,7 +101,7 @@ function playRound(state, profile, rng, maxSeconds = 1200) {
     seconds++;
   }
   const nights = state.round ? state.round.day - 1 : 0;
-  const embers = state.round ? getEmbersEarned(state.round) : 0;
+  const embers = state.round ? getEmbersEarned(state.round, state.meta) : 0;
   const fell = state.round?.phase === 'fallen';
   state = fell ? collectEmbers(state) : state;
   return { state, nights, embers, seconds, fell };

@@ -14,7 +14,7 @@ commit pushed to main. Update checkboxes as work lands.
       losses now cost 14 heart, escalation 1.18, warden holds 3.5s. Active
       gap widened: keeper 9.6n vs builder 7.0n. Meta arc 9.6 -> 17.0 nights.
       Bands asserted: keeper mean 6-11n, <=300s, active gap >=1n.
-- [ ] **Widen the build space** — +3 structures (Granary: dawn economy;
+- [x] **Widen the build space** — +3 structures (Granary: dawn economy;
       Bell Tower: slows the whole night's approach; Ember Kiln: converts
       held Glow to Embers at the fall) and +2 meta upgrades (Heartstone:
       +25 Heart; Ember Choir: +1 Ember per 2 nights at the fall). Re-measure.
@@ -42,10 +42,8 @@ commit pushed to main. Update checkboxes as work lands.
 - Lore: the shades are the Forgetting; this town becomes the ruins that
   remember (bridge to theruinsremember).
 
-## Measured state (seed 424242, single-seed — pre multi-seed harness)
+## Measured state (5-seed means)
 
-- Round 1: passive 3 nights/149s, builder 12/282s, keeper 13/323s.
-- Keeper 5-round meta arc: 13 → 17 → 15 → 25 → 19 nights, all 6 meta
-  upgrades owned, rounds lengthen in real time.
-- CI green on GitHub Actions (lint, 13 unit tests, balance assertions,
-  build) from a fresh install.
+- Round 1: passive 3.0 nights, builder 7.0, keeper 9.4 / 232s.
+- Keeper meta arc: 9.4 -> 15.6 nights (232s -> 430s real time).
+- 9 structures, 8 meta upgrades; 16 unit tests; CI green.

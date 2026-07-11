@@ -215,4 +215,37 @@ describe('hearthlight', () => {
     expect(migrateState(null).totalRounds).toBe(0);
     expect(migrateState({ meta: { swiftWarden: true } }).meta.swiftWarden).toBe(true);
   });
+
+  it('new structures hook the engine: granary dawns, bell delays, kiln pays', () => {
+    // Bell Tower: every shade this night arrives later. Control round has a
+    // palisade in the same slot so targeting and rng rolls are identical.
+    const base = startedRound();
+    const withBell = placeStructure({ ...base, round: { ...base.round, draft: ['belltower'], glow: 30 } }, 'belltower', 'r0s0');
+    const withWall = placeStructure({ ...base, round: { ...base.round, draft: ['palisade'], glow: 30 } }, 'palisade', 'r0s0');
+    const bellDusk = endDay(withBell, makeRng([0.5, 0.5, 0.5]));
+    const wallDusk = endDay(withWall, makeRng([0.5, 0.5, 0.5]));
+    expect(bellDusk.round.shades[0].arrivesAt).toBeCloseTo(wallDusk.round.shades[0].arrivesAt + 2, 5);
+
+    // Granary: extra Glow at dawn (baseline structure pays 3, granary pays 9)
+    const dawnGlow = STRUCTURES.granary.dawnGlow;
+    expect(dawnGlow).toBe(6);
+
+    // Ember Kiln: converts held Glow at the fall, capped
+    const fallen = { day: 5, glow: 65, slots: [
+      { id: 'a', structure: { type: 'emberKiln', hp: 1, level: 1, nightsSurvived: 2 } },
+    ] };
+    expect(getEmbersEarned(fallen)).toBe(4 + 0 + 2); // nights 4, alive 0(floor .5), kiln 2
+  });
+
+  it('heartstone and ember choir shape rounds and payouts', () => {
+    let state = { ...createInitialState(), embers: 40, meta: {} };
+    state = buyMetaUpgrade(state, 'heartstone');
+    state = buyMetaUpgrade(state, 'emberChoir');
+    state = beginRound(state, makeRng());
+    expect(state.round.heart).toBe(125);
+    expect(state.round.heartMax).toBe(125);
+
+    const fallen = { day: 7, glow: 0, slots: [] };
+    expect(getEmbersEarned(fallen, state.meta)).toBe(6 + 3); // 6 nights + choir floor(6/2)
+  });
 });

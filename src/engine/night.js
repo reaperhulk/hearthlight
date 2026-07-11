@@ -40,6 +40,8 @@ export function spawnShades(state, rng) {
   const count = getShadeCount(round.day);
   const speed = Math.pow(NIGHT_ESCALATION, round.day - 1);
   const occupied = round.slots.filter(slot => slot.structure);
+  const bellDelay = occupied.reduce((sum, slot) =>
+    sum + (STRUCTURES[slot.structure.type].nightDelay || 0), 0);
   const shades = [];
   let nextId = round.nextShadeId;
 
@@ -56,7 +58,7 @@ export function spawnShades(state, rng) {
       }
       targetSlotId = pick.id;
     }
-    const approach = ((8 + 5 * rng()) / speed) * (targetSlotId ? lanternSlow(round, targetSlotId) : 1);
+    const approach = ((8 + 5 * rng()) / speed) * (targetSlotId ? lanternSlow(round, targetSlotId) : 1) + bellDelay;
     shades.push({
       id: nextId++,
       targetSlotId, // null targets the Heart itself

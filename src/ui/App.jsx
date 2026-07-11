@@ -16,6 +16,9 @@ const STRUCTURE_COLORS = {
   watchtower: '#d9985f',
   palisade: '#a08c78',
   shrine: '#c99ae0',
+  granary: '#d9c97a',
+  belltower: '#8f9fd9',
+  emberKiln: '#e08a5a',
 };
 
 function slotPixel(slot) {
@@ -42,7 +45,7 @@ function drawTown(ctx, state, selectedCard, animTime) {
   ctx.setLineDash([]);
 
   // The Heart: glow scales with remaining light
-  const lightFraction = round.heart / HEART_MAX;
+  const lightFraction = round.heart / (round.heartMax || HEART_MAX);
   const pulse = 10 + Math.sin(animTime * 2.2) * 2.5;
   const heartGlow = ctx.createRadialGradient(CANVAS / 2, CANVAS / 2, 2, CANVAS / 2, CANVAS / 2, 60 + 80 * lightFraction);
   heartGlow.addColorStop(0, `rgba(255, 208, 130, ${0.55 + 0.35 * lightFraction})`);
@@ -291,15 +294,15 @@ export function App() {
         </div>
       </header>
 
-      <div className="heart-bar" role="meter" aria-valuemin={0} aria-valuemax={HEART_MAX} aria-valuenow={Math.round(round.heart)} aria-label="Heart light">
-        <div style={{ width: `${(round.heart / HEART_MAX) * 100}%` }} />
-        <span>{fallen ? 'The Heart is dark.' : `Heart ${Math.ceil(round.heart)} / ${HEART_MAX}`}</span>
+      <div className="heart-bar" role="meter" aria-valuemin={0} aria-valuemax={round.heartMax || HEART_MAX} aria-valuenow={Math.round(round.heart)} aria-label="Heart light">
+        <div style={{ width: `${(round.heart / (round.heartMax || HEART_MAX)) * 100}%` }} />
+        <span>{fallen ? 'The Heart is dark.' : `Heart ${Math.ceil(round.heart)} / ${round.heartMax || HEART_MAX}`}</span>
       </div>
 
       {fallen ? (
         <div className="fallen-panel">
           <h2>The town is memory now.</h2>
-          <p>{round.day - 1} night{round.day - 1 === 1 ? '' : 's'} survived — <strong>{getEmbersEarned(round)} Embers</strong> carried home.</p>
+          <p>{round.day - 1} night{round.day - 1 === 1 ? '' : 's'} survived — <strong>{getEmbersEarned(round, state.meta)} Embers</strong> carried home.</p>
           <button className="begin" onClick={() => { setState(current => collectEmbers(current)); setSelectedCard(null); }}>
             Return to the Fire
           </button>

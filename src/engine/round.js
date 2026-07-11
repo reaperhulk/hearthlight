@@ -2,7 +2,7 @@
 // Days are for one draft decision and Glow; nights belong to the dark.
 import { createSlots, getAdjacentSlots } from './map.js';
 import { STRUCTURES, STRUCTURE_IDS } from './structures.js';
-import { getDraftSize, getUnlockedRings, getWardenCount } from './meta.js';
+import { getDraftSize, getHeartMax, getUnlockedRings, getWardenCount } from './meta.js';
 
 export const DAY_LENGTH = 25;
 export const START_GLOW = 12;
@@ -41,7 +41,8 @@ export function beginRound(state, rng = Math.random) {
     time: 0,
     phaseStart: 0,
     glow: START_GLOW + (state.meta.morningStockpile ? 15 : 0),
-    heart: HEART_MAX,
+    heart: getHeartMax(state),
+    heartMax: getHeartMax(state),
     slots: createSlots(getUnlockedRings(state)),
     draft: [],
     placedToday: false,
@@ -123,18 +124,21 @@ export function countStructures(round, predicate = () => true) {
   return round.slots.filter(slot => slot.structure && predicate(slot)).length;
 }
 
-export function getEmbersEarned(round) {
+export function getEmbersEarned(round, meta = {}) {
   const nights = round.day - 1;
   const alive = countStructures(round);
   const shrines = countStructures(round, slot => slot.structure.type === 'shrine');
-  return Math.max(1, nights + Math.floor(alive / 2) + shrines * 2);
+  const kilns = countStructures(round, slot => slot.structure.type === 'emberKiln');
+  const kilnEmbers = kilns * Math.min(2, Math.floor(round.glow / 30));
+  const choirEmbers = meta.emberChoir ? Math.floor(nights / 2) : 0;
+  return Math.max(1, nights + Math.floor(alive / 2) + shrines * 2 + kilnEmbers + choirEmbers);
 }
 
 // Bank a fallen round: Embers home, round cleared.
 export function collectEmbers(state) {
   const round = state.round;
   if (!round || round.phase !== 'fallen') return state;
-  const earned = getEmbersEarned(round);
+  const earned = getEmbersEarned(round, state.meta);
   return {
     ...state,
     embers: state.embers + earned,
