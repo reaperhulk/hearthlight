@@ -313,7 +313,7 @@ export function App() {
           { title: 'Start faster', ids: ['morningStockpile', 'stoneFoundations', 'deeperDrafts'] },
           { title: 'Go longer', ids: ['swiftWarden', 'heartstone', 'secondWarden'] },
           { title: 'Wider and richer', ids: ['outerRing', 'emberChoir'] },
-          { title: 'Proven vigils', ids: ['beaconHeart', 'emberheart'] },
+          { title: 'Proven vigils', ids: ['beaconHeart', 'emberheart', 'ruinsRemember'] },
         ].map(tier => (
           <div key={tier.title} className="shop-tier">
             <h3>{tier.title}</h3>
@@ -418,6 +418,7 @@ export function App() {
               ['kiln', 'glow fed to the kiln'],
               ['choir', 'the choir sang'],
               ['emberheart', 'the Emberheart burned'],
+              ['ruins', 'the ruins remember'],
             ];
             const peak = Math.max(1, ...round.stats.nights.map(night => night.heartLost));
             return (

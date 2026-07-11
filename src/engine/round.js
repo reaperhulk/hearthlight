@@ -123,6 +123,7 @@ export function placeStructure(state, structureId, slotId) {
   const slots = [...round.slots];
   slots[slotIndex] = {
     ...slots[slotIndex],
+    ruin: false,
     structure: {
       type: structureId,
       hp: getStructureHp(state, structureId),
@@ -163,6 +164,9 @@ export function getEmberBreakdown(round, meta = {}) {
     kiln: kilns * Math.min(3, Math.floor(round.glow / 20)),
     choir: meta.emberChoir ? Math.floor(nights / 2) : 0,
     emberheart: meta.emberheart ? Math.max(0, nights - 4) : 0,
+    ruins: meta.ruinsRemember
+      ? Math.round((round.stats?.heartLoss.falls || 0) / STRUCTURE_HIT)
+      : 0,
   };
   const sum = Object.values(parts).reduce((total, value) => total + value, 0);
   return { ...parts, total: Math.max(1, sum) };

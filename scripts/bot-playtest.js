@@ -25,7 +25,7 @@ function mulberry32(seed) {
   };
 }
 
-const META_ORDER = ['stoneFoundations', 'swiftWarden', 'morningStockpile', 'emberChoir', 'beaconHeart', 'heartstone', 'deeperDrafts', 'emberheart', 'secondWarden', 'outerRing'];
+const META_ORDER = ['stoneFoundations', 'swiftWarden', 'morningStockpile', 'emberChoir', 'beaconHeart', 'heartstone', 'deeperDrafts', 'emberheart', 'ruinsRemember', 'secondWarden', 'outerRing'];
 
 // ── Profiles ────────────────────────────────────────────────────────────────
 // passive: nothing. builder: builds, sleeps at night. keeper: optimal — the

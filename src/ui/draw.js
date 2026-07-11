@@ -315,6 +315,15 @@ function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
   for (const slot of round.slots) {
     const { x, y } = slotPixel(slot);
     if (!slot.structure) {
+      if (slot.ruin) {
+        // Ash where a building stood — the ground keeps the shape of it.
+        ctx.fillStyle = 'rgba(224, 138, 90, 0.35)';
+        for (let ash = 0; ash < 3; ash++) {
+          ctx.beginPath();
+          ctx.arc(x + (ash - 1) * 4.5, y + 3 - (ash % 2) * 4, 1.7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       // With a card in hand, open ground beckons.
       const pulse = selectedCard ? 0.55 + 0.3 * Math.sin(animTime * 3.2 + slot.x * 7) : 0.4;
       ctx.strokeStyle = selectedCard ? `rgba(230, 199, 102, ${pulse})` : `rgba(140, 140, 170, ${pulse})`;

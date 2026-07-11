@@ -67,6 +67,13 @@ export const META_UPGRADES = {
     requiresBestNights: 10,
     description: '+1 Ember for every night survived past the fourth.',
   },
+  ruinsRemember: {
+    id: 'ruinsRemember',
+    name: 'The Ruins Remember',
+    cost: 18,
+    requiresBestNights: 12,
+    description: 'The dark can take a building, not its story: each loss pays +1 Ember at the fall.',
+  },
 };
 
 export function metaUnlocked(state, upgradeId) {

@@ -410,6 +410,27 @@ describe('hearthlight', () => {
     expect(getEmbersEarned(fallen, { emberheart: true })).toBe(base + 3);
   });
 
+  it('the ruins remember: falls leave ash and pay their story', () => {
+    // A structure falling marks its slot as a ruin.
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['farm'], glow: 20 } };
+    state = placeStructure(state, 'farm', 'r0s0');
+    state = endDay(state, makeRng([0.5, 0.5, 0.5]));
+    state = runSeconds(state, Math.ceil(13 + SHADE_FEED_TIME + 2), makeRng());
+    expect(state.round.slots[0].structure).toBeNull();
+    expect(state.round.slots[0].ruin).toBe(true);
+
+    // With the pinnacle owned, each fall pays +1 Ember at the end.
+    const fallen = { day: 5, glow: 0, slots: [], stats: { heartLoss: { falls: STRUCTURE_HIT * 3, heartHits: 0, vents: 0 }, nights: [] } };
+    const base = getEmbersEarned(fallen, {});
+    expect(getEmbersEarned(fallen, { ruinsRemember: true })).toBe(base + 3);
+
+    // Rebuilding over ashes clears them.
+    let rebuilt = { ...state, round: { ...state.round, phase: 'day', placedToday: false, draft: ['palisade'], glow: 20 } };
+    rebuilt = placeStructure(rebuilt, 'palisade', 'r0s0');
+    expect(rebuilt.round.slots[0].ruin).toBe(false);
+  });
+
   it('is deterministic under the same seed', () => {
     const play = () => {
       const rng = makeRng([0.17, 0.62, 0.48, 0.91, 0.05]);

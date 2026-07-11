@@ -129,6 +129,12 @@ commit pushed to main. Update checkboxes as work lands.
       errors, progression misses, or horizontal overflow at phone width.
       `window.__game` exposes getState/setState/fastForward as the handle.
 
+- [x] **The Ruins Remember (third pinnacle)** — sealed behind a 12-night
+      vigil: each building the dark takes pays +1 Ember at the fall
+      (measured +3.4e round 1, the strongest ember payer), and fallen
+      slots leave visible ash on the map until rebuilt over. Closes the
+      lore loop: losses are literally banked as memory.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

@@ -53,6 +53,8 @@
       "beaconHeart.embers": 1,
       "emberheart.nights": 0,
       "emberheart.embers": 1.4,
+      "ruinsRemember.nights": 0,
+      "ruinsRemember.embers": 3.4,
       "stoneFoundations.arcNights": 5.4,
       "morningStockpile.arcNights": 6.4,
       "swiftWarden.arcNights": 9,
@@ -62,7 +64,8 @@
       "emberChoir.arcNights": 3.6,
       "secondWarden.arcNights": 15.8,
       "beaconHeart.arcNights": 3.8,
-      "emberheart.arcNights": 0.6
+      "emberheart.arcNights": 0.6,
+      "ruinsRemember.arcNights": 1.2
     },
     "picks": {
       "lantern": 37,

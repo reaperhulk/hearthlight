@@ -331,7 +331,7 @@ export function advanceNightSlice(state, round) {
           slots = [...slots];
           nightEntry.fed += 1;
           if (hp <= 0) {
-            slots[index] = { ...slots[index], structure: null };
+            slots[index] = { ...slots[index], structure: null, ruin: true };
             heart -= STRUCTURE_HIT;
             heartLoss.falls += STRUCTURE_HIT;
             nightEntry.heartLost += STRUCTURE_HIT;
