@@ -142,22 +142,20 @@ commit pushed to main. Update checkboxes as work lands.
 
 ## Measured state (5-seed means)
 
-- Round 1: passive 2.0 nights, villager (median human) 3.6n / 112s — inside
-  the 1-2 minute first-play band — builder ~4n, keeper 5.4n / 132s.
-- Keeper meta arc: 5.4 -> 8.4 nights (132s -> 182s real time), with veteran
-  snowball seeds reaching 12+.
-- Depth: keeper 5.4n vs randomPlace 4.0 (spread 1.4) / economyGreedy 3.4 /
-  defenseGreedy 5.4 / bunker 4.4 (turtle gap 1.0). Placement is a real
-  choice; turtling always loses; the wall always wins.
-- Fun: 93% of heart loss lands in the final third; deaths split 59% falls /
-  4% heart strikes / 38% vents; ~4 leveled structures by arc end.
-- Meta: every upgrade earns its slot on some axis (round-1 nights, round-1
-  embers, or arc nights — asserted). Arc values: secondWarden +16.2n,
-  morningStockpile +8.8, swiftWarden +7.0, emberChoir +6.4, deeperDrafts
-  +6.0, outerRing +5.0, stoneFoundations +4.8, heartstone +4.6.
-  secondWarden repriced 15 -> 22 embers: still the strongest single
-  effect, no longer the best per-ember buy (0.74 n/e vs
-  morningStockpile's 2.3).
-- 9 structures, 8 meta upgrades, omens, heartseekers, veteran tier, the
-  frontier; 23 unit tests; PWA installable; CI runs the five fixed seeds
-  deterministically (`--ci`), local runs add a random lane.
+- Round 1: passive 2.0 nights, villager (median human) 3.6n / 110s — inside
+  the 1-2 minute first-play band — keeper ceiling 5.4n / 128s.
+- Keeper meta arc: 5.4 -> 8.4 nights (128s -> 175s), veteran-snowball seeds
+  reaching 12+.
+- Depth: keeper 5.4n vs randomPlace 4.0 (spread 1.4), bunker 4.4 (turtle
+  gap 1.0). Placement is a real choice; turtling loses; the wall wins.
+- Fun: 93% of heart loss in the final third; deaths 59% falls / 4% heart
+  strikes / 38% vents; ~4 leveled structures by arc end.
+- Meta: 11 upgrades, all earning a measured axis. Round-1 ember payers:
+  ruinsRemember +3.4e, emberChoir +2.6e; arc pillars: secondWarden +15.8n
+  (repriced to 22), swiftWarden +9.0n, morningStockpile +6.4n. Three
+  pinnacles sealed behind proven vigils (8/10/12 nights).
+- 9 structures (shrine now pays by adjacency), omens, heartseekers,
+  veteran tier, the frontier, draft reroll, ash ruins, keeper's ledger.
+- 27 unit tests; CI runs lint + unit + balance (5 fixed seeds) + build +
+  a real-Chromium smoke of the full loop; committed balance baseline
+  guards against silent drift; installable PWA that plays offline.
