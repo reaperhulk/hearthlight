@@ -194,6 +194,25 @@ export function getEmbersEarned(round, meta = {}) {
   return getEmberBreakdown(round, meta).total;
 }
 
+// Walking away is allowed: the vigil ends now, the dark takes the town,
+// and the nights already survived still pay. No exploit lives here — the
+// Ember formula is dominated by nights, so quitting early always pays
+// less than holding on.
+export function abandonRound(state) {
+  const round = state.round;
+  if (!round || round.phase === 'fallen') return null;
+  return {
+    ...state,
+    round: {
+      ...round,
+      phase: 'fallen',
+      heart: 0,
+      shades: [],
+      log: [...round.log, { day: round.day, message: 'You bank the fire and walk away. The dark takes the rest.' }].slice(-30),
+    },
+  };
+}
+
 // Bank a fallen round: Embers home, the Ledger updated, round cleared.
 export function collectEmbers(state) {
   const round = state.round;

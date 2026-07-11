@@ -148,6 +148,13 @@ commit pushed to main. Update checkboxes as work lands.
       instead of vanishing, and a hatched ghost segment on the heart bar
       telegraphs the loss that feeding shades are about to land.
 
+- [x] **Ways out** — a vigil can be abandoned mid-run (quiet button under
+      the log, double-tap confirmed; the dark takes the town now and the
+      nights survived still pay — no exploit, since the Ember formula is
+      dominated by nights), and the home screen gains a tucked-away full
+      reset ('Burn everything', double-tap confirmed) that wipes the save.
+      Both covered by the browser smoke.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

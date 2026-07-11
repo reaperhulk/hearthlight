@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
+import { abandonRound, beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
 import { getNightForecast, getShadeCount, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
@@ -445,6 +445,21 @@ describe('hearthlight', () => {
     night = runSeconds(night, 12, makeRng());
     expect(night.round.phase).toBe('day');
     expect(night.round.rerolledToday).toBe(false);
+  });
+
+  it('a vigil can be abandoned, and the nights survived still pay', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, day: 4 } };
+    const walked = abandonRound(state);
+    expect(walked.round.phase).toBe('fallen');
+    expect(walked.round.heart).toBe(0);
+    expect(walked.round.shades).toHaveLength(0);
+    const banked = collectEmbers(walked);
+    expect(banked.lastRound.nights).toBe(3);
+    expect(banked.embers).toBeGreaterThanOrEqual(1);
+    // No round, or an already-fallen round: nothing to abandon.
+    expect(abandonRound(banked)).toBeNull();
+    expect(abandonRound(walked)).toBeNull();
   });
 
   it('is deterministic under the same seed', () => {

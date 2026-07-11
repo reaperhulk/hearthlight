@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { loadState, saveState } from '../engine/state.js';
-import { beginRound, collectEmbers, getGlowRate, getEmberBreakdown, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
+import { createInitialState, loadState, saveState } from '../engine/state.js';
+import { abandonRound, beginRound, collectEmbers, getGlowRate, getEmberBreakdown, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT } from '../engine/night.js';
@@ -66,6 +66,7 @@ export function App() {
   const [selectedCard, setSelectedCard] = useState(null);
   const [inspectedId, setInspectedId] = useState(null);
   const [sound, setSound] = useState(() => window.localStorage.getItem('hearthlight-sound') !== 'off');
+  const [confirming, setConfirming] = useState(null); // 'abandon' | 'reset' | null
   const hasRound = state.round != null;
   const stateRef = useRef(state);
   const selectedRef = useRef(selectedCard);
@@ -192,6 +193,13 @@ export function App() {
     if (nightSum(round.stats, 'banished') > nightSum(prev.stats, 'banished')) sfx.banish();
     if (nightSum(round.stats, 'towerKills') > nightSum(prev.stats, 'towerKills')) sfx.tower();
   }, [state]);
+
+  // Destructive actions want a second tap; the intent expires on its own.
+  useEffect(() => {
+    if (!confirming) return undefined;
+    const timer = setTimeout(() => setConfirming(null), 3500);
+    return () => clearTimeout(timer);
+  }, [confirming]);
 
   // Test handle: lets the browser smoke test (and manual DevTools poking)
   // drive the game without waiting out real time.
@@ -376,6 +384,21 @@ export function App() {
         <button className="begin" onClick={() => { unlockAudio(); setState(current => beginRound(current)); }}>
           Begin the Vigil
         </button>
+        <details className="danger">
+          <summary>Begin anew</summary>
+          <p>Burn the ledger, the Embers, every upgrade, every record. There is no undo.</p>
+          <button
+            className={confirming === 'reset' ? 'confirming' : ''}
+            onClick={() => {
+              if (confirming !== 'reset') { setConfirming('reset'); return; }
+              setConfirming(null);
+              window.localStorage.removeItem('hearthlight-save');
+              setState(createInitialState());
+            }}
+          >
+            {confirming === 'reset' ? 'Tap again to burn it all' : 'Burn everything'}
+          </button>
+        </details>
       </div>
     );
   }
@@ -612,6 +635,18 @@ export function App() {
               </div>
             ))}
           </div>
+          <button
+            className={`abandon${confirming === 'abandon' ? ' confirming' : ''}`}
+            onClick={() => {
+              if (confirming !== 'abandon') { setConfirming('abandon'); return; }
+              setConfirming(null);
+              setSelectedCard(null);
+              setInspectedId(null);
+              setState(current => abandonRound(current) || current);
+            }}
+          >
+            {confirming === 'abandon' ? 'The dark takes it \u2014 tap again to walk away' : 'Abandon the vigil'}
+          </button>
           </div>
         </div>
       )}

@@ -138,6 +138,16 @@ try {
   if (!banked) failures.push('shop did not render after collecting');
   else note('embers banked, shop open');
 
+  // A vigil can be abandoned: double-tap walks away, the chronicle pays.
+  await page.click('.begin');
+  await page.waitForSelector('.abandon', { timeout: 5000 });
+  await page.click('.abandon');
+  await page.click('.abandon');
+  const abandoned = await page.waitForSelector('.fallen-panel', { timeout: 3000 })
+    .then(() => true).catch(() => false);
+  if (!abandoned) failures.push('abandoning the vigil did not end the round');
+  else note('vigil abandoned by double-tap, chronicle shown');
+
   // No horizontal scroll on a phone-width viewport.
   const overflow = await page.evaluate(() =>
     document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
