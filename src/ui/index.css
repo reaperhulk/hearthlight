@@ -212,3 +212,8 @@ button:focus-visible, canvas:focus-visible {
 .log .newest { color: #98a5b8; animation: logIn 0.5s ease-out; }
 @keyframes logIn { from { opacity: 0; transform: translateY(3px); } }
 @media (prefers-reduced-motion: reduce) { .log .newest { animation: none; } }
+
+.heart-bar .pending {
+  position: absolute; top: 0; bottom: 0;
+  background: repeating-linear-gradient(45deg, rgba(224, 90, 90, 0.35) 0 4px, transparent 4px 8px);
+}

@@ -157,16 +157,32 @@ export function App() {
       const before = prev.slots.find(candidate => candidate.id === slot.id)?.structure;
       if (!before) continue;
       const { x, y } = slotPixel(slot);
-      if (!slot.structure) effectsRef.current.push({ type: 'fall', x, y, start: now });
-      else if (slot.structure.hp < before.hp) effectsRef.current.push({ type: 'bite', x, y, start: now });
+      if (!slot.structure) {
+        effectsRef.current.push({ type: 'fall', x, y, start: now });
+        effectsRef.current.push({ type: 'number', text: '\u221218', x, y: y - 6, start: now });
+      } else if (slot.structure.hp < before.hp) {
+        effectsRef.current.push({ type: 'bite', x, y, start: now });
+      }
+    }
+    // Sated shades dissolve where they finished eating — they left, they
+    // didn't vanish mysteriously.
+    for (const shade of prev.shades) {
+      if (shade.phase !== 'feeding') continue;
+      if (round.shades.some(candidate => candidate.id === shade.id)) continue;
+      const slot = round.slots.find(candidate => candidate.id === shade.targetSlotId);
+      if (!slot) continue;
+      const { x, y } = slotPixel(slot);
+      effectsRef.current.push({ type: 'sated', x, y, start: now });
     }
     const prevLoss = prev.stats?.heartLoss;
     const loss = round.stats?.heartLoss;
     if (prevLoss && loss) {
       if (loss.falls > prevLoss.falls) sfx.fall();
       else if (loss.heartHits > prevLoss.heartHits || loss.vents > prevLoss.vents) sfx.heartHit();
-      if (loss.heartHits > prevLoss.heartHits || loss.vents > prevLoss.vents) {
+      const heartDelta = (loss.heartHits - prevLoss.heartHits) + (loss.vents - prevLoss.vents);
+      if (heartDelta > 0) {
         effectsRef.current.push({ type: 'heartFlash', start: now });
+        effectsRef.current.push({ type: 'number', text: `\u2212${heartDelta}`, x: CANVAS / 2, y: CANVAS / 2 - 30, start: now });
       }
     }
     if (prev.phase !== 'fallen' && round.phase === 'fallen') { sfx.toll(); return; }
@@ -417,6 +433,22 @@ export function App() {
         <div className="heart-fill" style={{ width: `${(round.heart / (round.heartMax || HEART_MAX)) * 100}%` }}>
           <i className="wick" />
         </div>
+        {(() => {
+          // Light already spoken for: feeds in progress whose bite fells
+          // their target (18 each). The bar telegraphs the loss coming.
+          const max = round.heartMax || HEART_MAX;
+          const pending = Math.min(round.heart, round.shades
+            .filter(shade => shade.phase === 'feeding' && shade.targetSlotId)
+            .filter(shade => round.slots.find(slot => slot.id === shade.targetSlotId)?.structure?.hp === 1)
+            .length * 18);
+          if (pending <= 0) return null;
+          return (
+            <i
+              className="pending"
+              style={{ left: `${((round.heart - pending) / max) * 100}%`, width: `${(pending / max) * 100}%` }}
+            />
+          );
+        })()}
         <span>{fallen ? 'The Heart is dark.' : `Heart ${Math.ceil(round.heart)} / ${round.heartMax || HEART_MAX}`}</span>
       </div>
 

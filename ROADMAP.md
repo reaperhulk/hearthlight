@@ -142,7 +142,11 @@ commit pushed to main. Update checkboxes as work lands.
       lance from tower to victim at the kill; inspecting a tower rings the
       neighbors it covers (and its Blind spot row says it cannot save
       itself); night buttons say "Save the Farm — bites in 3s" for
-      rescuable feeds; the how-to states the three night rules.
+      rescuable feeds; the how-to states the three night rules. Damage is
+      priced on screen: floating \u221218 where a building falls, \u2212N at
+      the Heart for strikes and vents, sated shades disperse as motes
+      instead of vanishing, and a hatched ghost segment on the heart bar
+      telegraphs the loss that feeding shades are about to land.
 
 ## Later / ideas
 

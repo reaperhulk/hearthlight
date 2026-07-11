@@ -668,6 +668,27 @@ export function drawEffects(ctx, effects, animTime) {
       ctx.beginPath();
       ctx.arc(effect.to.x, effect.to.y, 3 + age * 10, 0, Math.PI * 2);
       ctx.fill();
+    } else if (effect.type === 'number' && age < 1.1) {
+      // The cost, stated where it happened, drifting toward memory.
+      const alpha = age < 0.15 ? age / 0.15 : Math.max(0, 1 - (age - 0.15) / 0.95);
+      ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = `rgba(240, 150, 150, ${alpha})`;
+      ctx.fillText(effect.text, effect.x, effect.y - age * 18);
+    } else if (effect.type === 'sated' && age < 0.6) {
+      // A sated shade disperses: three motes drifting apart and fading.
+      const alpha = 0.6 * (1 - age / 0.6);
+      ctx.fillStyle = `rgba(176, 106, 208, ${alpha})`;
+      for (let mote = 0; mote < 3; mote++) {
+        const angle = mote * 2.1 + 0.7;
+        ctx.beginPath();
+        ctx.arc(
+          effect.x + Math.cos(angle) * age * 26,
+          effect.y + Math.sin(angle) * age * 26 - age * 10,
+          3 * (1 - age / 0.6), 0, Math.PI * 2);
+        ctx.fill();
+      }
     } else if (effect.type === 'sweep' && age < 0.9) {
       // Dusk rolls out from the Heart; dawn washes back in.
       const alpha = 0.5 * (1 - age / 0.9);
