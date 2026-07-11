@@ -112,6 +112,17 @@ commit pushed to main. Update checkboxes as work lands.
       lines. Realtime hit feedback: feeding shades visibly gnaw, bites and
       falls flash where they land, Heart strikes flash at the center.
 
+- [x] **Graphics & UX overhaul (10 passes)** — rendering moved to a layered
+      draw.js: eased dusk/dawn ambient light, starfield, living flame
+      Heart; vector silhouettes for every building shared with draft
+      cards; wispy shades with eyes and a lantern-bearer warden who walks
+      between posts; ghost placement previews with adjacency links;
+      on-map countdown arcs and tower bolt pips; dusk/dawn sweeps with
+      night title cards; chip HUD with day-timer and a burning-wick heart
+      bar; a fall-screen chronicle (per-night sparkline + itemized Ember
+      ledger via engine getEmberBreakdown); tiered Ember shop; reduced-
+      motion and focus-visible support.
+
 ## Later / ideas
 
 - Browser smoke test in CI (puppeteer) once the UI stabilizes.

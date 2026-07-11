@@ -182,3 +182,12 @@ canvas.town-map { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1
 .chronicle .total { border-top: 1px solid #3a3450; padding-top: 4px; margin-top: 3px; }
 .chronicle .total span { color: #cdd6e4; }
 .chronicle .total strong { color: #ffd082; }
+
+button:focus-visible, canvas:focus-visible {
+  outline: 2px solid #ffd082; outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .begin, .heart-fill .wick { animation: none; }
+  .heart-fill, .chip.phase .day-fill, .heart-bar div { transition: none; }
+}
