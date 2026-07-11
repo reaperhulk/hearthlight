@@ -119,6 +119,18 @@ describe('hearthlight', () => {
     expect(nextNight.round.stillDebt).toBe(false);
   });
 
+  it('palisades bodyguard their neighbors', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['farm', 'palisade'], glow: 40 } };
+    state = placeStructure(state, 'farm', 'r0s0');
+    state = { ...state, round: { ...state.round, placedToday: false } };
+    state = placeStructure(state, 'palisade', 'r0s1');
+    // Roll 0.01 lands the pick on the farm (first in occupied order) —
+    // the adjacent palisade takes the strike instead.
+    state = endDay(state, makeRng([0.01, 0.5, 0.5]));
+    expect(state.round.shades[0].targetSlotId).toBe('r0s1');
+  });
+
   it('heartseekers spawn late, are held at the Heart, and are burned by inner towers', () => {
     // From night 7, every fifth shade seeks the Heart.
     let state = startedRound();

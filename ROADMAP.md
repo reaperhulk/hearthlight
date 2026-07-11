@@ -77,6 +77,13 @@ commit pushed to main. Update checkboxes as work lands.
       swiftWarden was exposed at +0.2n/+0.2e and buffed (hold 2s, cooldown
       2s) to +0.8n/+1.4e.
 
+- [x] **Bodyguard palisades (placement depth)** — a palisade shields its
+      neighbors: shades that would strike an adjacent structure strike the
+      wall instead, so WHERE the wall goes decides who is safe. A lantern
+      kept near the center slows heartseekers. Placement spread widened
+      from the 1.0n floor to 1.4n (keeper 5.4 vs randomPlace 4.0); turtle
+      gap 1.0n.
+
 ## Later / ideas
 
 - Second map ring content pass (outer-ring-only structures?).

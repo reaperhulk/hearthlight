@@ -51,7 +51,7 @@ export const STRUCTURES = {
     tauntWeight: 3,
     weight: 2,
     defensive: true,
-    description: 'Draws the dark to itself. Takes three nights of teeth.',
+    description: 'Shields its neighbors: shades strike it instead. Takes three nights of teeth.',
   },
   granary: {
     id: 'granary',

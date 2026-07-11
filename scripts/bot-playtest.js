@@ -92,6 +92,15 @@ function chooseSlot(state, structureId, style, rng) {
     return empty.find(candidate =>
       getAdjacentSlots(round.slots, candidate.id).some(neighbor => neighbor.structure?.type === 'farm')) || empty[0];
   }
+  if (structureId === 'palisade') {
+    // Shield placement: cover the most neighbors that lack a palisade.
+    return empty.reduce((best, candidate) => {
+      const shieldValue = slot => getAdjacentSlots(round.slots, slot.id).filter(neighbor =>
+        neighbor.structure && neighbor.structure.type !== 'palisade' &&
+        !getAdjacentSlots(round.slots, neighbor.id).some(other => other.structure?.type === 'palisade')).length;
+      return shieldValue(candidate) > shieldValue(best) ? candidate : best;
+    }, empty[0]);
+  }
   return empty[0];
 }
 

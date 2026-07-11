@@ -80,9 +80,11 @@ export function spawnShades(state, rng) {
 
   for (let index = 0; index < count; index++) {
     let targetSlotId = null;
-    // The first shades of a late night seek the Heart itself.
+    // The first shades of a late night seek the Heart itself. A lantern
+    // kept near the center slows them — light guards the Heart.
     if (index < heartseekers) {
-      const approach = ((8 + 5 * rng()) / speed) + bellDelay;
+      const heartLit = round.slots.some(slot => slot.structure?.type === 'lantern' && nearHeart(slot));
+      const approach = ((8 + 5 * rng()) / speed) * (heartLit ? STRUCTURES.lantern.slowsAdjacent : 1) + bellDelay;
       shades.push({
         id: nextId++,
         targetSlotId: null,
@@ -103,6 +105,13 @@ export function spawnShades(state, rng) {
       for (const slot of occupied) {
         roll -= STRUCTURES[slot.structure.type].tauntWeight || 1;
         if (roll <= 0) { pick = slot; break; }
+      }
+      // Bodyguard: a palisade shields its neighbors — the shade strikes
+      // the wall instead. Placement, not luck, decides who is safe.
+      if (pick.structure.type !== 'palisade') {
+        const shield = getAdjacentSlots(round.slots, pick.id)
+          .find(neighbor => neighbor.structure?.type === 'palisade');
+        if (shield) pick = shield;
       }
       targetSlotId = pick.id;
     }
