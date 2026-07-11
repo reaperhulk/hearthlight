@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, placeStructure, HEART_MAX } from '../round.js';
+import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, HEART_MAX } from '../round.js';
 import { getShadeCount, moveWarden, SHADE_FEED_TIME, SHADE_HOLD_TIME, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
@@ -98,6 +98,34 @@ describe('hearthlight', () => {
     // Held and banished: the palisade still stands, the Heart untouched
     expect(state.round.slots[2].structure).toBeTruthy();
     expect(state.round.heart).toBe(HEART_MAX);
+  });
+
+  it('structures reach veteran level 3 after seven nights', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['watchtower', 'farm'], glow: 40 } };
+    state = placeStructure(state, 'watchtower', 'r0s0');
+    // Fast-forward the survival counter to the eve of veterancy.
+    state = {
+      ...state,
+      round: {
+        ...state.round,
+        slots: state.round.slots.map(slot => slot.structure
+          ? { ...slot, structure: { ...slot.structure, level: 2, hp: 2, nightsSurvived: 6 } }
+          : slot),
+        phase: 'night',
+        phaseStart: state.round.time,
+        shades: [],
+        placedToday: false,
+      },
+    };
+    state = runSeconds(state, 12, makeRng()); // empty night resolves at dawn
+    const tower = state.round.slots[0].structure;
+    expect(tower.level).toBe(3);
+    expect(tower.hp).toBe(3);
+    expect(levelGlowMult(tower.level)).toBe(2);
+    // A veteran tower carries a third bolt into the night.
+    state = endDay(state, makeRng([0.5]));
+    expect(state.round.towerCharges['r0s0']).toBe(3);
   });
 
   it('a warden grapples one shade at a time — no immortal bunker', () => {

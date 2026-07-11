@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadState, saveState } from '../engine/state.js';
-import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, HEART_MAX, LEVEL_UP_NIGHTS } from '../engine/round.js';
+import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, levelGlowMult, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getShadeCount, getWardenCooldown, moveWarden } from '../engine/night.js';
@@ -30,7 +30,7 @@ function slotPixel(slot) {
 function describeSlot(round, slot) {
   const structure = slot.structure;
   const def = STRUCTURES[structure.type];
-  const levelMult = structure.level >= 2 ? 1.5 : 1;
+  const levelMult = levelGlowMult(structure.level);
   const neighbors = getAdjacentSlots(round.slots, slot.id).filter(neighbor => neighbor.structure);
   const rows = [];
   rows.push(['Toughness', `${structure.hp} bite${structure.hp === 1 ? '' : 's'}`]);
@@ -43,15 +43,18 @@ function describeSlot(round, slot) {
   }
   rows.push(['At dawn', `+${DAWN_GLOW_PER_STRUCTURE + (def.dawnGlow || 0)} Glow`]);
   if (def.slowsAdjacent) rows.push(['Slows', `shades on lit neighbors ×${def.slowsAdjacent}`]);
-  if (def.nightCharges) rows.push(['Banishes', `${def.nightCharges} shades/night on neighbors`]);
+  if (def.nightCharges) rows.push(['Banishes', `${def.nightCharges + (structure.level >= 3 ? 1 : 0)} shades/night on neighbors`]);
   if (def.nightDelay) rows.push(['Toll', `every shade +${def.nightDelay}s approach`]);
   if (def.tauntWeight) rows.push(['Taunt', 'draws shades to itself']);
   rows.push(['Neighbors', neighbors.length > 0
     ? neighbors.map(neighbor => STRUCTURES[neighbor.structure.type].name).join(', ')
     : 'none']);
-  const levelLine = structure.level >= 2
-    ? `Level 2 — glow ×1.5, +1 toughness`
-    : `Level 1 — levels up in ${Math.max(0, LEVEL_UP_NIGHTS - structure.nightsSurvived)} more night${LEVEL_UP_NIGHTS - structure.nightsSurvived === 1 ? '' : 's'}`;
+  const nightsTo = target => Math.max(0, target - structure.nightsSurvived);
+  const levelLine = structure.level >= 3
+    ? `Level 3 veteran — glow ×2, +2 toughness${structure.type === 'watchtower' ? ', +1 banish/night' : ''}`
+    : structure.level >= 2
+    ? `Level 2 — glow ×1.5; veteran in ${nightsTo(LEVEL_UP_NIGHTS_VETERAN)} night${nightsTo(LEVEL_UP_NIGHTS_VETERAN) === 1 ? '' : 's'}`
+    : `Level 1 — levels up in ${nightsTo(LEVEL_UP_NIGHTS)} more night${nightsTo(LEVEL_UP_NIGHTS) === 1 ? '' : 's'}`;
   return { name: def.name, levelLine, rows };
 }
 
@@ -155,10 +158,11 @@ function drawTown(ctx, state, selectedCard, animTime, inspectedId) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(def.name[0], x, y + 0.5);
-    if (slot.structure.level >= 2) {
+    // Level pips: one per level above 1.
+    for (let pip = 0; pip < slot.structure.level - 1; pip++) {
       ctx.fillStyle = '#ffd082';
       ctx.beginPath();
-      ctx.arc(x + 10, y - 10, 3, 0, Math.PI * 2);
+      ctx.arc(x + 10 - pip * 7, y - 10, 3, 0, Math.PI * 2);
       ctx.fill();
     }
     if (slot.structure.hp > 1) {

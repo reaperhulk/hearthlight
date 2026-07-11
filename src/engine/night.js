@@ -74,7 +74,8 @@ export function spawnShades(state, rng) {
   const towerCharges = {};
   for (const slot of round.slots) {
     if (slot.structure?.type === 'watchtower') {
-      towerCharges[slot.id] = STRUCTURES.watchtower.nightCharges;
+      // Veteran towers earn a third bolt.
+      towerCharges[slot.id] = STRUCTURES.watchtower.nightCharges + (slot.structure.level >= 3 ? 1 : 0);
     }
   }
 

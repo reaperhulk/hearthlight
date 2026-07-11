@@ -8,6 +8,12 @@ export const DAY_LENGTH = 15;
 export const START_GLOW = 12;
 export const DAWN_GLOW_PER_STRUCTURE = 3;
 export const LEVEL_UP_NIGHTS = 3;
+export const LEVEL_UP_NIGHTS_VETERAN = 7;
+
+// Glow multiplier for a structure's level: 1 / 1.5 / 2.
+export function levelGlowMult(level) {
+  return level >= 3 ? 2 : level >= 2 ? 1.5 : 1;
+}
 export const HEART_MAX = 80;
 
 // Draw today's draft: distinct structures, with visible pity — at least one
@@ -75,7 +81,7 @@ export function getGlowBreakdown(state) {
   for (const slot of round.slots) {
     if (!slot.structure) continue;
     const def = STRUCTURES[slot.structure.type];
-    const levelMult = slot.structure.level >= 2 ? 1.5 : 1;
+    const levelMult = levelGlowMult(slot.structure.level);
     base += (def.glowPerSecond || 0) * levelMult;
     if (def.adjacencyBonus) {
       for (const neighbor of getAdjacentSlots(round.slots, slot.id)) {

@@ -48,8 +48,10 @@ commit pushed to main. Update checkboxes as work lands.
       inspector: toughness, live glow (level multiplier applied), adjacency
       boosts actually in effect, dawn income, defensive stats, neighbors,
       and level progress.
-- [ ] **Level-up depth** — a second level tier (6 nights) and visible level
-      pips; consider letting Wells level from adjacent leveled Farms.
+- [x] **Level-up depth** — veteran tier at 7 nights: +1 more toughness,
+      glow ×2, watchtowers gain a third nightly bolt. Level pips on the map,
+      progress in the inspector. Round 1 untouched (nothing survives 7
+      nights bare); arcs now spike to 12-14 nights when veterans snowball.
 - [ ] **Night variety** — named night events every ~4th night (a Hungry
       Night: +2 shades; a Still Night: none, but the next is worse), always
       announced the dawn before. Bounded, visible randomness only.
