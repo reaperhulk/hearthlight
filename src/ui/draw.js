@@ -207,6 +207,89 @@ function drawShades(ctx, round, animTime) {
   }
 }
 
+// ── Structure glyphs ────────────────────────────────────────────────────────
+// Every building has a silhouette, not a letter. Drawn within radius r.
+export function drawStructureGlyph(ctx, type, x, y, r, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  const s = r / 12; // designed at r = 12
+  ctx.scale(s, s);
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  switch (type) {
+    case 'farm': // furrow rows
+      ctx.moveTo(-7, -4); ctx.lineTo(7, -4);
+      ctx.moveTo(-7, 0); ctx.lineTo(7, 0);
+      ctx.moveTo(-7, 4); ctx.lineTo(7, 4);
+      ctx.stroke();
+      break;
+    case 'well': // ring with a bucket-beam
+      ctx.arc(0, 1, 5, 0, Math.PI * 2);
+      ctx.moveTo(-6, -5); ctx.lineTo(6, -5);
+      ctx.moveTo(0, -5); ctx.lineTo(0, -1);
+      ctx.stroke();
+      break;
+    case 'lantern': // diamond of light
+      ctx.moveTo(0, -7); ctx.lineTo(5, 0); ctx.lineTo(0, 7); ctx.lineTo(-5, 0); ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'watchtower': // tower with crenellated top
+      ctx.moveTo(-4, 7); ctx.lineTo(-3, -3); ctx.lineTo(3, -3); ctx.lineTo(4, 7);
+      ctx.moveTo(-5, -3); ctx.lineTo(-5, -7); ctx.lineTo(-1.5, -7); ctx.lineTo(-1.5, -5);
+      ctx.lineTo(1.5, -5); ctx.lineTo(1.5, -7); ctx.lineTo(5, -7); ctx.lineTo(5, -3);
+      ctx.stroke();
+      break;
+    case 'palisade': // three stakes
+      ctx.moveTo(-5, 7); ctx.lineTo(-5, -4); ctx.lineTo(-3.6, -6.5); ctx.lineTo(-2.2, -4); ctx.lineTo(-2.2, 7);
+      ctx.moveTo(-1.4, 7); ctx.lineTo(-1.4, -4); ctx.lineTo(0, -6.5); ctx.lineTo(1.4, -4); ctx.lineTo(1.4, 7);
+      ctx.moveTo(2.2, 7); ctx.lineTo(2.2, -4); ctx.lineTo(3.6, -6.5); ctx.lineTo(5, -4); ctx.lineTo(5, 7);
+      ctx.stroke();
+      break;
+    case 'granary': // barn with a full loft
+      ctx.moveTo(-6, 7); ctx.lineTo(-6, -1); ctx.lineTo(0, -7); ctx.lineTo(6, -1); ctx.lineTo(6, 7); ctx.closePath();
+      ctx.moveTo(-6, 2); ctx.lineTo(6, 2);
+      ctx.stroke();
+      break;
+    case 'belltower': // the bell itself
+      ctx.moveTo(-5, 3);
+      ctx.quadraticCurveTo(-5, -6, 0, -6);
+      ctx.quadraticCurveTo(5, -6, 5, 3);
+      ctx.lineTo(-5, 3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 5.5, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'emberKiln': // dome with a burning mouth
+      ctx.moveTo(-6, 6); ctx.lineTo(6, 6);
+      ctx.moveTo(-6, 6);
+      ctx.quadraticCurveTo(-6, -6, 0, -6);
+      ctx.quadraticCurveTo(6, -6, 6, 6);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 4, 2.2, Math.PI, 0);
+      ctx.fill();
+      break;
+    case 'shrine': // torii arch
+      ctx.moveTo(-6, -5); ctx.lineTo(6, -5);
+      ctx.moveTo(-7, -7); ctx.lineTo(7, -7);
+      ctx.moveTo(-4, -5); ctx.lineTo(-4, 7);
+      ctx.moveTo(4, -5); ctx.lineTo(4, 7);
+      ctx.stroke();
+      break;
+    default:
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawSlots(ctx, round, selectedCard, inspectedId) {
   for (const slot of round.slots) {
     const { x, y } = slotPixel(slot);
@@ -219,27 +302,32 @@ function drawSlots(ctx, round, selectedCard, inspectedId) {
       ctx.setLineDash([]);
       continue;
     }
-    const def = STRUCTURES[slot.structure.type];
-    ctx.fillStyle = STRUCTURE_COLORS[slot.structure.type] || '#aeb8c5';
+    const color = STRUCTURE_COLORS[slot.structure.type] || '#aeb8c5';
+    // Dark base disc with a colored ring, silhouette glyph inside.
+    ctx.fillStyle = '#10121c';
     ctx.beginPath();
-    ctx.arc(x, y, 12, 0, Math.PI * 2);
+    ctx.arc(x, y, 13, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#0b0d16';
-    ctx.font = 'bold 11px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(def.name[0], x, y + 0.5);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(x, y, 13, 0, Math.PI * 2);
+    ctx.stroke();
+    drawStructureGlyph(ctx, slot.structure.type, x, y, 8.5, color);
     // Level pips: one per level above 1.
     for (let pip = 0; pip < slot.structure.level - 1; pip++) {
       ctx.fillStyle = '#ffd082';
       ctx.beginPath();
-      ctx.arc(x + 10 - pip * 7, y - 10, 3, 0, Math.PI * 2);
+      ctx.arc(x + 11 - pip * 7, y - 11, 3, 0, Math.PI * 2);
       ctx.fill();
     }
-    if (slot.structure.hp > 1) {
-      ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      ctx.font = '9px monospace';
-      ctx.fillText(String(slot.structure.hp), x, y + 19);
+    // Toughness pips: one dot per remaining bite it can take.
+    const hpPips = Math.min(5, slot.structure.hp);
+    for (let pip = 0; pip < hpPips; pip++) {
+      ctx.fillStyle = 'rgba(230, 235, 245, 0.8)';
+      ctx.beginPath();
+      ctx.arc(x + (pip - (hpPips - 1) / 2) * 5, y + 18, 1.6, 0, Math.PI * 2);
+      ctx.fill();
     }
     if (slot.id === inspectedId) {
       ctx.strokeStyle = '#ffd082';

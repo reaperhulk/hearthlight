@@ -5,11 +5,25 @@ import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
-import { drawEffects, drawTown, slotPixel, CANVAS } from './draw.js';
+import { drawEffects, drawStructureGlyph, drawTown, slotPixel, CANVAS, STRUCTURE_COLORS } from './draw.js';
 import { buyMetaUpgrade, metaUnlocked, META_UPGRADES } from '../engine/meta.js';
 import { STRUCTURES } from '../engine/structures.js';
 
 const HIT_RADIUS = 40;
+
+// The same silhouette the map uses, as a DOM icon for cards and panels.
+function StructureIcon({ type, size = 30 }) {
+  const ref = useCallback(node => {
+    if (!node) return;
+    const dpr = 2;
+    node.width = size * dpr;
+    node.height = size * dpr;
+    const ctx = node.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawStructureGlyph(ctx, type, size / 2, size / 2, size * 0.38, STRUCTURE_COLORS[type] || '#aeb8c5');
+  }, [type, size]);
+  return <canvas ref={ref} style={{ width: size, height: size }} aria-hidden="true" />;
+}
 
 // What one occupied slot is worth right now — the tap-to-inspect readout.
 function describeSlot(round, slot) {
@@ -311,6 +325,7 @@ export function App() {
       ) : (
         <div className="playfield">
           <canvas
+            className="town-map"
             ref={canvasRef}
             width={CANVAS}
             height={CANVAS}
@@ -332,7 +347,11 @@ export function App() {
                       disabled={!affordable}
                       onClick={() => setSelectedCard(selectedCard === id ? null : id)}
                     >
-                      <strong>{def.name} — {def.cost}</strong>
+                      <span className="card-head">
+                        <StructureIcon type={id} />
+                        <strong>{def.name}</strong>
+                        <em className="cost">{def.cost}</em>
+                      </span>
                       <span>{def.description}</span>
                     </button>
                   );
@@ -346,7 +365,10 @@ export function App() {
               {inspected && (
                 <div className="inspect">
                   <div className="inspect-head">
-                    <strong>{inspected.name}</strong>
+                    <span className="card-head">
+                      <StructureIcon type={inspectedSlot.structure.type} size={24} />
+                      <strong>{inspected.name}</strong>
+                    </span>
                     <button onClick={() => setInspectedId(null)} aria-label="Close inspector">×</button>
                   </div>
                   <em>{inspected.levelLine}</em>
