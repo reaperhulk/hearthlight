@@ -158,3 +158,15 @@ canvas.town-map { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1
 .card-head strong { flex: 1; }
 .card-head .cost { color: #ffd082; font-style: normal; font-weight: bold; }
 .card-head .cost::after { content: '✦'; margin-left: 2px; font-size: 0.85em; }
+
+.record-line { color: #ffd082; font-size: 0.9em; margin-bottom: 8px; letter-spacing: 0.04em; }
+.spark { display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 42px; margin: 10px 0; }
+.spark i { width: 10px; border-radius: 2px 2px 0 0; }
+.spark i.lost { background: linear-gradient(180deg, #e05a5a, #7a2f3a); }
+.spark i.calm { background: #2c3140; }
+.chronicle { max-width: 280px; margin: 0 auto 14px; font-size: 0.8em; display: grid; gap: 3px; }
+.chronicle div { display: flex; justify-content: space-between; color: #8793a2; }
+.chronicle strong { color: #c99ae0; }
+.chronicle .total { border-top: 1px solid #3a3450; padding-top: 4px; margin-top: 3px; }
+.chronicle .total span { color: #cdd6e4; }
+.chronicle .total strong { color: #ffd082; }

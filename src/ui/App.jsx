@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadState, saveState } from '../engine/state.js';
-import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, levelGlowMult, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
+import { beginRound, collectEmbers, getGlowRate, getEmberBreakdown, levelGlowMult, placeStructure, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT } from '../engine/night.js';
@@ -360,7 +360,40 @@ export function App() {
       {fallen ? (
         <div className="fallen-panel">
           <h2>The town is memory now.</h2>
-          <p>{round.day - 1} night{round.day - 1 === 1 ? '' : 's'} survived — <strong>{getEmbersEarned(round, state.meta)} Embers</strong> carried home.</p>
+          {(() => {
+            const nights = round.day - 1;
+            const breakdown = getEmberBreakdown(round, state.meta);
+            const labels = [
+              ['nights', `${breakdown.nights} night${breakdown.nights === 1 ? '' : 's'} withstood`],
+              ['standing', 'still standing at the end'],
+              ['shrines', 'shrines kept lit'],
+              ['kiln', 'glow fed to the kiln'],
+              ['choir', 'the choir sang'],
+              ['emberheart', 'the Emberheart burned'],
+            ];
+            const peak = Math.max(1, ...round.stats.nights.map(night => night.heartLost));
+            return (
+              <>
+                {nights > state.bestNights && <p className="record-line">A new record vigil.</p>}
+                <div className="spark" aria-label="Heart lost per night">
+                  {round.stats.nights.map(night => (
+                    <i
+                      key={night.night}
+                      style={{ height: `${8 + (night.heartLost / peak) * 30}px` }}
+                      className={night.heartLost > 0 ? 'lost' : 'calm'}
+                      title={`Night ${night.night}: ${night.spawned} shades, -${night.heartLost} heart`}
+                    />
+                  ))}
+                </div>
+                <div className="chronicle">
+                  {labels.filter(([key]) => breakdown[key] > 0).map(([key, label]) => (
+                    <div key={key}><span>{label}</span><strong>+{breakdown[key]}</strong></div>
+                  ))}
+                  <div className="total"><span>Embers carried home</span><strong>{breakdown.total}</strong></div>
+                </div>
+              </>
+            );
+          })()}
           <button className="begin" onClick={() => { setState(current => collectEmbers(current)); setSelectedCard(null); }}>
             Return to the Fire
           </button>
