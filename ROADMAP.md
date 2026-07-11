@@ -41,8 +41,9 @@ commit pushed to main. Update checkboxes as work lands.
 
 ## Next
 
-- [ ] **Dusk telegraph** — show tomorrow night's shade count at dawn and the
-      spawn directions at dusk, so night is triage, never ambush.
+- [x] **Dusk telegraph** — the day header forecasts tonight's shade count
+      and motes prowl the rim in proportion, so night is triage, never
+      ambush. (True directions appear as approach lines once shades spawn.)
 - [ ] **Structure info on tap** — tap an occupied slot by day to see its
       stats, level progress, and adjacency bonuses.
 - [ ] **Level-up depth** — a second level tier (6 nights) and visible level

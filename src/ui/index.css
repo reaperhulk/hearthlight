@@ -44,6 +44,7 @@ h1 { color: #ffd082; font-size: 1.4em; letter-spacing: 0.06em; }
 .phase { font-size: 0.85em; color: #8fc97a; }
 .phase.night { color: #b06ad0; }
 .phase.fallen { color: #e05a5a; }
+.forecast { font-size: 0.8em; color: #b06ad0; margin-left: 0.7em; opacity: 0.9; }
 .stats { display: flex; gap: 12px; font-size: 0.8em; color: #8793a2; }
 .stats strong { color: #ffd082; }
 

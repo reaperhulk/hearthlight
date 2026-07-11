@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadState, saveState } from '../engine/state.js';
 import { beginRound, collectEmbers, getGlowRate, getEmbersEarned, placeStructure, DAY_LENGTH, HEART_MAX } from '../engine/round.js';
 import { endDay, tick } from '../engine/tick.js';
-import { getWardenCooldown, moveWarden } from '../engine/night.js';
+import { getShadeCount, getWardenCooldown, moveWarden } from '../engine/night.js';
 import { buyMetaUpgrade, META_UPGRADES } from '../engine/meta.js';
 import { STRUCTURES } from '../engine/structures.js';
 
@@ -36,13 +36,29 @@ function drawTown(ctx, state, selectedCard, animTime) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, CANVAS, CANVAS);
 
-  // The rim the dark waits behind
-  ctx.strokeStyle = night ? 'rgba(150, 90, 170, 0.5)' : 'rgba(110, 110, 140, 0.25)';
+  // The rim the dark waits behind. By day it thickens with tonight's
+  // count — the telegraph: night is triage, never ambush.
+  const tonight = getShadeCount(round.day);
+  const rimAlpha = night ? 0.5 : Math.min(0.55, 0.18 + tonight * 0.03);
+  ctx.strokeStyle = night ? 'rgba(150, 90, 170, 0.5)' : `rgba(150, 90, 170, ${rimAlpha})`;
   ctx.setLineDash([4, 6]);
   ctx.beginPath();
   ctx.arc(CANVAS / 2, CANVAS / 2, CANVAS * 0.46, 0, Math.PI * 2);
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // The gathering: one dim mote per shade due tonight, prowling the rim.
+  if (!night && round.phase === 'day') {
+    for (let index = 0; index < tonight; index++) {
+      const angle = (index / tonight) * Math.PI * 2 + animTime * 0.15;
+      const wobble = Math.sin(animTime * 1.7 + index * 2.1) * 4;
+      const radius = CANVAS * 0.485 + wobble;
+      ctx.fillStyle = `rgba(176, 106, 208, ${0.35 + 0.15 * Math.sin(animTime * 2 + index)})`;
+      ctx.beginPath();
+      ctx.arc(CANVAS / 2 + Math.cos(angle) * radius, CANVAS / 2 + Math.sin(angle) * radius, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
   // The Heart: glow scales with remaining light
   const lightFraction = round.heart / (round.heartMax || HEART_MAX);
@@ -287,6 +303,11 @@ export function App() {
           <span className={`phase ${round.phase}`}>
             {fallen ? 'Fallen' : isDay ? `Day ${round.day} — ${Math.ceil(dayRemaining)}s` : `Night ${round.day}`}
           </span>
+          {!fallen && isDay && (
+            <span className="forecast" title="Shades due at dusk">
+              Tonight: {getShadeCount(round.day)} shade{getShadeCount(round.day) === 1 ? '' : 's'}
+            </span>
+          )}
         </div>
         <div className="stats">
           <span>Glow <strong>{Math.floor(round.glow)}</strong> (+{getGlowRate(state).toFixed(1)}/s)</span>
