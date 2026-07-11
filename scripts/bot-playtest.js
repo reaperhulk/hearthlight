@@ -182,13 +182,13 @@ if (assertMode) {
     if (!result.keeper.fell) issues.push(`${tag} the wall never won against the keeper`);
     if (result.keeper.nights < result.passive.nights) issues.push(`${tag} playing is worse than doing nothing`);
     if (result.keeper.embers < 3) issues.push(`${tag} first round pays too little to buy anything`);
-    if (result.keeper.seconds > 420) issues.push(`${tag} round 1 keeper took ${result.keeper.seconds}s`);
+    if (result.keeper.seconds > 240) issues.push(`${tag} round 1 keeper took ${result.keeper.seconds}s`);
   }
   // Pacing bands: on the mean.
-  if (agg.passiveNights < 2 || agg.passiveNights > 5) issues.push(`mean passive nights ${agg.passiveNights.toFixed(1)} outside 2-5`);
-  if (agg.keeperNights < 6) issues.push(`mean keeper round 1 only ${agg.keeperNights.toFixed(1)} nights — too punishing`);
-  if (agg.keeperNights > 11) issues.push(`mean keeper round 1 ${agg.keeperNights.toFixed(1)} nights — round 1 drags`);
-  if (agg.keeperSeconds > 300) issues.push(`mean keeper round 1 ${Math.round(agg.keeperSeconds)}s — first round must be snappy`);
+  if (agg.passiveNights < 1.5 || agg.passiveNights > 4) issues.push(`mean passive nights ${agg.passiveNights.toFixed(1)} outside 1.5-4`);
+  if (agg.keeperNights < 4) issues.push(`mean keeper round 1 only ${agg.keeperNights.toFixed(1)} nights — too punishing`);
+  if (agg.keeperNights > 8) issues.push(`mean keeper round 1 ${agg.keeperNights.toFixed(1)} nights — round 1 drags`);
+  if (agg.keeperSeconds > 180) issues.push(`mean keeper round 1 ${Math.round(agg.keeperSeconds)}s — the optimal ceiling must stay under three minutes so first play lands in one to two`);
   const builderNights = mean(perSeed.map(result => result.builder.nights));
   if (agg.keeperNights - builderNights < 1) issues.push(`night play barely matters (keeper ${agg.keeperNights.toFixed(1)} vs builder ${builderNights.toFixed(1)})`);
   if (agg.arcLast <= agg.arcFirst) issues.push(`meta does not lengthen runs on the mean (${agg.arcFirst.toFixed(1)} -> ${agg.arcLast.toFixed(1)})`);

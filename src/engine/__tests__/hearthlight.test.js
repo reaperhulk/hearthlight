@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowRate, placeStructure } from '../round.js';
+import { beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowRate, placeStructure, HEART_MAX } from '../round.js';
 import { getShadeCount, moveWarden, SHADE_FEED_TIME, SHADE_HOLD_TIME, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
@@ -48,7 +48,7 @@ describe('hearthlight', () => {
   it('starts a round with the Heart lit and one decision pending', () => {
     const state = startedRound();
     expect(state.round.phase).toBe('day');
-    expect(state.round.heart).toBe(100);
+    expect(state.round.heart).toBe(HEART_MAX);
     expect(state.round.glow).toBe(12);
     expect(state.round.draft).toHaveLength(3);
     expect(state.round.wardens).toHaveLength(1);
@@ -76,7 +76,8 @@ describe('hearthlight', () => {
 
   it('spawns escalating nights and holds/banishes with the Warden', () => {
     expect(getShadeCount(1)).toBe(1);
-    expect(getShadeCount(5)).toBe(5);
+    expect(getShadeCount(2)).toBe(2);
+    expect(getShadeCount(5)).toBe(7);
 
     let state = startedRound();
     state = { ...state, round: { ...state.round, draft: ['palisade'], glow: 20 } };
@@ -96,7 +97,7 @@ describe('hearthlight', () => {
     state = runSeconds(state, Math.ceil(13 + SHADE_HOLD_TIME + 2), rng);
     // Held and banished: the palisade still stands, the Heart untouched
     expect(state.round.slots[2].structure).toBeTruthy();
-    expect(state.round.heart).toBe(100);
+    expect(state.round.heart).toBe(HEART_MAX);
   });
 
   it('feeds on unguarded structures and drains the Heart when nothing stands', () => {
@@ -107,14 +108,14 @@ describe('hearthlight', () => {
     const rng = makeRng();
     state = runSeconds(state, Math.ceil(13 + SHADE_FEED_TIME + 2), rng);
     expect(state.round.slots[0].structure).toBeNull();
-    expect(state.round.heart).toBe(100 - STRUCTURE_HIT);
+    expect(state.round.heart).toBe(HEART_MAX - STRUCTURE_HIT);
 
     // An empty town: shades go straight for the Heart
     let bare = startedRound();
     bare = endDay(bare, makeRng([0.5, 0.5, 0.5]));
     expect(bare.round.shades[0].targetSlotId).toBeNull();
     bare = runSeconds(bare, 15, rng);
-    expect(bare.round.heart).toBe(100 - HEART_HIT);
+    expect(bare.round.heart).toBe(HEART_MAX - HEART_HIT);
   });
 
   it('watchtowers intercept one shade per night on adjacent slots', () => {
@@ -128,7 +129,7 @@ describe('hearthlight', () => {
     expect(state.round.shades[0].targetSlotId).toBe('r0s1');
     state = runSeconds(state, 16, makeRng());
     expect(state.round.slots[1].structure).toBeTruthy();
-    expect(state.round.heart).toBe(100);
+    expect(state.round.heart).toBe(HEART_MAX);
   });
 
   it('runs the day/night cycle to dawn with survivors leveling at three nights', () => {
@@ -242,8 +243,8 @@ describe('hearthlight', () => {
     state = buyMetaUpgrade(state, 'heartstone');
     state = buyMetaUpgrade(state, 'emberChoir');
     state = beginRound(state, makeRng());
-    expect(state.round.heart).toBe(125);
-    expect(state.round.heartMax).toBe(125);
+    expect(state.round.heart).toBe(105);
+    expect(state.round.heartMax).toBe(105);
 
     const fallen = { day: 7, glow: 0, slots: [] };
     expect(getEmbersEarned(fallen, state.meta)).toBe(6 + 3); // 6 nights + choir floor(6/2)

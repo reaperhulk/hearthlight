@@ -44,6 +44,8 @@ commit pushed to main. Update checkboxes as work lands.
 
 ## Measured state (5-seed means)
 
-- Round 1: passive 3.0 nights, builder 7.0, keeper 9.4 / 232s.
-- Keeper meta arc: 9.4 -> 15.6 nights (232s -> 430s real time).
+- Round 1: passive 2.0 nights, builder 4.2, keeper 6.2 / 156s. The optimal
+  bot is the ceiling — a first-time human dies around night 3-4, landing
+  first-play lifetime in the target 1-2 minutes.
+- Keeper meta arc: 6.2 -> 8.6 nights (156s -> 196s real time).
 - 9 structures, 8 meta upgrades; 16 unit tests; CI green.

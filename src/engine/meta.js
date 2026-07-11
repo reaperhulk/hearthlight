@@ -76,5 +76,5 @@ export function getUnlockedRings(state) {
 }
 
 export function getHeartMax(state) {
-  return 100 + (state.meta.heartstone ? 25 : 0);
+  return 80 + (state.meta.heartstone ? 25 : 0);
 }

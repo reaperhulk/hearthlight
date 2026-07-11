@@ -4,11 +4,11 @@ import { createSlots, getAdjacentSlots } from './map.js';
 import { STRUCTURES, STRUCTURE_IDS } from './structures.js';
 import { getDraftSize, getHeartMax, getUnlockedRings, getWardenCount } from './meta.js';
 
-export const DAY_LENGTH = 25;
+export const DAY_LENGTH = 15;
 export const START_GLOW = 12;
 export const DAWN_GLOW_PER_STRUCTURE = 3;
 export const LEVEL_UP_NIGHTS = 3;
-export const HEART_MAX = 100;
+export const HEART_MAX = 80;
 
 // Draw today's draft: distinct structures, with visible pity — at least one
 // defensive option is always offered.
