@@ -1,6 +1,6 @@
 # Hearthlight
 
-A round-based city-defense incremental, sibling to The Ruins Remember.
+A round-based city-defense incremental, born from [The Ruins Remember](https://github.com/reaperhulk/theruinsremember).
 Something in the dark keeps eating the towns. Light the Heart. Last longer.
 
 ## The loop
@@ -20,11 +20,10 @@ Round 1 ends inside five minutes with a purchase affordable immediately.
 
 ## Running
 
-Served by the root Vite dev server as a second page:
-
 ```sh
-npm run dev                 # from the repo root
-# open http://localhost:5173/hearthlight/index.html
+npm install
+npm run dev
+# open http://localhost:5173
 ```
 
 ## Testing
@@ -32,8 +31,9 @@ npm run dev                 # from the repo root
 Everything is deterministic — all randomness flows through an injected rng.
 
 ```sh
-npx vitest --run hearthlight       # engine unit tests
-npm run hearthlight:balance        # bot profiles + loop-promise assertions
+npm run test:unit      # engine unit tests
+npm run test:balance   # bot profiles + loop-promise assertions
+npm run test:quality   # lint + tests + balance + build
 ```
 
 The bot plays three profiles (passive / builder / keeper) plus a five-round
