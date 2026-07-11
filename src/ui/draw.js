@@ -181,7 +181,7 @@ function drawShades(ctx, round, animTime) {
     }
     const headX = from.x + (to.x - from.x) * progress;
     const headY = from.y + (to.y - from.y) * progress;
-    ctx.strokeStyle = 'rgba(176, 106, 208, 0.7)';
+    ctx.strokeStyle = 'rgba(176, 106, 208, 0.55)';
     ctx.lineWidth = 1.6;
     ctx.setLineDash([4, 3]);
     ctx.lineDashOffset = -animTime * 14;
@@ -192,7 +192,7 @@ function drawShades(ctx, round, animTime) {
     ctx.setLineDash([]);
     // Feeding shades visibly gnaw: they jitter against the structure and
     // pulse — damage is never silent.
-    let radius = shade.phase === 'approach' ? 4 : 6;
+    let radius = shade.phase === 'approach' ? 4.5 : 6;
     let drawX = headX;
     let drawY = headY;
     if (shade.phase === 'feeding') {
@@ -200,9 +200,30 @@ function drawShades(ctx, round, animTime) {
       drawY += Math.sin(animTime * 11 + shade.id * 1.9) * 2.5;
       radius = 6 + Math.sin(animTime * 8 + shade.id) * 1.5;
     }
-    ctx.fillStyle = shade.phase === 'held' ? '#e6c766' : '#b06ad0';
+    // A wisp, not a dot: a bright core inside a smoky body, with two
+    // trailing lobes strung back along its path.
+    const span = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+    const backX = (from.x - to.x) / span;
+    const backY = (from.y - to.y) / span;
+    const wave = Math.sin(animTime * 5 + shade.id * 1.7);
+    const held = shade.phase === 'held';
+    for (let lobe = 2; lobe >= 0; lobe--) {
+      const drift = lobe * (5 + wave);
+      const lx = drawX + backX * drift + backY * wave * lobe * 2;
+      const ly = drawY + backY * drift - backX * wave * lobe * 2;
+      const lr = radius * (1 - lobe * 0.28);
+      ctx.fillStyle = held
+        ? `rgba(230, 199, 102, ${0.75 - lobe * 0.22})`
+        : `rgba(176, 106, 208, ${0.7 - lobe * 0.2})`;
+      ctx.beginPath();
+      ctx.arc(lx, ly, lr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Eyes of the dark: two pinpricks facing the prize.
+    ctx.fillStyle = held ? '#fff6e0' : '#e8d6f5';
     ctx.beginPath();
-    ctx.arc(drawX, drawY, radius, 0, Math.PI * 2);
+    ctx.arc(drawX - backY * 2.2 - backX * 1.5, drawY + backX * 2.2 - backY * 1.5, 0.9, 0, Math.PI * 2);
+    ctx.arc(drawX + backY * 2.2 - backX * 1.5, drawY - backX * 2.2 - backY * 1.5, 0.9, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -341,22 +362,72 @@ function drawSlots(ctx, round, selectedCard, inspectedId) {
   }
 }
 
-function drawWardens(ctx, round) {
-  // Wardens (a warden may stand at the Heart itself)
+// The warden is a lantern-bearer, not a ring. Render-side smoothing walks
+// them between posts; `visuals` persists across frames (UI-only state).
+function drawWardens(ctx, round, animTime, visuals) {
+  const dt = Math.min(0.1, Math.max(0.001, animTime - (visuals.lastTime ?? animTime)));
+  visuals.lastTime = animTime;
   for (const warden of round.wardens) {
     if (!warden.slotId) continue;
     const slot = round.slots.find(candidate => candidate.id === warden.slotId);
     if (!slot && warden.slotId !== HEART_SLOT) continue;
-    const { x, y } = slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
+    const target = slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
+    let pos = visuals.wardens.get(warden.id);
+    if (!pos) { pos = { ...target }; visuals.wardens.set(warden.id, pos); }
+    pos.x += (target.x - pos.x) * Math.min(1, dt * 7);
+    pos.y += (target.y - pos.y) * Math.min(1, dt * 7);
+    const moving = Math.hypot(target.x - pos.x, target.y - pos.y) > 2;
+
+    // Lantern light pools around the standing warden.
+    const pool = ctx.createRadialGradient(pos.x, pos.y, 2, pos.x, pos.y, 26);
+    pool.addColorStop(0, 'rgba(159, 242, 255, 0.20)');
+    pool.addColorStop(1, 'rgba(159, 242, 255, 0)');
+    ctx.fillStyle = pool;
+    ctx.fillRect(pos.x - 26, pos.y - 26, 52, 52);
+
+    // The figure: hooded cloak, staff, and a burning lantern.
+    const bob = moving ? Math.sin(animTime * 12) * 1.2 : Math.sin(animTime * 2.4) * 0.5;
+    const fx = pos.x;
+    const fy = pos.y + bob;
     ctx.strokeStyle = '#9ff2ff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, 17, 0, Math.PI * 2);
+    ctx.fillStyle = '#9ff2ff';
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); // cloak
+    ctx.moveTo(fx - 4, fy + 7);
+    ctx.lineTo(fx - 2.5, fy - 2);
+    ctx.lineTo(fx + 2.5, fy - 2);
+    ctx.lineTo(fx + 4, fy + 7);
+    ctx.closePath();
     ctx.stroke();
+    ctx.beginPath(); // head
+    ctx.arc(fx, fy - 4.5, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath(); // staff
+    ctx.moveTo(fx + 5, fy + 7);
+    ctx.lineTo(fx + 5, fy - 7);
+    ctx.stroke();
+    const flicker = 0.75 + 0.25 * Math.sin(animTime * 7 + warden.id);
+    ctx.fillStyle = `rgba(255, 208, 130, ${flicker})`; // the lantern
+    ctx.beginPath();
+    ctx.arc(fx + 5, fy - 8.5, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // On station: a faint watch-circle marks the guarded post.
+    if (!moving) {
+      ctx.strokeStyle = `rgba(159, 242, 255, ${0.35 + 0.15 * Math.sin(animTime * 3)})`;
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([5, 5]);
+      ctx.lineDashOffset = animTime * 6;
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, 18, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
 }
 
-export function drawTown(ctx, state, selectedCard, animTime, inspectedId) {
+export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visuals = { wardens: new Map() }) {
   const round = state.round;
   const darkness = getDarkness(round);
   ctx.clearRect(0, 0, CANVAS, CANVAS);
@@ -367,7 +438,7 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId) {
   drawHeart(ctx, round, animTime);
   drawShades(ctx, round, animTime);
   drawSlots(ctx, round, selectedCard, inspectedId);
-  drawWardens(ctx, round);
+  drawWardens(ctx, round, animTime, visuals);
 }
 
 // Transient hit feedback: bites, falls, and Heart strikes flash on the

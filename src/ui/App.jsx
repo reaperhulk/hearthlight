@@ -97,6 +97,7 @@ export function App() {
   // the engine stays pure; the UI voices and flashes what changed.
   const prevRoundRef = useRef(null);
   const effectsRef = useRef([]);
+  const visualsRef = useRef({ wardens: new Map() });
   useEffect(() => {
     const prev = prevRoundRef.current;
     const round = state.round;
@@ -159,7 +160,7 @@ export function App() {
     const draw = () => {
       const animTime = performance.now() / 1000;
       if (stateRef.current.round) {
-        drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current);
+        drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current, visualsRef.current);
         effectsRef.current = effectsRef.current.filter(effect => animTime - effect.start < 1);
         drawEffects(ctx, effectsRef.current, animTime);
       }
