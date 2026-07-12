@@ -39,7 +39,7 @@ function dawn(state, rng) {
   const messages = [`Dawn. Night ${round.day} survived.`];
   if (omen?.type === 'hungry') messages.push(`Omen: a Hungry Night — the dark brings ${HUNGRY_EXTRA} more teeth.`);
   if (omen?.type === 'still') messages.push('Omen: a Still Night — the dark holds its breath, and gathers.');
-  if (omen?.type === 'veiled') messages.push('Omen: a Veiled Night — mist blinds the towers. The Warden stands alone.');
+  if (omen?.type === 'veiled') messages.push('Omen: a Veiled Night — the mist blinds every tower, and muffles the dark. Fewer come, unseen.');
   if (round.stillDebt) messages.push('The held breath releases. Tonight the dark collects.');
   const withDawn = {
     ...round,

@@ -3,7 +3,7 @@ import { createInitialState, loadState, migrateState, saveState } from '../state
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
-import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, rollOmen, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, rollOmen, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, VEILED_HUSH, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { allUpgradesKept, buyMetaUpgrade, isVigilComplete, LONG_DAWN_NIGHTS, META_UPGRADES } from '../meta.js';
 
@@ -135,8 +135,11 @@ describe('hearthlight', () => {
     state = { ...state, round: { ...state.round, draft: ['watchtower'], glow: 40 } };
     state = placeStructure(state, 'watchtower', 'r0s0');
     state = { ...state, round: { ...state.round, day: 8, omen: { night: 8, type: 'veiled' } } };
+    // The mist muffles the dark too: the wave comes thin.
+    expect(getNightForecast(state.round).count).toBe(getShadeCount(8) - VEILED_HUSH);
     const night = endDay(state, makeRng([0.5]));
     expect(night.round.towerCharges['r0s0']).toBe(0);
+    expect(night.round.shades).toHaveLength(getShadeCount(8) - VEILED_HUSH);
     expect(night.round.stats.nights.at(-1).omen).toBe('veiled');
     // A veteran's lamp pierces the mist for a single bolt.
     const veteran = {

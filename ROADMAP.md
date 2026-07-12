@@ -290,6 +290,15 @@ commit pushed to main. Update checkboxes as work lands.
       towers. Also audited the effects queue for unbounded growth
       (pruned at age 3s — clean).
 
+- [x] **The mist muffles the dark (cycle 10)** — story-mode review
+      across all five seeds found 40% of optimal-play deaths landing
+      exactly on the FIRST possible Veiled Night: an announced ambush
+      is still an ambush when no counterplay budget is left. Veiled
+      Nights now thin the wave (VEILED_HUSH = 4 fewer shades) — blind
+      towers, but a hushed dark. First-veil deaths dropped to 1 in 5;
+      keeper 7.4n/163s; kitted ceiling 23.2n. The dawn omen copy says
+      both halves now.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

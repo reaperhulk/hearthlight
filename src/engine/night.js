@@ -33,6 +33,11 @@ export function getShadeCount(night) {
 export const OMEN_INTERVAL = 4;
 export const HUNGRY_EXTRA = 2;
 export const STILL_DEBT = 3;
+// The mist muffles the dark too: a Veiled Night blinds the towers but
+// thins the wave. Without this, 40% of measured optimal-play deaths
+// landed on the FIRST possible veiled night — an announced ambush is
+// still an ambush when there is no counterplay budget left.
+export const VEILED_HUSH = 4;
 
 export function rollOmen(day, rng) {
   if (day < OMEN_INTERVAL || day % OMEN_INTERVAL !== 0) return null;
@@ -115,7 +120,8 @@ export function getNightForecast(round) {
   if (omen === 'still') return { count: 0, omen, heartseekers: 0 };
   const beacon = round.beacon && round.day >= BEACON_NIGHT ? 1 : 0;
   const count = Math.max(0,
-    getShadeCount(round.day) + (omen === 'hungry' ? HUNGRY_EXTRA : 0) + (round.stillDebt ? STILL_DEBT : 0) - beacon);
+    getShadeCount(round.day) + (omen === 'hungry' ? HUNGRY_EXTRA : 0) + (round.stillDebt ? STILL_DEBT : 0)
+    - beacon - (omen === 'veiled' ? VEILED_HUSH : 0));
   return { count, omen, heartseekers: getHeartseekerCount(round.day, count) };
 }
 
