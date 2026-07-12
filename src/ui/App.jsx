@@ -167,6 +167,15 @@ export function App() {
         effectsRef.current.push({ type: 'number', text: '−18', x, y: y - 6, start: now });
       } else if (slot.structure.hp < before.hp) {
         effectsRef.current.push({ type: 'bite', x, y, start: now });
+      } else if (slot.structure.level > before.level) {
+        // A structure grows into its ground: gold glint + its new rank.
+        effectsRef.current.push({ type: 'sparkle', x: x + 6, y: y - 12, start: now });
+        effectsRef.current.push({
+          type: 'number',
+          text: slot.structure.level >= 3 ? 'veteran' : 'lvl 2',
+          color: 'rgba(255, 208, 130, ',
+          x, y: y - 20, start: now + 0.15,
+        });
       }
     }
     // Sated shades dissolve where they finished eating — they left, they

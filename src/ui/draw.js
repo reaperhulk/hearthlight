@@ -988,7 +988,7 @@ export function drawEffects(ctx, effects, animTime) {
       ctx.lineWidth = 3;
       ctx.strokeStyle = `rgba(10, 8, 14, ${alpha * 0.8})`;
       ctx.strokeText(effect.text, effect.x, effect.y - age * 18);
-      ctx.fillStyle = `rgba(244, 150, 150, ${alpha})`;
+      ctx.fillStyle = `${effect.color || 'rgba(244, 150, 150, '}${alpha})`;
       ctx.fillText(effect.text, effect.x, effect.y - age * 18);
     } else if (effect.type === 'sated' && age < 0.6) {
       // A sated shade disperses: three motes drifting apart and fading.

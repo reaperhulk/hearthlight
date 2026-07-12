@@ -19,6 +19,7 @@ function dawn(state, rng) {
     const giving = neighbor.structure && STRUCTURES[neighbor.structure.type].dawnAdjacency;
     return sum + (giving?.[slot.structure.type] || 0);
   }, 0);
+  const leveled = [];
   const slots = round.slots.map(slot => {
     if (!slot.structure) return slot;
     glow += DAWN_GLOW_PER_STRUCTURE + (STRUCTURES[slot.structure.type].dawnGlow || 0) + wateredBonus(slot);
@@ -27,6 +28,11 @@ function dawn(state, rng) {
     let hp = slot.structure.hp;
     if (level === 1 && nightsSurvived >= LEVEL_UP_NIGHTS) { level = 2; hp += 1; }
     else if (level === 2 && nightsSurvived >= LEVEL_UP_NIGHTS_VETERAN) { level = 3; hp += 1; }
+    if (level > slot.structure.level) {
+      leveled.push(level >= 3
+        ? `The ${STRUCTURES[slot.structure.type].name} stands veteran — the nights have taught it.`
+        : `The ${STRUCTURES[slot.structure.type].name} grows into its ground.`);
+    }
     return {
       ...slot,
       structure: { ...slot.structure, nightsSurvived, level, hp },
@@ -36,7 +42,7 @@ function dawn(state, rng) {
   const day = round.day + 1;
   // Roll tonight's omen now, at dawn — announced a full day ahead.
   const omen = rollOmen(day, rng);
-  const messages = [`Dawn. Night ${round.day} survived.`];
+  const messages = [`Dawn. Night ${round.day} survived.`, ...leveled];
   if (omen?.type === 'hungry') messages.push(`Omen: a Hungry Night — the dark brings ${HUNGRY_EXTRA} more teeth.`);
   if (omen?.type === 'still') messages.push('Omen: a Still Night — the dark holds its breath, and gathers.');
   if (omen?.type === 'veiled') messages.push('Omen: a Veiled Night — the mist blinds every tower, and muffles the dark. Fewer come, unseen.');

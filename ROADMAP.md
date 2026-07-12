@@ -348,6 +348,14 @@ commit pushed to main. Update checkboxes as work lands.
       shing, and a haptic tick; the first-run how-to mentions that
       banishes temper him. Discoverability for cycle 13's mechanic.
 
+- [x] **Rank-ups have a dawn (cycle 17)** — structures leveled in
+      silence: a tower reaching veteran (+1 bolt, mist-piercing lamp)
+      got no acknowledgment anywhere. Dawn now logs each growth ('The
+      Watchtower stands veteran — the nights have taught it') and the
+      map glints gold with a 'lvl 2' / 'veteran' rise at the slot.
+      Number effects accept a color so rank-ups read gold, not
+      damage-red.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
