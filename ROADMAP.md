@@ -196,6 +196,20 @@ commit pushed to main. Update checkboxes as work lands.
       that retasks on every cooldown: it must always fall and never beat
       committed holds (measures 6.2n vs keeper 6.8n).
 
+- [x] **The hands are spent (mend verb + card-value panel)** — review
+      found the day verb dies at day 6: the inner keep fills, and every
+      later day is a skip-button tax. New rule, same grammar as building:
+      one pair of hands each day — place a structure OR mend one bitten
+      hit point for 12 Glow (build-or-mend, never both; anything looser
+      measured as an immortality engine, keeper 6.8 -> 9.4n). Mend lives
+      in the tap-to-inspect panel. Keeper ceiling 7.6n/172s mean (was
+      6.8/152s); villager band untouched at 3.8n/111s; per-seed round-1
+      outlier cap recalibrated 240 -> 280s. Also new: a per-card
+      ban-one value panel in the harness (what the keeper loses when a
+      card is banned) — it found well/granary/emberKiln/shrine measure
+      exactly +0.0n/+0.0e (interchangeable filler; queued for identity
+      work), and 'resting' in the night rail now reads 'Warden resting'.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

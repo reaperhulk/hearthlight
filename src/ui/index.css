@@ -216,6 +216,12 @@ canvas.town-map {
 .inspect em { display: block; color: #8fc97a; font-style: normal; font-size: 0.9em; margin: 2px 0 6px; }
 .inspect-row { display: flex; justify-content: space-between; gap: 10px; color: #8793a2; }
 .inspect-row span:last-child { color: #c8d0dc; text-align: right; }
+.inspect .mend {
+  width: 100%; margin-top: 8px; padding: 9px 10px; min-height: 40px;
+  background: #1c2418; border: 1px solid #4f6a3a; border-radius: 6px;
+  color: #a8d68a; font: inherit; cursor: pointer;
+}
+.inspect .mend:disabled { opacity: 0.5; cursor: default; }
 
 .card-head { display: flex; align-items: center; gap: 6px; }
 .card-head canvas { flex: none; background: #10121c; border-radius: 5px; }

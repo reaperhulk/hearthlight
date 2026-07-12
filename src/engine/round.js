@@ -79,6 +79,7 @@ export function beginRound(state, rng = Math.random) {
     draft: [],
     placedToday: false,
     rerolledToday: false,
+    mendedToday: false,
     shades: [],
     wardens: Array.from({ length: getWardenCount(state) }, (_, index) => ({
       id: index + 1,
@@ -155,6 +156,40 @@ export function placeStructure(state, structureId, slotId) {
       glow: round.glow - def.cost,
       slots,
       placedToday: true,
+    },
+  };
+}
+
+// Mending: one pair of hands each day — build, OR buy back one bitten
+// hit point. Mend shares the day's single act with placement because
+// anything looser measured as an immortality engine (uncapped: keeper
+// 6.8 -> 9.4 nights; a free daily mend on top of building: 250s rounds).
+// As the day's act it is real triage — and it gives a full town (every
+// slot built) something worth doing at dawn.
+export const REPAIR_COST = 12;
+
+export function getRepairMax(state, structure) {
+  return getStructureHp(state, structure.type) + (structure.level - 1);
+}
+
+export function repairStructure(state, slotId) {
+  const round = state.round;
+  if (!round || round.phase !== 'day' || round.placedToday || round.mendedToday) return null;
+  if (round.glow < REPAIR_COST) return null;
+  const slotIndex = round.slots.findIndex(slot => slot.id === slotId);
+  const structure = round.slots[slotIndex]?.structure;
+  if (!structure || structure.hp >= getRepairMax(state, structure)) return null;
+  const slots = [...round.slots];
+  slots[slotIndex] = { ...slots[slotIndex], structure: { ...structure, hp: structure.hp + 1 } };
+  return {
+    ...state,
+    round: {
+      ...round,
+      glow: round.glow - REPAIR_COST,
+      placedToday: true,
+      mendedToday: true,
+      slots,
+      log: [...round.log, { day: round.day, message: `Fresh timber in the ${STRUCTURES[structure.type].name} — it stands taller.` }].slice(-30),
     },
   };
 }

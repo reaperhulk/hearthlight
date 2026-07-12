@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
+import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
 import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
@@ -344,6 +344,40 @@ describe('hearthlight', () => {
     expect(state.round.shades).toHaveLength(0);
     expect(state.round.slots[2].structure).toBeTruthy();
     expect(state.round.stats.nights.at(-1).banished).toBe(2);
+  });
+
+  it('mending buys back one bite a day, by daylight only', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['palisade'], glow: 40 } };
+    state = placeStructure(state, 'palisade', 'r0s2');
+    // Chew two bites out of it, then try to mend.
+    const bite = current => ({
+      ...current,
+      round: {
+        ...current.round,
+        slots: current.round.slots.map(slot => slot.id === 'r0s2'
+          ? { ...slot, structure: { ...slot.structure, hp: slot.structure.hp - 2 } }
+          : slot),
+      },
+    });
+    state = bite(state);
+    // One pair of hands: the day already built, so it cannot also mend.
+    expect(repairStructure(state, 'r0s2')).toBeNull();
+    state = { ...state, round: { ...state.round, placedToday: false } };
+    const glowBefore = state.round.glow;
+    const hpBefore = state.round.slots[2].structure.hp;
+    const mended = repairStructure(state, 'r0s2');
+    expect(mended.round.slots[2].structure.hp).toBe(hpBefore + 1);
+    expect(mended.round.glow).toBe(glowBefore - REPAIR_COST);
+    // ...and a day that mended cannot also build or mend again.
+    expect(repairStructure(mended, 'r0s2')).toBeNull();
+    expect(placeStructure(mended, 'palisade', 'r0s0')).toBeNull();
+    // A structure at full toughness has nothing to mend.
+    expect(repairStructure({ ...state, round: { ...state.round, slots: startedRound().round.slots } }, 'r0s2')).toBeNull();
+    // Night is for the Warden, not the hammer.
+    expect(repairStructure({ ...state, round: { ...state.round, phase: 'night' } }, 'r0s2')).toBeNull();
+    // Mending is not free.
+    expect(repairStructure({ ...state, round: { ...state.round, glow: REPAIR_COST - 1 } }, 'r0s2')).toBeNull();
   });
 
   it('a shade dropped mid-grapple bites on the short fuse', () => {

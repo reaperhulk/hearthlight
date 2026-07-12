@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createInitialState, loadState, saveState } from '../engine/state.js';
-import { abandonRound, beginRound, collectEmbers, getGlowRate, getEmberBreakdown, levelGlowMult, placeStructure, rerollDraft, getDayLength, REROLL_COST, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
+import { abandonRound, beginRound, collectEmbers, getGlowRate, getEmberBreakdown, getRepairMax, levelGlowMult, placeStructure, repairStructure, rerollDraft, getDayLength, REPAIR_COST, REROLL_COST, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT, STILL_DEBT } from '../engine/night.js';
@@ -772,6 +772,17 @@ export function App() {
                   {inspected.rows.map(([label, value]) => (
                     <div key={label} className="inspect-row"><span>{label}</span><span>{value}</span></div>
                   ))}
+                  {inspectedSlot.structure.hp < getRepairMax(state, inspectedSlot.structure) && (
+                    <button
+                      className="mend"
+                      disabled={round.placedToday || round.mendedToday || round.glow < REPAIR_COST}
+                      onClick={() => setState(prev => repairStructure(prev, inspectedSlot.id) || prev)}
+                    >
+                      {round.placedToday || round.mendedToday
+                        ? 'The hands are spent for today'
+                        : `Mend the teeth-marks — ${REPAIR_COST} Glow (the day's act)`}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -822,7 +833,7 @@ export function App() {
                         : shade.phase === 'feeding' ? `Save ${name === 'the Heart' ? name : `the ${name}`} — bites in ${seconds}s`
                         : `Warden → ${name} (${seconds}s)`}
                       {breakTarget !== (shade.targetSlotId ?? HEART_SLOT) && !anyFree &&
-                        (onlyBreaker ? ' · must break hold' : ' · resting')}
+                        (onlyBreaker ? ' · must break hold' : ' · Warden resting')}
                     </button>
                   );
                 });
