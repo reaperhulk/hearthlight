@@ -203,7 +203,7 @@ export function App() {
     const prevLoss = prev.stats?.heartLoss;
     const loss = round.stats?.heartLoss;
     if (prevLoss && loss) {
-      if (loss.falls > prevLoss.falls) sfx.fall();
+      if (loss.falls > prevLoss.falls) { sfx.fall(); navigator.vibrate?.([14, 40, 10]); }
       else if (loss.heartHits > prevLoss.heartHits || loss.vents > prevLoss.vents) sfx.heartHit();
       const heartDelta = (loss.heartHits - prevLoss.heartHits) + (loss.vents - prevLoss.vents);
       if (heartDelta > 0) {
@@ -213,10 +213,11 @@ export function App() {
     }
     if (prev.phase !== 'fallen' && round.phase === 'fallen') { sfx.toll(); return; }
     const built = slots => slots.filter(slot => slot.structure).length;
-    if (built(round.slots) > built(prev.slots) && round.phase === 'day') sfx.place();
+    if (built(round.slots) > built(prev.slots) && round.phase === 'day') { sfx.place(); navigator.vibrate?.(8); }
     const nightSum = (stats, key) => (stats?.nights || []).reduce((sum, night) => sum + night[key], 0);
     if (nightSum(round.stats, 'banished') > nightSum(prev.stats, 'banished')) {
       sfx.banish();
+      navigator.vibrate?.(6);
       for (const shade of prev.shades) {
         if (shade.phase !== 'held') continue;
         if (round.shades.some(candidate => candidate.id === shade.id)) continue;
@@ -227,6 +228,24 @@ export function App() {
     }
     if (nightSum(round.stats, 'towerKills') > nightSum(prev.stats, 'towerKills')) sfx.tower();
   }, [state]);
+
+  // The screen keeps its own vigil: wake lock while a round runs.
+  useEffect(() => {
+    if (!hasRound || !navigator.wakeLock) return undefined;
+    let lock = null;
+    let released = false;
+    const acquire = () => navigator.wakeLock.request('screen')
+      .then(acquired => { if (released) acquired.release(); else lock = acquired; })
+      .catch(() => { /* denied or unsupported — the game plays on */ });
+    acquire();
+    const revive = () => { if (document.visibilityState === 'visible') acquire(); };
+    document.addEventListener('visibilitychange', revive);
+    return () => {
+      released = true;
+      document.removeEventListener('visibilitychange', revive);
+      lock?.release().catch(() => {});
+    };
+  }, [hasRound]);
 
   // A reloaded mid-round save says so — the vigil was never lost.
   useEffect(() => {
@@ -581,6 +600,9 @@ export function App() {
             return (
               <>
                 {nights > state.bestNights && <p className="record-line">A new record vigil.</p>}
+                {round.log.length > 1 && (
+                  <p className="final-moments">{round.log.at(-2)?.message}</p>
+                )}
                 <div className="spark" aria-label="Heart lost per night">
                   {round.stats.nights.map(night => (
                     <i
@@ -626,6 +648,7 @@ export function App() {
         </div>
       ) : (
         <div className="playfield">
+          <div className="canvas-wrap">
           <canvas
             className="town-map"
             ref={canvasRef}
@@ -637,6 +660,14 @@ export function App() {
             role="img"
             aria-label={isDay ? 'Town map — pick a card, then tap an empty slot' : 'Night — tap a slot to send the Warden'}
           />
+          {state.totalRounds === 1 && round.day === 1 && isDay && !round.placedToday && (
+            <div className="coach">{selectedCard ? 'now tap a stone pad on the map' : 'pick a card below ↓'}</div>
+          )}
+          {state.totalRounds === 1 && round.day === 1 && !isDay && !fallen &&
+            round.wardens.every(warden => !warden.slotId) && round.shades.length > 0 && (
+            <div className="coach">tap the hunted building to send the Warden</div>
+          )}
+          </div>
           <div className="side">
           {isDay ? (
             <div className="day-controls">

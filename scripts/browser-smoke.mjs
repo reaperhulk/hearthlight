@@ -148,6 +148,29 @@ try {
   if (!abandoned) failures.push('abandoning the vigil did not end the round');
   else note('vigil abandoned by double-tap, chronicle shown');
 
+  // UX contract: during the day, the whole decision surface fits a
+  // 420x860 phone without scrolling, and targets are finger-sized.
+  await page.click('.begin');
+  await page.waitForSelector('.end-day', { timeout: 5000 });
+  const uxReport = await page.evaluate(() => {
+    const viewport = window.innerHeight;
+    const below = [...document.querySelectorAll('.draft button, .end-day')]
+      .filter(button => button.getBoundingClientRect().bottom > viewport)
+      .length;
+    const small = [...document.querySelectorAll('.draft button, .end-day, .night-controls button')]
+      .filter(button => !button.disabled && button.getBoundingClientRect().height < 40)
+      .length;
+    return { below, small };
+  });
+  if (uxReport.below > 0) failures.push(`${uxReport.below} day controls fall below the fold at phone size`);
+  else note('day controls fit the phone fold');
+  if (uxReport.small > 0) failures.push(`${uxReport.small} action buttons under 40px`);
+  else note('all action targets finger-sized');
+  await page.click('.abandon');
+  await page.click('.abandon');
+  await page.waitForSelector('.fallen-panel', { timeout: 3000 });
+  await page.click('.fallen-panel .to-the-fire');
+
   // No raw escape sequences leaking into visible text (\uXXXX in JSX
   // text renders literally — it has happened).
   const rawEscapes = await page.evaluate(() => /\\u[0-9a-fA-F]{4}/.test(document.body.innerText));

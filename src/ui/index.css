@@ -1,4 +1,5 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { overscroll-behavior: none; }
 
 body {
   background: #07080f;
@@ -316,3 +317,17 @@ button:focus-visible, canvas:focus-visible {
 .draft button:nth-child(4) { animation-delay: 0.21s; }
 @keyframes dealIn { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .draft button { animation: none; } }
+
+/* First-run coach marks: one thought at a time, then gone forever. */
+.coach {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  padding: 7px 14px; border-radius: 20px; white-space: nowrap;
+  background: rgba(18, 20, 31, 0.92); border: 1px solid #ffd082;
+  color: #ffd082; font-size: 0.75em; pointer-events: none;
+  animation: coachIn 0.5s ease-out;
+}
+@keyframes coachIn { from { opacity: 0; transform: translateX(-50%) translateY(6px); } }
+.canvas-wrap { position: relative; }
+.final-moments { color: #6d788a; font-size: 0.75em; margin-bottom: 8px; font-style: italic; }
+.crash-panel { max-width: 420px; margin: 15vh auto; padding: 24px; text-align: center; color: #cdd6e4; font-family: 'Courier New', monospace; }
+.crash-panel button { margin: 12px 6px 0; padding: 10px 16px; background: #12141f; border: 1px solid #3a4152; border-radius: 6px; color: #ffd082; font-family: inherit; cursor: pointer; }
