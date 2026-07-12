@@ -133,6 +133,15 @@ export function App() {
       const omen = round.omen?.night === round.day
         ? (round.omen.type === 'hungry' ? 'omen: a Hungry Night comes' : 'omen: a Still Night comes')
         : null;
+      const tale = (() => {
+        const entry = prev.stats?.nights.at(-1);
+        if (!entry) return null;
+        const parts = [];
+        if (entry.banished) parts.push(`${entry.banished} banished`);
+        if (entry.towerKills) parts.push(`${entry.towerKills} bolt${entry.towerKills === 1 ? '' : 's'}`);
+        if (entry.heartLost) parts.push(`−${entry.heartLost} light`);
+        return parts.length > 0 ? parts.join(' · ') : null;
+      })();
       effectsRef.current = effectsRef.current.filter(effect => effect.type !== 'banner');
       effectsRef.current.push({ type: 'sweep', color: 'rgba(255, 208, 130, ', start: now });
       for (const slot of round.slots.filter(candidate => candidate.structure).slice(0, 8)) {
@@ -142,7 +151,7 @@ export function App() {
       effectsRef.current.push({
         type: 'banner',
         text: `Day ${round.day}`,
-        subtext: omen ?? `night ${prev.day} survived`,
+        subtext: omen ?? tale ?? `night ${prev.day} survived`,
         color: 'rgba(255, 208, 130, ',
         start: now,
       });
@@ -337,13 +346,38 @@ export function App() {
       const distance = Math.hypot(px.x - x, px.y - y);
       if (distance < nearestDistance) { nearestDistance = distance; nearest = slot; }
     }
+    // At night, shades themselves are tappable — routing to their prize.
+    if (current.round.phase === 'night') {
+      const round = current.round;
+      for (const shade of round.shades) {
+        const from = {
+          x: CANVAS / 2 + Math.cos(shade.spawnAngle) * CANVAS * 0.46,
+          y: CANVAS / 2 + Math.sin(shade.spawnAngle) * CANVAS * 0.46,
+        };
+        const targetSlot = shade.targetSlotId ? round.slots.find(slot => slot.id === shade.targetSlotId) : null;
+        const to = targetSlot ? slotPixel(targetSlot) : { x: CANVAS / 2, y: CANVAS / 2 };
+        let progress = 1;
+        if (shade.phase === 'approach') {
+          const span = Math.max(0.001, shade.arrivesAt - shade.spawnedAt);
+          progress = Math.max(0, Math.min(1, (round.time - shade.spawnedAt) / span));
+        }
+        const headX = from.x + (to.x - from.x) * progress;
+        const headY = from.y + (to.y - from.y) * progress;
+        if (Math.hypot(headX - x, headY - y) < 26) {
+          sendWarden(shade.targetSlotId ?? HEART_SLOT);
+          return;
+        }
+      }
+    }
     // At night the Heart itself is a post — tap the center to guard it.
     const heartDistance = Math.hypot(CANVAS / 2 - x, CANVAS / 2 - y);
     if (current.round.phase === 'night' && heartDistance < Math.min(HIT_RADIUS, nearestDistance)) {
       sendWarden(HEART_SLOT);
       return;
     }
-    if (!nearest || nearestDistance > HIT_RADIUS) return;
+    // Night taps forgive more distance than day taps.
+    const reach = current.round.phase === 'night' ? 48 : HIT_RADIUS;
+    if (!nearest || nearestDistance > reach) return;
 
     if (current.round.phase === 'day' && selectedRef.current) {
       setState(prev => placeStructure(prev, selectedRef.current, nearest.id) || prev);
@@ -689,18 +723,40 @@ export function App() {
                   );
                 })}
               </div>
-              {threats.length > 0 ? threats.map(shade => {
-                const slot = round.slots.find(candidate => candidate.id === shade.targetSlotId);
-                const name = !shade.targetSlotId ? 'the Heart'
-                  : slot?.structure ? STRUCTURES[slot.structure.type].name : 'ruin';
-                const seconds = Math.max(0, Math.ceil((shade.phase === 'approach' ? shade.arrivesAt : shade.feedsAt ?? round.time) - round.time));
-                return (
-                  <button key={shade.id} onClick={() => sendWarden(shade.targetSlotId ?? HEART_SLOT)}>
-                    {shade.phase === 'feeding' ? `Save ${name === 'the Heart' ? name : `the ${name}`} — bites in ${seconds}s`
-                      : `Warden → ${name} (${seconds}s)`}
-                  </button>
-                );
-              }) : <span className="hint">The Warden watches. Hold the line.</span>}
+              {(() => {
+                const anyFree = round.wardens.some(warden =>
+                  round.time - warden.movedAt >= getWardenCooldown(state));
+                const rows = threats.slice(0, 3).map(shade => {
+                  const slot = round.slots.find(candidate => candidate.id === shade.targetSlotId);
+                  const name = !shade.targetSlotId ? 'the Heart'
+                    : slot?.structure ? STRUCTURES[slot.structure.type].name : 'ruin';
+                  const deadline = shade.phase === 'approach' ? shade.arrivesAt : shade.feedsAt ?? round.time;
+                  const seconds = Math.max(0, Math.ceil(deadline - round.time));
+                  const urgent = deadline - round.time < 2.5;
+                  return (
+                    <button
+                      key={shade.id}
+                      className={`${!shade.targetSlotId ? 'heart-threat' : urgent ? 'urgent' : ''}`}
+                      onClick={() => sendWarden(shade.targetSlotId ?? HEART_SLOT)}
+                    >
+                      {slot?.structure && <StructureIcon type={slot.structure.type} size={22} />}
+                      {shade.phase === 'feeding' ? `Save ${name === 'the Heart' ? name : `the ${name}`} — bites in ${seconds}s`
+                        : `Warden → ${name} (${seconds}s)`}
+                      {!anyFree && ' · resting'}
+                    </button>
+                  );
+                });
+                // The rail keeps a stable three-row shape: fingers land on
+                // buttons that do not move.
+                while (rows.length < 3) {
+                  rows.push(
+                    <button key={`idle-${rows.length}`} className="idle" disabled>
+                      {rows.length === 0 ? 'All posts held — the Warden watches' : '···'}
+                    </button>,
+                  );
+                }
+                return rows;
+              })()}
             </div>
           )}
 
