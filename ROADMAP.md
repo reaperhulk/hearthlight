@@ -356,6 +356,14 @@ commit pushed to main. Update checkboxes as work lands.
       Number effects accept a color so rank-ups read gold, not
       damage-red.
 
+- [x] **One fire, one window (cycle 18)** — two open tabs both
+      auto-saved every 2s: last-writer-wins silently trampled
+      progress. Now a tab that sees another window write the save
+      stands down — engine loop paused, saving stopped, a quiet
+      overlay ('Another window tends this fire') with a tend-it-here
+      button that reloads the save and reclaims. Verified live with
+      two Chromium tabs handing the fire back and forth.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

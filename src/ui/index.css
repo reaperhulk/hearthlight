@@ -276,6 +276,14 @@ button:focus-visible, canvas:focus-visible {
   .keys-hint { display: block; margin-top: 6px; font-size: 0.68em; color: #4d5766; letter-spacing: 0.05em; }
 }
 
+.elsewhere {
+  min-height: 100dvh; display: flex; flex-direction: column; justify-content: center;
+  align-items: center; text-align: center; gap: 10px; padding: 24px; max-width: 480px; margin: 0 auto;
+}
+.elsewhere h2 { color: #ffd082; font-size: 1.1em; letter-spacing: 0.05em; }
+.elsewhere p { color: #8793a2; font-size: 0.85em; line-height: 1.5; }
+.elsewhere .begin { max-width: 320px; }
+
 .carry { margin: 10px 0; font-size: 0.8em; }
 .carry summary { color: #8793a2; cursor: pointer; letter-spacing: 0.04em; }
 .carry p { color: #77808f; margin: 8px 0 6px; line-height: 1.4; }

@@ -28,6 +28,11 @@ export function App() {
   const [inspectedId, setInspectedId] = useState(null);
   const [sound, setSound] = useState(() => window.localStorage.getItem('hearthlight-sound') !== 'off');
   const [confirming, setConfirming] = useState(null); // 'abandon' | 'reset' | null
+  // One fire, one window: when another tab writes the save, this tab
+  // goes dormant instead of silently overwriting it two seconds later.
+  const [elsewhere, setElsewhere] = useState(false);
+  const elsewhereRef = useRef(false);
+  useEffect(() => { elsewhereRef.current = elsewhere; }, [elsewhere]);
   const hasRound = state.round != null;
   const stateRef = useRef(state);
   const selectedRef = useRef(selectedCard);
@@ -39,9 +44,13 @@ export function App() {
     inspectedRef.current = inspectedId;
   }, [state, selectedCard, inspectedId]);
 
-  // Persistence: save every 2s and whenever the tab hides.
+  // Persistence: save every 2s and whenever the tab hides — unless
+  // another window holds the fire now.
   useEffect(() => {
-    const save = () => saveState(window.localStorage, stateRef.current);
+    const save = () => {
+      if (elsewhereRef.current) return;
+      saveState(window.localStorage, stateRef.current);
+    };
     const interval = setInterval(save, 2000);
     document.addEventListener('visibilitychange', save);
     window.addEventListener('beforeunload', save);
@@ -254,6 +263,16 @@ export function App() {
     }
   }, []);
 
+  // Another tab writing the save is the signal to stand down here.
+  // (storage events only fire in OTHER tabs, never the writer.)
+  useEffect(() => {
+    const onStorage = event => {
+      if (event.key === 'hearthlight-save' && event.newValue) setElsewhere(true);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   // Destructive actions want a second tap; the intent expires on its own.
   useEffect(() => {
     if (!confirming) return undefined;
@@ -288,7 +307,7 @@ export function App() {
     const loop = now => {
       const dt = Math.min(1, (now - last) / 1000);
       last = now;
-      setState(current => (current.round && current.round.phase !== 'fallen' ? tick(current, dt) : current));
+      setState(current => (!elsewhereRef.current && current.round && current.round.phase !== 'fallen' ? tick(current, dt) : current));
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -467,6 +486,24 @@ export function App() {
       sendWarden(nearest.id);
     }
   }, [sendWarden]);
+
+  if (elsewhere) {
+    return (
+      <div className="elsewhere">
+        <h2>Another window tends this fire.</h2>
+        <p>The vigil continues there. Two keepers at one Heart would trample each other&rsquo;s work.</p>
+        <button
+          className="begin"
+          onClick={() => {
+            setState(loadState(window.localStorage));
+            setElsewhere(false);
+          }}
+        >
+          Tend it here instead
+        </button>
+      </div>
+    );
+  }
 
   const round = state.round;
 
