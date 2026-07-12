@@ -160,6 +160,11 @@ export function App() {
     // Bites and falls flash where they land, the moment they land.
     for (const slot of round.slots) {
       const before = prev.slots.find(candidate => candidate.id === slot.id)?.structure;
+      if (!before && slot.structure) {
+        const { x, y } = slotPixel(slot);
+        effectsRef.current.push({ type: 'built', x, y, start: now });
+        continue;
+      }
       if (!before) continue;
       const { x, y } = slotPixel(slot);
       if (!slot.structure) {

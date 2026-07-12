@@ -36,8 +36,8 @@ function getDarkness(round) {
 const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
 const rgb = (c, alpha = 1) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
 
-const SKY_DAY_IN = [30, 36, 56];
-const SKY_DAY_OUT = [13, 15, 26];
+const SKY_DAY_IN = [82, 84, 116];
+const SKY_DAY_OUT = [32, 35, 54];
 const SKY_NIGHT_IN = [20, 17, 34];
 const SKY_NIGHT_OUT = [4, 3, 9];
 
@@ -59,27 +59,82 @@ function drawSky(ctx, darkness, animTime) {
 
   // Stars wake as the light dies.
   if (darkness > 0.15) {
+    const wake = darkness - 0.15;
     for (let i = 0; i < 46; i++) {
       const x = hash(i + 1) * CANVAS;
       const y = hash(i + 101) * CANVAS;
       const twinkle = 0.5 + 0.5 * Math.sin(animTime * (0.8 + hash(i + 201)) + i);
-      ctx.fillStyle = `rgba(205, 214, 228, ${(darkness - 0.15) * 0.5 * twinkle})`;
+      ctx.fillStyle = `rgba(205, 214, 228, ${wake * 0.5 * twinkle})`;
       ctx.fillRect(x, y, hash(i + 301) > 0.8 ? 1.6 : 1, hash(i + 401) > 0.8 ? 1.6 : 1);
+    }
+    // A few named stars burn brighter, with a cross of light.
+    for (let i = 0; i < 3; i++) {
+      const x = hash(i + 501) * CANVAS;
+      const y = hash(i + 601) * CANVAS * 0.5;
+      const shine = wake * (0.5 + 0.4 * Math.sin(animTime * 1.3 + i * 2));
+      ctx.strokeStyle = `rgba(220, 228, 244, ${shine * 0.6})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y);
+      ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(235, 240, 250, ${shine})`;
+      ctx.fillRect(x - 1, y - 1, 2, 2);
+    }
+    // Fog drifts once the dark settles.
+    for (let i = 0; i < 3; i++) {
+      const fx = CANVAS / 2 + Math.cos(animTime * 0.07 + i * 2.1) * CANVAS * 0.3;
+      const fy = CANVAS / 2 + Math.sin(animTime * 0.05 + i * 1.7) * CANVAS * 0.3;
+      const fog = ctx.createRadialGradient(fx, fy, 8, fx, fy, 85);
+      fog.addColorStop(0, `rgba(150, 120, 190, ${wake * 0.05})`);
+      fog.addColorStop(1, 'rgba(150, 120, 190, 0)');
+      ctx.fillStyle = fog;
+      ctx.fillRect(fx - 85, fy - 85, 170, 170);
     }
   }
 }
 
-function drawGround(ctx, round) {
-  // The town's ground: faint orbit rings mark where a settlement may stand.
+function drawGround(ctx, round, darkness) {
+  // Earth beneath the town: warm by day, cold under the dark.
+  const soil = ctx.createRadialGradient(CANVAS / 2, CANVAS / 2, 10, CANVAS / 2, CANVAS / 2, CANVAS * 0.46);
+  soil.addColorStop(0, rgb(mix([98, 84, 60], [44, 40, 62], darkness), 0.17));
+  soil.addColorStop(0.82, rgb(mix([72, 64, 50], [28, 26, 44], darkness), 0.10));
+  soil.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = soil;
+  ctx.fillRect(0, 0, CANVAS, CANVAS);
+
+  // Faint orbit rings mark where a settlement may stand.
   const rings = new Set(round.slots.map(slot => slot.ring));
   for (const ringIndex of rings) {
     const { radius } = RINGS[ringIndex];
-    ctx.strokeStyle = 'rgba(120, 126, 152, 0.13)';
+    ctx.strokeStyle = 'rgba(140, 146, 172, 0.14)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(CANVAS / 2, CANVAS / 2, radius * CANVAS, 0, Math.PI * 2);
     ctx.stroke();
   }
+
+  // Stone pads: the buildable ground is always legible, occupied or not.
+  for (const slot of round.slots) {
+    const { x, y } = slotPixel(slot);
+    const frontier = slot.ring > 0;
+    ctx.fillStyle = frontier ? 'rgba(190, 160, 110, 0.07)' : 'rgba(150, 156, 180, 0.07)';
+    ctx.beginPath();
+    ctx.arc(x, y, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = frontier ? 'rgba(190, 160, 110, 0.14)' : 'rgba(150, 156, 180, 0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, 15, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Beyond the rim, the world simply ends.
+  const edge = ctx.createRadialGradient(CANVAS / 2, CANVAS / 2, CANVAS * 0.46, CANVAS / 2, CANVAS / 2, CANVAS * 0.74);
+  edge.addColorStop(0, 'rgba(2, 2, 8, 0)');
+  edge.addColorStop(1, `rgba(2, 2, 8, ${0.45 + 0.25 * darkness})`);
+  ctx.fillStyle = edge;
+  ctx.fillRect(0, 0, CANVAS, CANVAS);
 }
 
 function drawRim(ctx, round, darkness, animTime) {
@@ -136,20 +191,42 @@ function drawVignette(ctx, round, animTime) {
   ctx.fillRect(0, 0, CANVAS, CANVAS);
 }
 
-// A living flame: layered lobes that sway, over the ambient glow.
+// A living flame: hearth coals, additive glow, layered lobes that sway —
+// and a gutter when the light runs low.
 function drawHeart(ctx, round, animTime) {
   const cx = CANVAS / 2;
   const cy = CANVAS / 2;
   const light = round.heart / (round.heartMax || HEART_MAX);
 
+  // The hearth itself: a stone bed with living coals.
+  ctx.fillStyle = '#141019';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 7, 15, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  for (let i = 0; i < 4; i++) {
+    const coalX = cx + (i - 1.5) * 6.4;
+    const glowPulse = 0.4 + 0.3 * Math.sin(animTime * 2.6 + i * 1.9);
+    ctx.fillStyle = `rgba(255, 120, 60, ${(0.25 + glowPulse * 0.4) * (0.3 + 0.7 * light)})`;
+    ctx.beginPath();
+    ctx.arc(coalX, cy + 7 + Math.sin(i * 2.2) * 1.5, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
   const heartGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 60 + 80 * light);
-  heartGlow.addColorStop(0, `rgba(255, 208, 130, ${0.5 + 0.35 * light})`);
-  heartGlow.addColorStop(1, 'rgba(255, 208, 130, 0)');
+  heartGlow.addColorStop(0, `rgba(255, 190, 110, ${0.30 + 0.25 * light})`);
+  heartGlow.addColorStop(1, 'rgba(255, 190, 110, 0)');
   ctx.fillStyle = heartGlow;
   ctx.fillRect(0, 0, CANVAS, CANVAS);
+  ctx.restore();
 
-  const size = 6 + 9 * light;
-  const sway = Math.sin(animTime * 3.1) * size * 0.18;
+  // Below a third of its light, the flame gutters — irregular, anxious.
+  const gutter = light < 0.35
+    ? 0.75 + 0.25 * Math.sin(animTime * 13) * Math.sin(animTime * 7.3)
+    : 1;
+  const size = (6 + 9 * light) * gutter;
+  const sway = Math.sin(animTime * 3.1) * size * 0.18 * (light < 0.35 ? 2 : 1);
   const breathe = 1 + Math.sin(animTime * 2.2) * 0.08;
   const lobe = (w, h, dx, color, alpha) => {
     ctx.fillStyle = rgb(color, alpha);
@@ -331,27 +408,63 @@ function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
     const { x, y } = slotPixel(slot);
     if (!slot.structure) {
       if (slot.ruin) {
-        // Ash where a building stood — the ground keeps the shape of it.
-        ctx.fillStyle = 'rgba(224, 138, 90, 0.35)';
+        // Ash where a building stood — a charred patch, embers, a spark.
+        const char = ctx.createRadialGradient(x, y, 1, x, y, 12);
+        char.addColorStop(0, 'rgba(30, 18, 16, 0.55)');
+        char.addColorStop(1, 'rgba(30, 18, 16, 0)');
+        ctx.fillStyle = char;
+        ctx.fillRect(x - 12, y - 12, 24, 24);
+        ctx.fillStyle = 'rgba(224, 138, 90, 0.4)';
         for (let ash = 0; ash < 3; ash++) {
           ctx.beginPath();
           ctx.arc(x + (ash - 1) * 4.5, y + 3 - (ash % 2) * 4, 1.7, 0, Math.PI * 2);
           ctx.fill();
         }
+        const rise = (animTime * 0.35 + slot.x * 3) % 1;
+        ctx.fillStyle = `rgba(255, 150, 90, ${(1 - rise) * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(x + Math.sin(animTime * 2 + slot.y * 9) * 3, y - rise * 14, 1.1, 0, Math.PI * 2);
+        ctx.fill();
       }
-      // With a card in hand, open ground beckons.
-      const pulse = selectedCard ? 0.55 + 0.3 * Math.sin(animTime * 3.2 + slot.x * 7) : 0.4;
-      ctx.strokeStyle = selectedCard ? `rgba(230, 199, 102, ${pulse})` : `rgba(140, 140, 170, ${pulse})`;
+      // With a card in hand, open ground beckons — with a place marker.
+      const pulse = selectedCard ? 0.6 + 0.3 * Math.sin(animTime * 3.2 + slot.x * 7) : 0.45;
+      ctx.strokeStyle = selectedCard ? `rgba(230, 199, 102, ${pulse})` : `rgba(150, 156, 186, ${pulse})`;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.arc(x, y, 11, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
+      if (selectedCard) {
+        ctx.strokeStyle = `rgba(230, 199, 102, ${pulse * 0.9})`;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y);
+        ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4);
+        ctx.stroke();
+      }
       continue;
     }
     const color = STRUCTURE_COLORS[slot.structure.type] || '#aeb8c5';
-    // Dark base disc with a colored ring, silhouette glyph inside.
-    ctx.fillStyle = '#10121c';
+    // The lantern casts its pool of light beneath everything else.
+    if (slot.structure.type === 'lantern') {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const pool = ctx.createRadialGradient(x, y, 4, x, y, 40);
+      pool.addColorStop(0, 'rgba(255, 214, 140, 0.16)');
+      pool.addColorStop(1, 'rgba(255, 214, 140, 0)');
+      ctx.fillStyle = pool;
+      ctx.fillRect(x - 40, y - 40, 80, 80);
+      ctx.restore();
+    }
+    // Grounded: a soft shadow, then a shaded disc with a colored ring.
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+    ctx.beginPath();
+    ctx.ellipse(x + 1.5, y + 13.5, 11, 3.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    const disc = ctx.createRadialGradient(x - 4, y - 5, 2, x, y, 14);
+    disc.addColorStop(0, '#232838');
+    disc.addColorStop(1, '#0c0e18');
+    ctx.fillStyle = disc;
     ctx.beginPath();
     ctx.arc(x, y, 13, 0, Math.PI * 2);
     ctx.fill();
@@ -360,12 +473,53 @@ function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
     ctx.beginPath();
     ctx.arc(x, y, 13, 0, Math.PI * 2);
     ctx.stroke();
+    // Veterans wear a second, golden ring.
+    if (slot.structure.level >= 3) {
+      ctx.strokeStyle = 'rgba(255, 208, 130, 0.75)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, 15.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // A palisade turns its rampart to the rim it holds against.
+    if (slot.structure.type === 'palisade') {
+      const facing = Math.atan2(y - CANVAS / 2, x - CANVAS / 2);
+      ctx.strokeStyle = 'rgba(160, 140, 120, 0.55)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, 17, facing - 0.85, facing + 0.85);
+      ctx.stroke();
+    }
+    const wounded = slot.structure.hp < (STRUCTURES[slot.structure.type].hp || 1);
+    ctx.globalAlpha = wounded ? 0.8 : 1;
     drawStructureGlyph(ctx, slot.structure.type, x, y, 8.5, color);
-    // Level pips: one per level above 1.
-    for (let pip = 0; pip < slot.structure.level - 1; pip++) {
+    ctx.globalAlpha = 1;
+    // Wounds show: cracks across a damaged building.
+    if (wounded) {
+      ctx.strokeStyle = 'rgba(10, 8, 14, 0.85)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x - 9, y - 5); ctx.lineTo(x - 3, y + 1); ctx.lineTo(x - 6, y + 8);
+      ctx.moveTo(x + 8, y - 8); ctx.lineTo(x + 4, y - 2);
+      ctx.stroke();
+    }
+    // Level pips: a dot for level 2; veterans carry a golden star.
+    if (slot.structure.level === 2) {
       ctx.fillStyle = '#ffd082';
       ctx.beginPath();
-      ctx.arc(x + 11 - pip * 7, y - 11, 3, 0, Math.PI * 2);
+      ctx.arc(x + 11, y - 11, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (slot.structure.level >= 3) {
+      ctx.fillStyle = '#ffd082';
+      ctx.beginPath();
+      const sx = x + 11.5;
+      const sy = y - 11.5;
+      for (let p = 0; p < 8; p++) {
+        const angle = (p / 8) * Math.PI * 2 - Math.PI / 2;
+        const radial = p % 2 === 0 ? 4.4 : 1.8;
+        ctx[p === 0 ? 'moveTo' : 'lineTo'](sx + Math.cos(angle) * radial, sy + Math.sin(angle) * radial);
+      }
+      ctx.closePath();
       ctx.fill();
     }
     // Toughness pips: one dot per remaining bite it can take.
@@ -632,7 +786,7 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   const darkness = getDarkness(round);
   ctx.clearRect(0, 0, CANVAS, CANVAS);
   drawSky(ctx, darkness, animTime);
-  drawGround(ctx, round);
+  drawGround(ctx, round, darkness);
   drawRim(ctx, round, darkness, animTime);
   drawVignette(ctx, round, animTime);
   drawHeart(ctx, round, animTime);
@@ -649,7 +803,15 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
 export function drawEffects(ctx, effects, animTime) {
   for (const effect of effects) {
     const age = animTime - effect.start;
-    if (effect.type === 'bite' && age < 0.35) {
+    if (effect.type === 'built' && age < 0.55) {
+      // A new building settles: a gold ring blooms and fades.
+      const alpha = 0.8 * (1 - age / 0.55);
+      ctx.strokeStyle = `rgba(255, 208, 130, ${alpha})`;
+      ctx.lineWidth = 2.4 * (1 - age / 0.55) + 0.6;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, 12 + age * 26, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (effect.type === 'bite' && age < 0.35) {
       const alpha = 0.8 * (1 - age / 0.35);
       ctx.strokeStyle = `rgba(224, 138, 90, ${alpha})`;
       ctx.lineWidth = 2;
