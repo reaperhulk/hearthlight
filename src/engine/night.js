@@ -6,6 +6,10 @@ import { getAdjacentSlots, nearHeart } from './map.js';
 export const NIGHT_MIN_LENGTH = 10;
 export const NIGHT_MIN_LENGTH_STILL = 4; // a night that spawned nothing passes quickly
 export const SHADE_FEED_TIME = 5;
+// A shade dropped mid-grapple comes back angry: it bites on a short
+// fuse. This is what makes breaking a hold a true sacrifice — and what
+// makes juggling (rotating holds to stall every feed) impossible.
+export const RELEASED_FEED_TIME = 1.5;
 export const SHADE_HOLD_TIME = 3.5;
 export const SHADE_HOLD_TIME_SWIFT = 2;
 export const WARDEN_COOLDOWN = 6;
@@ -355,7 +359,7 @@ export function advanceNightSlice(state, round) {
           strikeHeart();
           continue;
         }
-        current = { ...current, phase: 'feeding', heldSince: null, feedsAt: now + SHADE_FEED_TIME };
+        current = { ...current, phase: 'feeding', heldSince: null, feedsAt: now + RELEASED_FEED_TIME };
       } else if (now - current.heldSince >= holdFor(current)) {
         holderBySlot.delete(keyOf(current));
         nightEntry.banished += 1;

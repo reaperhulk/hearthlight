@@ -171,6 +171,7 @@ canvas.town-map {
 .warden-status { width: 100%; display: flex; gap: 10px; font-size: 0.72em; margin-bottom: 2px; }
 .warden-status .ready { color: #9ff2ff; }
 .warden-status .cooling { color: #6d788a; }
+.warden-status .gripping { color: #e6c766; }
 .how-to { margin: 10px 0 4px 1.2em; color: #8793a2; font-size: 0.8em; display: grid; gap: 5px; line-height: 1.35; }
 .night-controls { display: grid; gap: 6px; }
 .night-controls button {

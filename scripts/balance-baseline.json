@@ -30,7 +30,8 @@
       "randomPlace": 4.2,
       "economyGreedy": 3.4,
       "defenseGreedy": 6.8,
-      "bunker": 4.4
+      "bunker": 4.4,
+      "juggler": 6.2
     },
     "metaValue": {
       "stoneFoundations.nights": 1.6,
@@ -68,12 +69,12 @@
       "ruinsRemember.arcNights": 12.2
     },
     "picks": {
-      "farm": 43,
+      "farm": 44,
       "shrine": 3,
-      "palisade": 121,
-      "watchtower": 97,
-      "belltower": 53,
-      "lantern": 18,
+      "palisade": 137,
+      "watchtower": 109,
+      "belltower": 58,
+      "lantern": 19,
       "well": 8,
       "granary": 7,
       "emberKiln": 2

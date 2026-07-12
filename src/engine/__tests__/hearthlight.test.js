@@ -3,7 +3,7 @@ import { createInitialState, loadState, migrateState, saveState } from '../state
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
-import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
 
@@ -344,6 +344,52 @@ describe('hearthlight', () => {
     expect(state.round.shades).toHaveLength(0);
     expect(state.round.slots[2].structure).toBeTruthy();
     expect(state.round.stats.nights.at(-1).banished).toBe(2);
+  });
+
+  it('a shade dropped mid-grapple bites on the short fuse', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['palisade'], glow: 20 } };
+    state = placeStructure(state, 'palisade', 'r0s2');
+    const hpBefore = state.round.slots[2].structure.hp;
+    const start = state.round.time;
+    // Hydrate mid-grapple: the warden already holds a shade at the palisade
+    // and his cooldown has long expired, so walking away is legal.
+    state = {
+      ...state,
+      round: {
+        ...state.round,
+        phase: 'night',
+        phaseStart: start - 5,
+        placedToday: false,
+        towerCharges: {},
+        wardens: state.round.wardens.map(warden =>
+          ({ ...warden, slotId: 'r0s2', movedAt: start - 10 })),
+        shades: [{
+          id: 1,
+          targetSlotId: 'r0s2',
+          spawnAngle: 0,
+          spawnedAt: start - 2,
+          arrivesAt: start - 1,
+          phase: 'held',
+          heldSince: start - 0.5,
+          feedsAt: null,
+        }],
+      },
+    };
+    state = moveWarden(state, 1, 'r0s0');
+    expect(state).toBeTruthy();
+    state = tick(state, 0.5, makeRng());
+    const dropped = state.round.shades[0];
+    // The released shade comes back angry: it resumes feeding on the short
+    // fuse, not the full SHADE_FEED_TIME — juggling holds buys no time.
+    expect(dropped.phase).toBe('feeding');
+    expect(dropped.feedsAt - state.round.time).toBeLessThanOrEqual(RELEASED_FEED_TIME);
+    state = runSeconds(state, Math.ceil(RELEASED_FEED_TIME) + 1, makeRng());
+    // The bite lands well inside SHADE_FEED_TIME: the shade is sated and
+    // gone, and the palisade has paid a hit point for the broken hold.
+    expect(state.round.shades).toHaveLength(0);
+    expect(state.round.stats.nights.at(-1).fed).toBe(1);
+    expect(state.round.slots[2].structure.hp).toBe(hpBefore - 1);
   });
 
   it('feeds on unguarded structures and drains the Heart when nothing stands', () => {

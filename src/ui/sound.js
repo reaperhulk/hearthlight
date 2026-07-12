@@ -55,6 +55,10 @@ export const sfx = {
     tone({ freq: 180, freqEnd: 90, duration: 0.8, type: 'sine', gain: 0.045 });
     tone({ freq: 90, freqEnd: 130, duration: 0.9, type: 'sine', gain: 0.035, delay: 0.8 });
   },
+  // A grapple broken by choice: a low tearing note.
+  release() {
+    tone({ freq: 300, freqEnd: 80, duration: 0.22, type: 'sawtooth', gain: 0.05 });
+  },
   // Dawn breaks.
   dawn() {
     tone({ freq: 330, freqEnd: 660, duration: 0.35, type: 'sine', gain: 0.04 });

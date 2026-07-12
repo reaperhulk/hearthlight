@@ -1,7 +1,7 @@
 // All canvas rendering for the town map. Pure drawing — reads state, never
 // mutates it. The engine stays headless; this file is the game's face.
 import { HEART_MAX } from '../engine/round.js';
-import { getHoldTime, getNightForecast, getShadeCount, HEART_SLOT, SHADE_FEED_TIME, STILL_DEBT } from '../engine/night.js';
+import { getHoldTime, getNightForecast, getShadeCount, getWardenCooldown, HEART_SLOT, SHADE_FEED_TIME, STILL_DEBT } from '../engine/night.js';
 import { getAdjacentSlots, RINGS } from '../engine/map.js';
 import { STRUCTURES } from '../engine/structures.js';
 
@@ -751,7 +751,7 @@ function drawInspectLinks(ctx, round, inspectedId, animTime) {
 
 // The warden is a lantern-bearer, not a ring. Render-side smoothing walks
 // them between posts; `visuals` persists across frames (UI-only state).
-function drawWardens(ctx, round, animTime, visuals) {
+function drawWardens(ctx, round, animTime, visuals, cooldown = 6) {
   const dt = Math.min(0.1, Math.max(0.001, animTime - (visuals.lastTime ?? animTime)));
   visuals.lastTime = animTime;
   for (const warden of round.wardens) {
@@ -830,9 +830,25 @@ function drawWardens(ctx, round, animTime, visuals) {
     ctx.arc(fx + 5, fy - 8.5, 2.2, 0, Math.PI * 2);
     ctx.fill();
 
-    // On station: a faint watch-circle marks the guarded post.
+    // Readiness on the figure itself: a cyan arc refills with the
+    // cooldown; full circle means he can move again.
+    if (round.phase === 'night') {
+      const readiness = Math.min(1, (round.time - warden.movedAt) / cooldown);
+      ctx.strokeStyle = readiness >= 1
+        ? `rgba(159, 242, 255, ${0.8 + 0.2 * Math.sin(animTime * 5)})`
+        : 'rgba(159, 242, 255, 0.45)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 11, -Math.PI / 2, -Math.PI / 2 + readiness * Math.PI * 2);
+      ctx.stroke();
+    }
+    // On station: a faint watch-circle marks the guarded post — brighter
+    // when the warden is free to answer a new call.
     if (!moving && posted) {
-      ctx.strokeStyle = `rgba(159, 242, 255, ${0.35 + 0.15 * Math.sin(animTime * 3)})`;
+      const ready = round.time - warden.movedAt >= cooldown;
+      ctx.strokeStyle = ready
+        ? `rgba(159, 242, 255, ${0.5 + 0.25 * Math.sin(animTime * 3)})`
+        : `rgba(159, 242, 255, 0.22)`;
       ctx.lineWidth = 1.2;
       ctx.setLineDash([5, 5]);
       ctx.lineDashOffset = animTime * 6;
@@ -864,7 +880,7 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   drawThreats(ctx, round, getHoldTime(state));
   drawInspectLinks(ctx, round, inspectedId, animTime);
   if (round.phase === 'day') drawPlacementPreview(ctx, round, selectedCard, hover, animTime);
-  drawWardens(ctx, round, animTime, visuals);
+  drawWardens(ctx, round, animTime, visuals, getWardenCooldown(state));
   ctx.restore();
 }
 

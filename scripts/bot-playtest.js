@@ -44,6 +44,11 @@ const PROFILES = {
   // immortal (parallel warden holds); must always fall, and never beat
   // actually building the town out.
   bunker: { day: 'defense', night: 'sharp', cap: 2 },
+  // Builds like the keeper but retasks the warden the instant the
+  // cooldown allows, breaking grapples freely. RELEASED_FEED_TIME makes
+  // every break a near-instant bite; rotation-stalling must always lose
+  // to committed holds, and a juggled town must always fall.
+  juggler: { day: 'smart', night: 'juggle' },
 };
 
 const ECONOMY_FIRST = ['farm', 'granary', 'well', 'shrine', 'emberKiln', 'watchtower', 'belltower', 'lantern', 'palisade'];
@@ -184,6 +189,17 @@ function botNight(state, profile, t, rng) {
     if (rng() < 0.55) return state;     // often misses the threat entirely
   }
   const keyOf = shade => shade.targetSlotId ?? HEART_SLOT;
+  if (config.night === 'juggle') {
+    // Move on cooldown, always to somewhere else, grapples be damned.
+    const ready = round.wardens.find(warden =>
+      round.time - warden.movedAt >= getWardenCooldown(state));
+    if (!ready) return state;
+    const elsewhere = round.shades
+      .filter(shade => keyOf(shade) !== ready.slotId)
+      .sort((a, b) => (a.arrivesAt ?? 0) - (b.arrivesAt ?? 0));
+    if (elsewhere.length === 0) return state;
+    return moveWarden(state, ready.id, keyOf(elsewhere[0])) || state;
+  }
   const guarded = new Set(round.wardens.map(warden => warden.slotId).filter(Boolean));
   const threats = round.shades
     .filter(shade => shade.phase !== 'held' && !guarded.has(keyOf(shade)))
@@ -361,12 +377,12 @@ say(`  fun: final-third loss share ${(agg.tension * 100).toFixed(0)}% | warden b
 let depth = null;
 if (!quick) {
   depth = { ablations: {}, ablationRuns: {}, metaValue: {} };
-  for (const profile of ['randomPlace', 'economyGreedy', 'defenseGreedy', 'bunker']) {
+  for (const profile of ['randomPlace', 'economyGreedy', 'defenseGreedy', 'bunker', 'juggler']) {
     depth.ablationRuns[profile] = DEPTH_SEEDS.map(seed =>
       playRound(createInitialState(), profile, mulberry32(seed), collector));
     depth.ablations[profile] = mean(depth.ablationRuns[profile].map(run => run.nights));
   }
-  say(`\n  depth: keeper ${agg.keeperNights.toFixed(1)}n vs randomPlace ${depth.ablations.randomPlace.toFixed(1)}n | economyGreedy ${depth.ablations.economyGreedy.toFixed(1)}n | defenseGreedy ${depth.ablations.defenseGreedy.toFixed(1)}n | bunker ${depth.ablations.bunker.toFixed(1)}n`);
+  say(`\n  depth: keeper ${agg.keeperNights.toFixed(1)}n vs randomPlace ${depth.ablations.randomPlace.toFixed(1)}n | economyGreedy ${depth.ablations.economyGreedy.toFixed(1)}n | defenseGreedy ${depth.ablations.defenseGreedy.toFixed(1)}n | bunker ${depth.ablations.bunker.toFixed(1)}n | juggler ${depth.ablations.juggler.toFixed(1)}n`);
 
   // Each upgrade's marginal value on BOTH axes: nights (defense/tempo
   // upgrades) and embers (economy upgrades pay the meta loop directly).
@@ -509,6 +525,14 @@ if (assertMode) {
     }
     if (depth.ablations.bunker > agg.keeperNights) {
       issues.push(`turtling beats building: bunker ${depth.ablations.bunker.toFixed(1)}n vs keeper ${agg.keeperNights.toFixed(1)}n`);
+    }
+    // The juggle guard: breaking grapples on rotation must never stall a
+    // town alive, and must never beat committed holds.
+    for (const run of depth.ablationRuns.juggler) {
+      if (!run.fell) issues.push('IMMORTAL JUGGLER: rotation-stalling the warden never falls');
+    }
+    if (depth.ablations.juggler > agg.keeperNights) {
+      issues.push(`juggling beats holding: juggler ${depth.ablations.juggler.toFixed(1)}n vs keeper ${agg.keeperNights.toFixed(1)}n`);
     }
     for (const id of Object.keys(META_UPGRADES)) {
       const nights = depth.metaValue[`${id}.nights`];

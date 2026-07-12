@@ -179,6 +179,23 @@ commit pushed to main. Update checkboxes as work lands.
       build order is the depth. Keeper ceiling rose to 6.8n; placement
       spread 2.6n over random.
 
+- [x] **Breaking the hold (and saying so)** — playtest question: 'should
+      wardens be movable during a night?' They always were, on the
+      cooldown — but nothing said so, and a grappling warden refused to
+      move at all. Now a rested warden can be redirected anywhere, even
+      mid-grapple: the first tap warns ('the grappled shade bites fast'),
+      the second tears him free, and the dropped shade resumes feeding on
+      a 1.5s fuse (RELEASED_FEED_TIME) instead of the full 5 — breaking a
+      hold is a real sacrifice, never a stall. The verb is taught in
+      place: per-warden status chips ('grappling at the Farm — tap a
+      threat twice to break off' / 'moves again in 3s' / 'ready — tap any
+      threat to redirect him'), a cyan readiness ring that fills around
+      the warden's feet on the canvas, a one-time coach mark the first
+      night he sits ready while shades feed, and night-rail suffixes
+      ('must break hold' / 'resting'). Guarded by a `juggler` bot profile
+      that retasks on every cooldown: it must always fall and never beat
+      committed holds (measures 6.2n vs keeper 6.8n).
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

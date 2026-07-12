@@ -327,16 +327,41 @@ export function App() {
     // Remount the paint loop when a round starts or ends.
   }, [hasRound]);
 
+  const [breakTarget, setBreakTarget] = useState(null);
+  const breakTargetRef = useRef(null);
+  useEffect(() => {
+    breakTargetRef.current = breakTarget;
+    if (!breakTarget) return undefined;
+    const timer = setTimeout(() => setBreakTarget(null), 3500);
+    return () => clearTimeout(timer);
+  }, [breakTarget]);
+
   const sendWarden = useCallback(slotId => {
-    setState(current => {
-      const round = current.round;
-      if (!round || round.phase !== 'night') return current;
-      const held = new Set(round.shades.filter(shade => shade.phase === 'held').map(shade => shade.targetSlotId ?? HEART_SLOT));
-      const free = round.wardens.find(warden =>
-        round.time - warden.movedAt >= getWardenCooldown(current) && !held.has(warden.slotId));
-      if (!free) return current;
-      return moveWarden(current, free.id, slotId) || current;
-    });
+    const current = stateRef.current;
+    const round = current.round;
+    if (!round || round.phase !== 'night') return;
+    const cooldown = getWardenCooldown(current);
+    const heldKeys = new Set(round.shades.filter(shade => shade.phase === 'held').map(shade => shade.targetSlotId ?? HEART_SLOT));
+    const ready = round.wardens.filter(warden =>
+      round.time - warden.movedAt >= cooldown && warden.slotId !== slotId);
+    const free = ready.find(warden => !heldKeys.has(warden.slotId));
+    if (free) {
+      setBreakTarget(null);
+      if (free.slotId) window.localStorage.setItem('hearthlight-coach-swap', 'done');
+      setState(state => moveWarden(state, free.id, slotId) || state);
+      return;
+    }
+    // Only a grappling warden can answer: breaking costs — ask twice.
+    const breaker = ready.find(warden => heldKeys.has(warden.slotId));
+    if (!breaker) return;
+    if (breakTargetRef.current === slotId) {
+      setBreakTarget(null);
+      sfx.release();
+      window.localStorage.setItem('hearthlight-coach-swap', 'done');
+      setState(state => moveWarden(state, breaker.id, slotId) || state);
+      return;
+    }
+    setBreakTarget(slotId);
   }, []);
 
   const handleCanvasMove = useCallback(event => {
@@ -428,7 +453,8 @@ export function App() {
           <ul className="how-to">
             <li>By day: pick one structure and tap an empty slot. Build farms for Glow, walls and towers for the night.</li>
             <li>By night: shades creep from the rim and chew for five seconds before each bite — send the Warden in time and the building is saved.</li>
-            <li>The Warden grapples one shade at a time and cannot be hurt; watchtowers fire two bolts a night at shades reaching their neighbors — never at their own attackers.</li>
+            <li>The Warden grapples one shade at a time and cannot be hurt; once rested he can be redirected anywhere — even mid-grapple, though a dropped shade bites almost at once.</li>
+            <li>Watchtowers fire two bolts a night at shades reaching their neighbors — never at their own attackers.</li>
             <li>The dark always wins. Nights survived become Embers — spend them to last longer next time.</li>
           </ul>
         )}
@@ -667,6 +693,13 @@ export function App() {
             round.wardens.every(warden => !warden.slotId) && round.shades.length > 0 && (
             <div className="coach">tap the hunted building to send the Warden</div>
           )}
+          {!isDay && !fallen && !window.localStorage.getItem('hearthlight-coach-swap') &&
+            threats.length > 0 &&
+            round.wardens.some(warden => warden.slotId &&
+              round.time - warden.movedAt >= getWardenCooldown(state) &&
+              !round.shades.some(shade => shade.phase === 'held' && (shade.targetSlotId ?? HEART_SLOT) === warden.slotId)) && (
+            <div className="coach">the Warden can move again — tap another threat to redirect him</div>
+          )}
           </div>
           <div className="side">
           {isDay ? (
@@ -747,16 +780,29 @@ export function App() {
               <div className="warden-status">
                 {round.wardens.map(warden => {
                   const wait = Math.ceil(getWardenCooldown(state) - (round.time - warden.movedAt));
+                  const grip = round.shades.find(shade =>
+                    shade.phase === 'held' && (shade.targetSlotId ?? HEART_SLOT) === warden.slotId);
+                  const gripName = grip
+                    ? (warden.slotId === HEART_SLOT ? 'the Heart'
+                      : STRUCTURES[round.slots.find(slot => slot.id === warden.slotId)?.structure?.type]?.name ?? 'his post')
+                    : null;
+                  const label = grip
+                    ? `grappling at ${gripName}${wait <= 0 ? ' — tap a threat twice to break off' : ''}`
+                    : wait > 0 ? `moves again in ${wait}s`
+                    : warden.slotId ? 'ready — tap any threat to redirect him' : 'ready — tap a threat to post him';
                   return (
-                    <span key={warden.id} className={wait > 0 ? 'cooling' : 'ready'}>
-                      Warden {round.wardens.length > 1 ? warden.id : ''} {wait > 0 ? `moves in ${wait}s` : 'ready'}
+                    <span key={warden.id} className={grip ? 'gripping' : wait > 0 ? 'cooling' : 'ready'}>
+                      Warden{round.wardens.length > 1 ? ` ${warden.id}` : ''} {label}
                     </span>
                   );
                 })}
               </div>
               {(() => {
-                const anyFree = round.wardens.some(warden =>
+                const heldKeys = new Set(round.shades.filter(shade => shade.phase === 'held').map(shade => shade.targetSlotId ?? HEART_SLOT));
+                const readyWardens = round.wardens.filter(warden =>
                   round.time - warden.movedAt >= getWardenCooldown(state));
+                const anyFree = readyWardens.some(warden => !heldKeys.has(warden.slotId));
+                const onlyBreaker = !anyFree && readyWardens.length > 0;
                 const rows = threats.slice(0, 3).map(shade => {
                   const slot = round.slots.find(candidate => candidate.id === shade.targetSlotId);
                   const name = !shade.targetSlotId ? 'the Heart'
@@ -771,9 +817,12 @@ export function App() {
                       onClick={() => sendWarden(shade.targetSlotId ?? HEART_SLOT)}
                     >
                       {slot?.structure && <StructureIcon type={slot.structure.type} size={22} />}
-                      {shade.phase === 'feeding' ? `Save ${name === 'the Heart' ? name : `the ${name}`} — bites in ${seconds}s`
+                      {breakTarget === (shade.targetSlotId ?? HEART_SLOT)
+                        ? 'Break the hold — the grappled shade bites fast. Tap again.'
+                        : shade.phase === 'feeding' ? `Save ${name === 'the Heart' ? name : `the ${name}`} — bites in ${seconds}s`
                         : `Warden → ${name} (${seconds}s)`}
-                      {!anyFree && ' · resting'}
+                      {breakTarget !== (shade.targetSlotId ?? HEART_SLOT) && !anyFree &&
+                        (onlyBreaker ? ' · must break hold' : ' · resting')}
                     </button>
                   );
                 });
