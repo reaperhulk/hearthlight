@@ -1,73 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createInitialState, loadState, saveState } from '../engine/state.js';
-import { abandonRound, beginRound, collectEmbers, getGlowRate, getEmberBreakdown, getRepairMax, levelGlowMult, placeStructure, repairStructure, rerollDraft, getDayLength, REPAIR_COST, REROLL_COST, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
-import { getAdjacentSlots } from '../engine/map.js';
+import { loadState, saveState } from '../engine/state.js';
+import { abandonRound, getGlowRate, getRepairMax, placeStructure, repairStructure, rerollDraft, getDayLength, REPAIR_COST, REROLL_COST, HEART_MAX } from '../engine/round.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT, STILL_DEBT } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
-import { drawEffects, drawStructureGlyph, drawTown, slotPixel, CANVAS, STRUCTURE_COLORS } from './draw.js';
-import { buyMetaUpgrade, metaUnlocked, META_UPGRADES } from '../engine/meta.js';
+import { drawEffects, drawTown, slotPixel, CANVAS } from './draw.js';
 import { STRUCTURES } from '../engine/structures.js';
+import { StructureIcon } from './StructureIcon.jsx';
+import { describeSlot } from './describeSlot.js';
+import { Home } from './Home.jsx';
+import { FallenPanel } from './FallenPanel.jsx';
 
 const HIT_RADIUS = 40;
-
-// The same silhouette the map uses, as a DOM icon for cards and panels.
-function StructureIcon({ type, size = 30 }) {
-  const ref = useCallback(node => {
-    if (!node) return;
-    const dpr = 2;
-    node.width = size * dpr;
-    node.height = size * dpr;
-    const ctx = node.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawStructureGlyph(ctx, type, size / 2, size / 2, size * 0.38, STRUCTURE_COLORS[type] || '#aeb8c5');
-  }, [type, size]);
-  return <canvas ref={ref} style={{ width: size, height: size }} aria-hidden="true" />;
-}
-
-// What one occupied slot is worth right now — the tap-to-inspect readout.
-function describeSlot(round, slot) {
-  const structure = slot.structure;
-  const def = STRUCTURES[structure.type];
-  const levelMult = levelGlowMult(structure.level) * (slot.ring > 0 ? FRONTIER_YIELD : 1);
-  const neighbors = getAdjacentSlots(round.slots, slot.id).filter(neighbor => neighbor.structure);
-  const rows = [];
-  rows.push(['Toughness', `${structure.hp} bite${structure.hp === 1 ? '' : 's'}`]);
-  if (def.glowPerSecond) rows.push(['Glow', `${(def.glowPerSecond * levelMult).toFixed(1)}/s`]);
-  if (slot.ring > 0) rows.push(['Frontier', 'richer ground — the dark arrives sooner']);
-  if (def.adjacencyBonus) {
-    const boosted = neighbors.filter(neighbor => def.adjacencyBonus[neighbor.structure.type]);
-    rows.push(['Boosting', boosted.length > 0
-      ? boosted.map(neighbor => `${STRUCTURES[neighbor.structure.type].name} +${(def.adjacencyBonus[neighbor.structure.type] * levelMult).toFixed(1)}/s`).join(', ')
-      : 'nothing adjacent yet']);
-  }
-  const watered = neighbors.reduce((sum, neighbor) => {
-    const giving = STRUCTURES[neighbor.structure.type].dawnAdjacency;
-    return sum + (giving?.[structure.type] || 0);
-  }, 0);
-  rows.push(['At dawn', `+${DAWN_GLOW_PER_STRUCTURE + (def.dawnGlow || 0) + watered} Glow${watered > 0 ? ' (watered)' : ''}`]);
-  if (def.dawnAdjacency) rows.push(['Waters', 'adjacent Granaries +3 Glow at dawn']);
-  if (def.slowsAdjacent) {
-    rows.push(['Slows', `shades on lit neighbors ×${def.slowsAdjacent}`]);
-    rows.push(['Lamplight', 'the Warden banishes 40% faster on lit ground']);
-  }
-  if (def.nightCharges) {
-    rows.push(['Banishes', `${def.nightCharges + (structure.level >= 3 ? 1 : 0)} shades/night on neighbors`]);
-    rows.push(['Blind spot', 'cannot save itself']);
-  }
-  if (def.nightDelay) rows.push(['Toll', `every shade +${def.nightDelay}s approach; Warden repositions 1s sooner`]);
-  if (def.tauntWeight) rows.push(['Taunt', 'draws shades to itself']);
-  rows.push(['Neighbors', neighbors.length > 0
-    ? neighbors.map(neighbor => STRUCTURES[neighbor.structure.type].name).join(', ')
-    : 'none']);
-  const nightsTo = target => Math.max(0, target - structure.nightsSurvived);
-  const levelLine = structure.level >= 3
-    ? `Level 3 veteran — glow ×2, +2 toughness${structure.type === 'watchtower' ? ', +1 banish/night' : ''}`
-    : structure.level >= 2
-    ? `Level 2 — glow ×1.5; veteran in ${nightsTo(LEVEL_UP_NIGHTS_VETERAN)} night${nightsTo(LEVEL_UP_NIGHTS_VETERAN) === 1 ? '' : 's'}`
-    : `Level 1 — levels up in ${nightsTo(LEVEL_UP_NIGHTS)} more night${nightsTo(LEVEL_UP_NIGHTS) === 1 ? '' : 's'}`;
-  return { name: def.name, levelLine, rows };
-}
 
 export function App() {
   const [state, setState] = useState(() => loadState(window.localStorage));
@@ -452,87 +396,7 @@ export function App() {
   const round = state.round;
 
   if (!round) {
-    return (
-      <div className="home">
-        <h1 className="title-emblem"><StructureIcon type="lantern" size={26} /> Hearthlight</h1>
-        <p className="lore">Something in the dark keeps eating the towns. Light the Heart. Last longer.</p>
-        <p className="lore dim">The shades are the Forgetting. Every town they take becomes ruins — and the ruins remember every wall you raised.</p>
-        {state.totalRounds === 0 && (
-          <ul className="how-to">
-            <li>By day: pick one structure and tap an empty slot. Build farms for Glow, walls and towers for the night.</li>
-            <li>By night: shades creep from the rim and chew for five seconds before each bite — send the Warden in time and the building is saved.</li>
-            <li>The Warden grapples one shade at a time and cannot be hurt; once rested he can be redirected anywhere — even mid-grapple, though a dropped shade bites almost at once.</li>
-            <li>Watchtowers fire two bolts a night at shades reaching their neighbors — never at their own attackers.</li>
-            <li>The dark always wins. Nights survived become Embers — spend them to last longer next time.</li>
-          </ul>
-        )}
-        {state.lastRound && (
-          <p className="last-round">
-            The last town stood {state.lastRound.nights} night{state.lastRound.nights === 1 ? '' : 's'} and left {state.lastRound.embers} Embers.
-          </p>
-        )}
-        <div className="records">
-          <span>Embers: <strong>{state.embers}</strong></span>
-          <span>Best: <strong>{state.bestNights} nights</strong></span>
-          <span>Vigils: <strong>{state.totalRounds}</strong></span>
-        </div>
-        {state.lifetime?.nights > 0 && (
-          <details className="ledger">
-            <summary>The Keeper's Ledger</summary>
-            <div><span>Nights withstood</span><strong>{state.lifetime.nights}</strong></div>
-            <div><span>Embers gathered</span><strong>{state.lifetime.embers}</strong></div>
-            <div><span>Shades banished by hand</span><strong>{state.lifetime.banished}</strong></div>
-            <div><span>Bolts loosed from towers</span><strong>{state.lifetime.towerKills}</strong></div>
-            <div><span>Buildings taken by the dark</span><strong>{state.lifetime.structuresLost}</strong></div>
-          </details>
-        )}
-        {[
-          { title: 'Sturdier days', ids: ['morningStockpile', 'stoneFoundations', 'deeperDrafts'] },
-          { title: 'Go longer', ids: ['swiftWarden', 'heartstone', 'secondWarden'] },
-          { title: 'Wider and richer', ids: ['outerRing', 'emberChoir'] },
-          { title: 'Proven vigils', ids: ['beaconHeart', 'emberheart', 'ruinsRemember'] },
-        ].map(tier => (
-          <div key={tier.title} className="shop-tier">
-            <h3>{tier.title}</h3>
-            <div className="shop">
-              {tier.ids.map(id => META_UPGRADES[id]).filter(Boolean).map(upgrade => {
-                const unlocked = metaUnlocked(state, upgrade.id);
-                return (
-                  <button
-                    key={upgrade.id}
-                    className={state.meta[upgrade.id] ? 'owned' : !unlocked ? 'locked' : ''}
-                    disabled={state.meta[upgrade.id] || !unlocked || state.embers < upgrade.cost}
-                    onClick={() => setState(current => buyMetaUpgrade(current, upgrade.id) || current)}
-                  >
-                    <strong>{upgrade.name}</strong>
-                    <span>{unlocked ? upgrade.description : `Sealed. Keep a vigil of ${upgrade.requiresBestNights} nights.`}</span>
-                    <em>{state.meta[upgrade.id] ? '✓ Kept' : unlocked ? `${upgrade.cost} ✦` : `Best: ${state.bestNights} nights`}</em>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-        <button className="begin" onClick={() => { unlockAudio(); setState(current => beginRound(current)); }}>
-          Begin the Vigil
-        </button>
-        <details className="danger">
-          <summary>Begin anew</summary>
-          <p>Burn the ledger, the Embers, every upgrade, every record. There is no undo.</p>
-          <button
-            className={confirming === 'reset' ? 'confirming' : ''}
-            onClick={() => {
-              if (confirming !== 'reset') { setConfirming('reset'); return; }
-              setConfirming(null);
-              window.localStorage.removeItem('hearthlight-save');
-              setState(createInitialState());
-            }}
-          >
-            {confirming === 'reset' ? 'Tap again to burn it all' : 'Burn everything'}
-          </button>
-        </details>
-      </div>
-    );
+    return <Home state={state} setState={setState} confirming={confirming} setConfirming={setConfirming} />;
   }
 
   const isDay = round.phase === 'day';
@@ -611,77 +475,11 @@ export function App() {
       </div>
 
       {fallen ? (
-        <div className="fallen-panel">
-          <h2>The town is memory now.</h2>
-          <p className="epitaph">{[
-            'What the dark takes, the ground keeps.',
-            'The shades are the Forgetting. The ruins remember.',
-            'Every wall you raised is a word in the stones’ story.',
-            'The light failed. The remembering begins.',
-            'No vigil is wasted. The ruins keep the shape of it.',
-          ][(round.day + state.totalRounds) % 5]}</p>
-          {(() => {
-            const nights = round.day - 1;
-            const breakdown = getEmberBreakdown(round, state.meta);
-            const labels = [
-              ['nights', `${breakdown.nights} night${breakdown.nights === 1 ? '' : 's'} withstood`],
-              ['standing', 'still standing at the end'],
-              ['shrines', 'shrines kept lit'],
-              ['kiln', 'glow fed to the kiln'],
-              ['choir', 'the choir sang'],
-              ['emberheart', 'the Emberheart burned'],
-              ['ruins', 'the ruins remember'],
-            ];
-            const peak = Math.max(1, ...round.stats.nights.map(night => night.heartLost));
-            return (
-              <>
-                {nights > state.bestNights && <p className="record-line">A new record vigil.</p>}
-                {round.log.length > 1 && (
-                  <p className="final-moments">{round.log.at(-2)?.message}</p>
-                )}
-                <div className="spark" aria-label="Heart lost per night">
-                  {round.stats.nights.map(night => (
-                    <i
-                      key={night.night}
-                      style={{ height: `${8 + (night.heartLost / peak) * 30}px` }}
-                      className={night.heartLost > 0 ? 'lost' : 'calm'}
-                      title={`Night ${night.night}: ${night.spawned} shades, -${night.heartLost} heart`}
-                    />
-                  ))}
-                </div>
-                <div className="chronicle">
-                  {labels.filter(([key]) => breakdown[key] > 0).map(([key, label]) => (
-                    <div key={key}><span>{label}</span><strong>+{breakdown[key]}</strong></div>
-                  ))}
-                  <div className="total"><span>Embers carried home</span><strong>{breakdown.total}</strong></div>
-                </div>
-              </>
-            );
-          })()}
-          <button
-            className="begin"
-            autoFocus
-            onClick={() => {
-              unlockAudio();
-              setSelectedCard(null);
-              setState(current => beginRound(collectEmbers(current)));
-            }}
-          >
-            Begin the next vigil
-          </button>
-          <button
-            className="to-the-fire"
-            onClick={() => { setState(current => collectEmbers(current)); setSelectedCard(null); }}
-          >
-            Return to the Fire{(() => {
-              const earned = getEmberBreakdown(round, state.meta).total;
-              const bank = state.embers + earned;
-              const affordable = Object.values(META_UPGRADES).filter(upgrade =>
-                !state.meta[upgrade.id] && metaUnlocked(state, upgrade.id) && bank >= upgrade.cost).length;
-              return affordable > 0 ? ` — ${affordable} upgrade${affordable === 1 ? '' : 's'} affordable` : '';
-            })()}
-          </button>
-        </div>
+        <FallenPanel
+          state={state}
+          setState={setState}
+          clearSelection={() => setSelectedCard(null)}
+        />
       ) : (
         <div className="playfield">
           <div className="canvas-wrap">

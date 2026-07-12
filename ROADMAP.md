@@ -234,6 +234,17 @@ commit pushed to main. Update checkboxes as work lands.
       Also: shop tier retitled (Second Hands no longer 'starts faster'),
       screenshot harness now captures the inspector and the shop.
 
+- [x] **The App splits at its seams (cycle 4)** — App.jsx had grown to
+      ~900 lines holding five concerns. Extracted verbatim into focused
+      modules: Home.jsx (fire, ledger, shop, reset), FallenPanel.jsx
+      (epitaph, sparkline, chronicle), describeSlot.js (inspector
+      readout), StructureIcon.jsx. App.jsx is 686 lines of what it
+      should be: the loop, the canvas, the day/night rails. Folded in
+      one reader-facing win: the inspector now shows payout cards'
+      CURRENT worth (kiln: embers banked so far; shrine: 2 + standing
+      neighbors) so banking Glow is a visible strategy, not a fall-
+      screen surprise.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
