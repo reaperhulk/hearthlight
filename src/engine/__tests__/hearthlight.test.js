@@ -5,7 +5,7 @@ import { STRUCTURES } from '../structures.js';
 import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
 import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, rollOmen, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
-import { buyMetaUpgrade } from '../meta.js';
+import { allUpgradesKept, buyMetaUpgrade, isVigilComplete, LONG_DAWN_NIGHTS, META_UPGRADES } from '../meta.js';
 
 function makeRng(sequence = [0.5]) {
   let index = 0;
@@ -553,6 +553,18 @@ describe('hearthlight', () => {
     const mended = repairStructure(state, 'r0s0');
     expect(mended.round.slots[0].structure.hp).toBe(2);
     expect(repairStructure(mended, 'r0s0')).toBeNull(); // still once per day
+  });
+
+  it('the Long Dawn closes the story only with everything kept', () => {
+    const bare = createInitialState();
+    expect(allUpgradesKept(bare)).toBe(false);
+    const allMeta = Object.fromEntries(Object.keys(META_UPGRADES).map(id => [id, true]));
+    const kitted = { ...bare, meta: allMeta };
+    expect(allUpgradesKept(kitted)).toBe(true);
+    // Both halves are required: the kit AND the fifteen-night vigil.
+    expect(isVigilComplete(kitted)).toBe(false);
+    expect(isVigilComplete({ ...kitted, bestNights: LONG_DAWN_NIGHTS })).toBe(true);
+    expect(isVigilComplete({ ...bare, bestNights: LONG_DAWN_NIGHTS })).toBe(false);
   });
 
   it('the ledger accumulates across vigils and survives old saves', () => {

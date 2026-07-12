@@ -245,6 +245,16 @@ commit pushed to main. Update checkboxes as work lands.
       neighbors) so banking Glow is a visible strategy, not a fall-
       screen surprise.
 
+- [x] **The Long Dawn (cycle 5)** — the game had no horizon: after the
+      eleventh upgrade the shop went quiet and nothing marked an ending.
+      Now, with everything kept, one goal remains — hold the light for
+      15 nights. Calibrated against a new permanent 'kitted ceiling'
+      panel (keeper with every upgrade: mean 20.2n, best 27n; asserted
+      both reachable and still mortal). Completing it turns the emblem
+      gold, closes the story on the home screen (the wanderer kneeling
+      in these stones — the bridge to theruinsremember), and the vigil
+      that first crosses the line gets its own golden record line.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

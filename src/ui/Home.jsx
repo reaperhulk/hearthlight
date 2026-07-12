@@ -2,7 +2,7 @@
 // and the way back into the dark.
 import { createInitialState } from '../engine/state.js';
 import { beginRound } from '../engine/round.js';
-import { buyMetaUpgrade, metaUnlocked, META_UPGRADES } from '../engine/meta.js';
+import { allUpgradesKept, buyMetaUpgrade, isVigilComplete, metaUnlocked, LONG_DAWN_NIGHTS, META_UPGRADES } from '../engine/meta.js';
 import { unlockAudio } from './sound.js';
 import { StructureIcon } from './StructureIcon.jsx';
 
@@ -16,7 +16,7 @@ const SHOP_TIERS = [
 export function Home({ state, setState, confirming, setConfirming }) {
   return (
     <div className="home">
-      <h1 className="title-emblem"><StructureIcon type="lantern" size={26} /> Hearthlight</h1>
+      <h1 className={`title-emblem${isVigilComplete(state) ? ' gold' : ''}`}><StructureIcon type="lantern" size={26} /> Hearthlight</h1>
       <p className="lore">Something in the dark keeps eating the towns. Light the Heart. Last longer.</p>
       <p className="lore dim">The shades are the Forgetting. Every town they take becomes ruins — and the ruins remember every wall you raised.</p>
       {state.totalRounds === 0 && (
@@ -70,6 +70,27 @@ export function Home({ state, setState, confirming, setConfirming }) {
           </div>
         </div>
       ))}
+      {allUpgradesKept(state) && (
+        isVigilComplete(state) ? (
+          <div className="capstone complete">
+            <h3>The Long Dawn</h3>
+            <p>
+              Fifteen nights, and everything kept. The dark still won — the dark
+              always wins — but somewhere far ahead a wanderer kneels in these
+              stones, and the ruins remember every wall you raised.
+            </p>
+            <p className="dim">The vigil is complete. The fire is yours to tend as long as you like.</p>
+          </div>
+        ) : (
+          <div className="capstone">
+            <h3>The Long Dawn</h3>
+            <p>
+              Everything is kept. One vigil remains: hold the light for{' '}
+              {LONG_DAWN_NIGHTS} nights. Best so far: {state.bestNights}.
+            </p>
+          </div>
+        )
+      )}
       <button className="begin" onClick={() => { unlockAudio(); setState(current => beginRound(current)); }}>
         Begin the Vigil
       </button>

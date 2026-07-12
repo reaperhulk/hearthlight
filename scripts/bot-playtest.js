@@ -490,6 +490,16 @@ if (!quick) {
     say(`  confirm (${seeds.length} seeds) ${id}: ${fmtDelta(depth.metaValue[`${id}.nights`])}n/${fmtDelta(depth.metaValue[`${id}.embers`])}e, arc ${fmtDelta(depth.metaValue[`${id}.arcNights`])}n`);
   }
 
+  // The kitted ceiling: a keeper who owns EVERYTHING. Calibrates the
+  // Long Dawn capstone — the goal must be provably reachable.
+  const allMeta = Object.fromEntries(Object.keys(META_UPGRADES).map(id => [id, true]));
+  const kittedRuns = DEPTH_SEEDS.map(seed =>
+    playRound({ ...createInitialState(), meta: allMeta }, 'keeper', mulberry32(seed)));
+  depth.kittedNights = mean(kittedRuns.map(run => run.nights));
+  depth.kittedBest = Math.max(...kittedRuns.map(run => run.nights));
+  depth.kittedFell = kittedRuns.every(run => run.fell);
+  say(`  kitted ceiling (all upgrades): mean ${depth.kittedNights.toFixed(1)}n, best ${depth.kittedBest}n`);
+
   say(`  picks: ${STRUCTURE_IDS.map(id => `${id} ${collector.picks[id] || 0}`).join(' | ')}`);
   depth.picks = { ...collector.picks };
 }
@@ -603,6 +613,14 @@ if (assertMode) {
     }
     if (depth.ablations.bunker > agg.keeperNights) {
       issues.push(`turtling beats building: bunker ${depth.ablations.bunker.toFixed(1)}n vs keeper ${agg.keeperNights.toFixed(1)}n`);
+    }
+    // The Long Dawn must be provably reachable — and even a keeper who
+    // owns everything must still fall. The wall always wins.
+    if (depth.kittedBest < 15) {
+      issues.push(`the Long Dawn is out of reach: kitted best ${depth.kittedBest}n < 15`);
+    }
+    if (!depth.kittedFell) {
+      issues.push('IMMORTAL KIT: a fully-upgraded town never falls');
     }
     // The juggle guard: breaking grapples on rotation must never stall a
     // town alive, and must never beat committed holds.

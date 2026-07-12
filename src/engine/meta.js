@@ -76,6 +76,21 @@ export const META_UPGRADES = {
   },
 };
 
+// The Long Dawn: the capstone vigil. With every upgrade kept, one goal
+// remains — hold the light for fifteen nights. The dark still wins (it
+// always wins), but the story closes: the ruins remember this keeper.
+// Calibration: a fully-kitted keeper bot measures mean ~20 nights,
+// best ~27 — reachable, not free (asserted in the harness).
+export const LONG_DAWN_NIGHTS = 15;
+
+export function allUpgradesKept(state) {
+  return Object.keys(META_UPGRADES).every(id => state.meta[id]);
+}
+
+export function isVigilComplete(state) {
+  return allUpgradesKept(state) && state.bestNights >= LONG_DAWN_NIGHTS;
+}
+
 export function metaUnlocked(state, upgradeId) {
   const upgrade = META_UPGRADES[upgradeId];
   return Boolean(upgrade) && state.bestNights >= (upgrade.requiresBestNights || 0);

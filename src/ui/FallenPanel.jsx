@@ -1,7 +1,7 @@
 // The fall screen: epitaph, the night-by-night sparkline, the Ember
 // chronicle, and two ways forward (straight back in, or via the fire).
 import { beginRound, collectEmbers, getEmberBreakdown } from '../engine/round.js';
-import { metaUnlocked, META_UPGRADES } from '../engine/meta.js';
+import { allUpgradesKept, metaUnlocked, LONG_DAWN_NIGHTS, META_UPGRADES } from '../engine/meta.js';
 import { unlockAudio } from './sound.js';
 
 const EPITAPHS = [
@@ -36,7 +36,9 @@ export function FallenPanel({ state, setState, clearSelection }) {
     <div className="fallen-panel">
       <h2>The town is memory now.</h2>
       <p className="epitaph">{EPITAPHS[(round.day + state.totalRounds) % EPITAPHS.length]}</p>
-      {nights > state.bestNights && <p className="record-line">A new record vigil.</p>}
+      {nights >= LONG_DAWN_NIGHTS && allUpgradesKept(state) && state.bestNights < LONG_DAWN_NIGHTS
+        ? <p className="record-line gold">The Long Dawn. The ruins will never forget this one.</p>
+        : nights > state.bestNights && <p className="record-line">A new record vigil.</p>}
       {round.log.length > 1 && (
         <p className="final-moments">{round.log.at(-2)?.message}</p>
       )}

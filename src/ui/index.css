@@ -230,6 +230,16 @@ canvas.town-map {
 .card-head .cost::after { content: '✦'; margin-left: 2px; font-size: 0.85em; }
 
 .record-line { color: #ffd082; font-size: 0.9em; margin-bottom: 8px; letter-spacing: 0.04em; }
+.record-line.gold { color: #ffe9b0; text-shadow: 0 0 12px rgba(255, 208, 130, 0.5); }
+.capstone {
+  margin: 14px 0 4px; padding: 12px 14px; border-radius: 8px;
+  border: 1px dashed #6a5a35; background: #16131c; font-size: 0.85em;
+}
+.capstone h3 { color: #ffd082; margin: 0 0 6px; letter-spacing: 0.08em; font-size: 0.95em; }
+.capstone p { color: #a9b2c0; margin: 0 0 6px; line-height: 1.5; }
+.capstone .dim { color: #77808f; }
+.capstone.complete { border-style: solid; border-color: #a8874f; box-shadow: 0 0 18px rgba(255, 208, 130, 0.12) inset; }
+.title-emblem.gold { text-shadow: 0 0 18px rgba(255, 208, 130, 0.55); }
 .spark { display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 42px; margin: 10px 0; }
 .spark i { width: 10px; border-radius: 2px 2px 0 0; }
 .spark i.lost { background: linear-gradient(180deg, #e05a5a, #7a2f3a); }
