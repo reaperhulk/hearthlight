@@ -152,20 +152,26 @@ export function App() {
       }
     }
     // Sated shades dissolve where they finished eating — they left, they
-    // didn't vanish mysteriously.
+    // didn't vanish mysteriously. A shade that found only ash VENTS: its
+    // howl streaks to the Heart, so the loss reads as cause, not glitch.
     for (const shade of prev.shades) {
       if (shade.phase !== 'feeding') continue;
       if (round.shades.some(candidate => candidate.id === shade.id)) continue;
       const slot = round.slots.find(candidate => candidate.id === shade.targetSlotId);
       if (!slot) continue;
       const { x, y } = slotPixel(slot);
-      effectsRef.current.push({ type: 'sated', x, y, start: now });
+      if (!slot.structure) {
+        effectsRef.current.push({ type: 'vent', from: { x, y }, start: now });
+      } else {
+        effectsRef.current.push({ type: 'sated', x, y, start: now });
+      }
     }
     const prevLoss = prev.stats?.heartLoss;
     const loss = round.stats?.heartLoss;
     if (prevLoss && loss) {
       if (loss.falls > prevLoss.falls) { sfx.fall(); navigator.vibrate?.([14, 40, 10]); }
-      else if (loss.heartHits > prevLoss.heartHits || loss.vents > prevLoss.vents) sfx.heartHit();
+      else if (loss.heartHits > prevLoss.heartHits) sfx.heartHit();
+      else if (loss.vents > prevLoss.vents) sfx.vent();
       const heartDelta = (loss.heartHits - prevLoss.heartHits) + (loss.vents - prevLoss.vents);
       if (heartDelta > 0) {
         effectsRef.current.push({ type: 'heartFlash', start: now });

@@ -327,6 +327,13 @@ commit pushed to main. Update checkboxes as work lands.
       tier. All guards hold (bunker, juggler, kitted-mortality);
       kitted ceiling 23.4n.
 
+- [x] **The howl has a shape (cycle 14)** — vents are a fifth of all
+      heart loss, but a venting shade drew the same calm three-mote
+      dissolve as a sated one: the most confusing loss channel was
+      visually mislabeled. A shade that finds only ash now howls — a
+      jagged crimson streak from the ruin to the Heart, with its own
+      falling-wail sound — so the loss reads as cause, not glitch.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

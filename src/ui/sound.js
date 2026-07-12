@@ -72,9 +72,14 @@ export const sfx = {
   fall() {
     tone({ freq: 98, freqEnd: 49, duration: 0.6, type: 'triangle', gain: 0.12 });
   },
-  // The Heart takes a hit (strike or vent).
+  // The Heart takes a direct strike.
   heartHit() {
     tone({ freq: 75, duration: 0.25, type: 'square', gain: 0.07 });
+  },
+  // A shade finds only ash and howls: a falling wail into the thud.
+  vent() {
+    tone({ freq: 520, freqEnd: 130, duration: 0.3, type: 'sawtooth', gain: 0.035 });
+    tone({ freq: 75, duration: 0.2, type: 'square', gain: 0.06, delay: 0.18 });
   },
   // The town falls. A slow toll.
   toll() {

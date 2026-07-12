@@ -1003,6 +1003,32 @@ export function drawEffects(ctx, effects, animTime) {
           3 * (1 - age / 0.6), 0, Math.PI * 2);
         ctx.fill();
       }
+    } else if (effect.type === 'vent' && age < 0.55) {
+      // A shade that found only ash howls at the Heart: a jagged streak
+      // from the ruin to the center — the loss has a visible cause.
+      const t = age / 0.55;
+      const alpha = 0.85 * (1 - t);
+      const from = effect.from;
+      const to = { x: CANVAS / 2, y: CANVAS / 2 };
+      const reach = Math.min(1, t * 1.6);
+      ctx.strokeStyle = `rgba(224, 90, 120, ${alpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      const segments = 5;
+      for (let seg = 1; seg <= segments; seg++) {
+        const p = (seg / segments) * reach;
+        const jag = seg < segments ? Math.sin(seg * 9.7 + from.x) * 7 * (1 - p) : 0;
+        const nx = from.x + (to.x - from.x) * p + jag;
+        const ny = from.y + (to.y - from.y) * p - jag;
+        ctx.lineTo(nx, ny);
+      }
+      ctx.stroke();
+      // The howl's mouth: a burst where it began.
+      ctx.fillStyle = `rgba(224, 90, 120, ${alpha * 0.7})`;
+      ctx.beginPath();
+      ctx.arc(from.x, from.y, 5 * (1 - t), 0, Math.PI * 2);
+      ctx.fill();
     } else if (effect.type === 'sweep' && age < 0.9) {
       // Dusk rolls out from the Heart; dawn washes back in — eased, so
       // the wave leaps and then settles.
