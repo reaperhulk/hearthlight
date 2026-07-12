@@ -199,10 +199,12 @@ export function spawnShades(state, rng) {
     if (slot.structure?.type === 'watchtower') {
       // Veteran towers earn a third bolt; light finds targets — a
       // lantern-lit tower earns one more. On a Veiled Night the mist
-      // blinds every tower: zero bolts, the Warden stands alone.
+      // blinds the towers — but a veteran's lamp pierces it for one
+      // bolt, so seven survived nights buy something the mist cannot
+      // take (and the meta arc keeps its late-run payoff).
       const lit = getAdjacentSlots(round.slots, slot.id).some(neighbor => neighbor.structure?.type === 'lantern');
       towerCharges[slot.id] = omen === 'veiled'
-        ? 0
+        ? (slot.structure.level >= 3 ? 1 : 0)
         : STRUCTURES.watchtower.nightCharges + (slot.structure.level >= 3 ? 1 : 0) + (lit ? 1 : 0);
     }
   }

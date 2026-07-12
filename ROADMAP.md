@@ -280,6 +280,16 @@ commit pushed to main. Update checkboxes as work lands.
       verbs deepen the ceiling without moving the floor, which is
       exactly where they should sit.
 
+- [x] **The veteran lamp pierces the mist (cycle 9)** — review caught
+      the veiled rotation quietly shaving the meta arc's late payoff
+      (mist punishes exactly the tower towns upgrades build). Veteran
+      (level 3) watchtowers now keep ONE bolt on Veiled Nights: seven
+      survived nights buy something the mist cannot take. Kitted
+      ceiling rose 20.2 -> 21.8 nights — the depth lands in the Long
+      Dawn chase, where it belongs. Inspector says so on veteran
+      towers. Also audited the effects queue for unbounded growth
+      (pruned at age 3s — clean).
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

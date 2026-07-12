@@ -31,6 +31,7 @@ export function describeSlot(round, slot) {
   if (def.nightCharges) {
     rows.push(['Banishes', `${def.nightCharges + (structure.level >= 3 ? 1 : 0)} shades/night on neighbors`]);
     rows.push(['Blind spot', 'cannot save itself']);
+    if (structure.level >= 3) rows.push(['In the mist', 'a veteran lamp keeps one bolt on Veiled Nights']);
   }
   if (def.nightDelay) rows.push(['Toll', `every shade +${def.nightDelay}s approach; Warden repositions 1s sooner`]);
   if (def.tauntWeight) rows.push(['Taunt', 'draws shades to itself']);

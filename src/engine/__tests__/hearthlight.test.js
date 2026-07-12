@@ -138,6 +138,17 @@ describe('hearthlight', () => {
     const night = endDay(state, makeRng([0.5]));
     expect(night.round.towerCharges['r0s0']).toBe(0);
     expect(night.round.stats.nights.at(-1).omen).toBe('veiled');
+    // A veteran's lamp pierces the mist for a single bolt.
+    const veteran = {
+      ...state,
+      round: {
+        ...state.round,
+        slots: state.round.slots.map(slot => slot.id === 'r0s0'
+          ? { ...slot, structure: { ...slot.structure, level: 3 } }
+          : slot),
+      },
+    };
+    expect(endDay(veteran, makeRng([0.5])).round.towerCharges['r0s0']).toBe(1);
     // The rotation deals no Veiled Night before the town has leaned on
     // its bolts; from night 8 the top third of the roll is mist.
     for (const roll of [0.7, 0.9, 0.99]) {
