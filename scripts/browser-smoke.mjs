@@ -130,7 +130,7 @@ try {
   });
   if (!(embersEarned >= 1)) failures.push(`fall paid ${embersEarned} embers`);
   else note(`fall pays ${embersEarned} embers`);
-  await page.click('.fallen-panel .begin');
+  await page.click('.fallen-panel .to-the-fire');
   await page.waitForSelector('.shop', { timeout: 4000 });
   const banked = await page.evaluate(() => window.__game === undefined
     ? null
