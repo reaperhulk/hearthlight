@@ -106,6 +106,7 @@ export function App() {
   const effectsRef = useRef([]);
   const visualsRef = useRef({ wardens: new Map() });
   const hoverRef = useRef(null);
+  const pendingSlotRef = useRef(null);
   useEffect(() => {
     const prev = prevRoundRef.current;
     const round = state.round;
@@ -336,7 +337,14 @@ export function App() {
       setSelectedCard(null);
       setInspectedId(null);
     } else if (current.round.phase === 'day') {
-      setInspectedId(previous => (nearest.structure && previous !== nearest.id ? nearest.id : null));
+      if (nearest.structure) {
+        setInspectedId(previous => (previous !== nearest.id ? nearest.id : null));
+        pendingSlotRef.current = null;
+      } else {
+        // Map-first placement: remember the pad; the next card tap builds here.
+        pendingSlotRef.current = pendingSlotRef.current === nearest.id ? null : nearest.id;
+        setInspectedId(null);
+      }
     } else if (current.round.phase === 'night') {
       sendWarden(nearest.id);
     }
@@ -578,7 +586,15 @@ export function App() {
                       key={id}
                       className={selectedCard === id ? 'selected' : ''}
                       disabled={!affordable}
-                      onClick={() => setSelectedCard(selectedCard === id ? null : id)}
+                      onClick={() => {
+                        if (pendingSlotRef.current) {
+                          const pad = pendingSlotRef.current;
+                          pendingSlotRef.current = null;
+                          setState(current => placeStructure(current, id, pad) || current);
+                          return;
+                        }
+                        setSelectedCard(selectedCard === id ? null : id);
+                      }}
                     >
                       <span className="card-head">
                         <StructureIcon type={id} />
