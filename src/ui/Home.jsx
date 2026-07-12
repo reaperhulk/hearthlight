@@ -41,7 +41,7 @@ export function Home({ state, setState, confirming, setConfirming }) {
         <ul className="how-to">
           <li>By day: pick one structure and tap an empty slot. Build farms for Glow, walls and towers for the night.</li>
           <li>By night: shades creep from the rim and chew for five seconds before each bite — send the Warden in time and the building is saved.</li>
-          <li>The Warden grapples one shade at a time and cannot be hurt; once rested he can be redirected anywhere — even mid-grapple, though a dropped shade bites almost at once.</li>
+          <li>The Warden grapples one shade at a time and cannot be hurt; once rested he can be redirected anywhere — even mid-grapple, though a dropped shade bites almost at once. Every banish tempers him: his grip quickens with the work.</li>
           <li>Watchtowers fire two bolts a night at shades reaching their neighbors — never at their own attackers.</li>
           <li>The dark always wins. Nights survived become Embers — spend them to last longer next time.</li>
         </ul>

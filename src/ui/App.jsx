@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadState, saveState } from '../engine/state.js';
 import { abandonRound, getGlowRate, getRepairMax, placeStructure, repairStructure, rerollDraft, getDayLength, REPAIR_COST, REROLL_COST, HEART_MAX } from '../engine/round.js';
 import { endDay, tick } from '../engine/tick.js';
-import { getNightForecast, getWardenCooldown, getWardenTemper, moveWarden, HEART_SLOT, STILL_DEBT } from '../engine/night.js';
+import { getNightForecast, getWardenCooldown, getWardenTemper, moveWarden, HEART_SLOT, STILL_DEBT, WARDEN_TEMPER_TIERS } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
 import { drawEffects, drawTown, slotPixel, CANVAS } from './draw.js';
 import { STRUCTURES } from '../engine/structures.js';
@@ -116,6 +116,24 @@ export function App() {
         color: 'rgba(255, 208, 130, ',
         start: now,
       });
+    }
+    // The Warden tempers: the tier crossing gets a banner, not just a
+    // log line — the player should FEEL the grip quicken.
+    if ((round.wardenBanishes || 0) > (prev.wardenBanishes || 0)) {
+      const tier = WARDEN_TEMPER_TIERS.find(candidate =>
+        (prev.wardenBanishes || 0) < candidate.banishes && (round.wardenBanishes || 0) >= candidate.banishes);
+      if (tier) {
+        sfx.temper();
+        navigator.vibrate?.(12);
+        effectsRef.current = effectsRef.current.filter(effect => effect.type !== 'banner');
+        effectsRef.current.push({
+          type: 'banner',
+          text: `The Warden grows ${tier.name}`,
+          subtext: 'his grip quickens',
+          color: 'rgba(120, 200, 220, ',
+          start: now,
+        });
+      }
     }
     // Tower bolts: a charge spent mid-night draws a lance to the victim.
     if (prev.phase === 'night' && round.phase === 'night') {

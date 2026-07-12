@@ -342,6 +342,12 @@ commit pushed to main. Update checkboxes as work lands.
       CLAUDE.md gained the screenshot-harness command plus the JSX
       \uXXXX gotcha that once shipped a bug.
 
+- [x] **The temper is felt (cycle 16)** — a Warden tier landed as one
+      scrolling log line. Now the crossing gets a cyan banner ('The
+      Warden grows grim — his grip quickens'), a rising whetstone
+      shing, and a haptic tick; the first-run how-to mentions that
+      banishes temper him. Discoverability for cycle 13's mechanic.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

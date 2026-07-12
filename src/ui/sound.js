@@ -81,6 +81,11 @@ export const sfx = {
     tone({ freq: 520, freqEnd: 130, duration: 0.3, type: 'sawtooth', gain: 0.035 });
     tone({ freq: 75, duration: 0.2, type: 'square', gain: 0.06, delay: 0.18 });
   },
+  // The Warden tempers: a whetstone shing, rising.
+  temper() {
+    tone({ freq: 740, freqEnd: 1180, duration: 0.16, type: 'triangle', gain: 0.05 });
+    tone({ freq: 1110, freqEnd: 1480, duration: 0.14, type: 'sine', gain: 0.035, delay: 0.1 });
+  },
   // The town falls. A slow toll.
   toll() {
     tone({ freq: 110, freqEnd: 55, duration: 1.2, type: 'triangle', gain: 0.12 });
