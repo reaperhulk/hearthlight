@@ -100,6 +100,72 @@ await page.evaluate(() => {
 });
 await shot('night');
 
+// A kitted late night: outer ring, veterans, two wardens, veiled mist.
+await page.evaluate(() => {
+  window.__game.setState(state => {
+    const meta = { ...state.meta, outerRing: true, secondWarden: true, heartstone: true };
+    let round = { ...state.round };
+    // Rebuild the map with both rings.
+    const ringSlots = [];
+    for (let ring = 0; ring < 2; ring++) {
+      const count = ring === 0 ? 6 : 10;
+      for (let index = 0; index < count; index++) {
+        const angle = (index / count) * Math.PI * 2 - Math.PI / 2;
+        const radius = ring === 0 ? 0.26 : 0.4;
+        ringSlots.push({
+          id: `r${ring}s${index}`, ring,
+          x: 0.5 + Math.cos(angle) * radius,
+          y: 0.5 + Math.sin(angle) * radius,
+          structure: null, ruin: false,
+        });
+      }
+    }
+    round.slots = ringSlots;
+    const put = (id, type, hp, level = 1, nights = 0) => {
+      round.slots = round.slots.map(slot => slot.id === id
+        ? { ...slot, structure: { type, hp, level, nightsSurvived: nights } }
+        : slot);
+    };
+    put('r0s0', 'watchtower', 3, 3, 8);
+    put('r0s1', 'lantern', 1, 2, 5);
+    put('r0s2', 'palisade', 2, 3, 9);
+    put('r0s3', 'farm', 3, 3, 8);
+    put('r0s4', 'belltower', 2, 2, 4);
+    put('r0s5', 'watchtower', 2, 2, 5);
+    put('r1s0', 'palisade', 3, 1, 1);
+    put('r1s2', 'farm', 1, 1, 2);
+    put('r1s3', 'granary', 2, 2, 4);
+    put('r1s5', 'well', 1, 1, 1);
+    put('r1s7', 'shrine', 1, 1, 2);
+    put('r1s8', 'emberKiln', 1, 1, 1);
+    round.slots = round.slots.map(slot => slot.id === 'r1s9' ? { ...slot, ruin: true } : slot);
+    const time = round.time;
+    round.day = 12;
+    round.phase = 'night';
+    round.phaseStart = time - 10; // deep night: full darkness, full mist
+    round.glow = 84;
+    round.heart = 61;
+    round.heartMax = 105;
+    round.placedToday = false;
+    round.towerCharges = { r0s0: 1, r0s5: 0 };
+    round.stats = { ...round.stats, nights: [...round.stats.nights, { night: 12, spawned: 13, slowed: 2, banished: 1, towerKills: 1, fed: 2, heartLost: 18, minHeart: 61, omen: 'veiled' }] };
+    round.shades = [
+      { id: 11, targetSlotId: 'r1s3', spawnAngle: 0.7, spawnedAt: time - 2, arrivesAt: time + 4, phase: 'approach', heldSince: null, feedsAt: null },
+      { id: 12, targetSlotId: 'r0s2', spawnAngle: 2.4, spawnedAt: time - 5, arrivesAt: time - 1, phase: 'feeding', heldSince: null, feedsAt: time + 2.5 },
+      { id: 13, targetSlotId: 'r1s0', spawnAngle: 3.6, spawnedAt: time - 4, arrivesAt: time - 1.5, phase: 'held', heldSince: time - 1, feedsAt: null },
+      { id: 14, targetSlotId: null, spawnAngle: 5.0, spawnedAt: time - 1, arrivesAt: time + 6, phase: 'approach', heldSince: null, feedsAt: null },
+      { id: 15, targetSlotId: 'r1s7', spawnAngle: 4.2, spawnedAt: time - 3, arrivesAt: time + 2, phase: 'approach', heldSince: null, feedsAt: null },
+      { id: 16, targetSlotId: 'r0s3', spawnAngle: 1.4, spawnedAt: time - 6, arrivesAt: time - 2, phase: 'feeding', heldSince: null, feedsAt: time + 1.2 },
+    ];
+    round.wardens = [
+      { id: 1, slotId: 'r1s0', movedAt: time - 2 },
+      { id: 2, slotId: null, movedAt: time - 9 },
+    ];
+    return { ...state, meta, round };
+  });
+});
+await shot('late-night');
+
 // The fall.
 await page.evaluate(() => {
   window.__game.setState(state => ({

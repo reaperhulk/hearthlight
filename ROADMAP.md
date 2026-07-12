@@ -308,6 +308,15 @@ commit pushed to main. Update checkboxes as work lands.
       smoke proves the full round trip: export, wipe the save,
       import, confirm.
 
+- [x] **Late-game visual QA (cycle 12)** — first-ever inspection of
+      the states players reach after hours: a kitted outer-ring town,
+      two wardens, veterans, veiled mist (new permanent screenshot
+      scene). Found and fixed: the mist was invisible in practice
+      (now a pall + three drifting banks that READ as weather), and a
+      stale 'Day N' banner could fire while the phase was night (dawn
+      banner now requires the day phase). Level pips, veteran stars,
+      ruins, readiness rings, tethers all verified good.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

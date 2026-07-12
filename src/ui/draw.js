@@ -890,13 +890,18 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
 function drawVeil(ctx, round, darkness, animTime) {
   const veiled = round.phase === 'night' && round.stats?.nights.at(-1)?.omen === 'veiled';
   if (!veiled) return;
-  const alpha = 0.16 * darkness;
+  // A flat pall first, then three drifting banks — the mist must READ
+  // as mist at a glance, not as a rendering accident.
+  ctx.fillStyle = `rgba(186, 196, 216, ${0.10 * darkness})`;
+  ctx.fillRect(0, 0, CANVAS, CANVAS);
+  const alpha = 0.24 * darkness;
   for (let band = 0; band < 3; band++) {
-    const drift = REDUCED_MOTION ? 0 : Math.sin(animTime * (0.12 + band * 0.05) + band * 2.1) * 60;
-    const y = CANVAS * (0.25 + band * 0.25) + (REDUCED_MOTION ? 0 : Math.sin(animTime * 0.2 + band) * 10);
+    const drift = REDUCED_MOTION ? 0 : Math.sin(animTime * (0.12 + band * 0.05) + band * 2.1) * 70;
+    const y = CANVAS * (0.22 + band * 0.28) + (REDUCED_MOTION ? 0 : Math.sin(animTime * 0.2 + band) * 12);
     const mist = ctx.createRadialGradient(
-      CANVAS / 2 + drift, y, 20, CANVAS / 2 + drift, y, CANVAS * 0.55);
-    mist.addColorStop(0, `rgba(196, 206, 224, ${alpha})`);
+      CANVAS / 2 + drift, y, 30, CANVAS / 2 + drift, y, CANVAS * 0.6);
+    mist.addColorStop(0, `rgba(200, 210, 228, ${alpha})`);
+    mist.addColorStop(0.55, `rgba(196, 206, 224, ${alpha * 0.45})`);
     mist.addColorStop(1, 'rgba(196, 206, 224, 0)');
     ctx.fillStyle = mist;
     ctx.fillRect(0, 0, CANVAS, CANVAS);

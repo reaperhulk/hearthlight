@@ -87,7 +87,7 @@ export function App() {
         start: now,
       });
     }
-    if (round.day > prev.day) {
+    if (round.day > prev.day && round.phase === 'day') {
       sfx.dawn();
       const omen = round.omen?.night === round.day
         ? (round.omen.type === 'hungry' ? 'omen: a Hungry Night comes'
