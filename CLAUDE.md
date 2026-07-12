@@ -1,8 +1,11 @@
 # Hearthlight — agent instructions
 
-A round-based city-defense incremental. Days: draft 3 structures, place 1.
-Nights: shades creep from the rim; one verb — send the Warden. The dark
-always wins; nights survived become Embers; Embers buy permanent upgrades.
+A round-based city-defense incremental. Days: one pair of hands — place one
+drafted structure OR mend one bitten hit point. Nights: shades creep from
+the rim; one verb — send the Warden (rested wardens redirect freely; tearing
+one off a grapple costs, and banishes temper him within the run). The dark
+always wins; nights survived become Embers; Embers buy permanent upgrades;
+the Long Dawn (15 nights, everything kept) closes the story.
 
 ## Project structure
 - `src/engine/` — pure deterministic game logic. `tick(state, dt, rng)` → new
@@ -21,6 +24,9 @@ always wins; nights survived become Embers; Embers buy permanent upgrades.
   horizontal overflow. Uses CHROME_PATH or the preinstalled Chromium.
   `window.__game` (getState/setState/fastForward) is the test handle.
 - `npm run balance:story` — narrate one keeper round night by night (add `-- --seed N`)
+- `node scripts/screenshot.mjs [outDir]` — hydrate key states (day, inspector,
+  night, kitted veiled late-night, fall, shop) and capture PNGs; review real
+  renders, not imagination, after any visual change
 - `npm run balance:compare` — diff current numbers against scripts/balance-baseline.json;
   exits nonzero when a metric drifts past tolerance
 - `npm run balance:baseline` — regenerate the committed baseline. Run this in the
@@ -41,6 +47,9 @@ always wins; nights survived become Embers; Embers buy permanent upgrades.
   gambles like deep-route double-finds have stated odds).
 - Meta pre-pays costs; it never skips decisions.
 - Keep determinism: never call Math.random inside the engine — thread the rng.
+- JSX gotcha that has shipped a bug before: `\uXXXX` escapes are literal in
+  raw JSX text (fine inside JS strings). The smoke test scans rendered text
+  for leaked escapes — keep it that way.
 - Measure before and after every balance change with the bot harness; tune
   numbers only against measurements, and encode each promise as an assertion
   so it can never silently regress.

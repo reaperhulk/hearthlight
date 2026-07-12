@@ -334,6 +334,14 @@ commit pushed to main. Update checkboxes as work lands.
       jagged crimson streak from the ruin to the Heart, with its own
       falling-wail sound — so the loss reads as cause, not glitch.
 
+- [x] **The front door tells the truth (cycle 15)** — README and
+      CLAUDE.md had aged fourteen cycles: no mend, no Veiled Nights,
+      no temper, no Long Dawn, no ember-script, no keyboard. Both now
+      describe the game that actually ships, the README's assertion
+      list includes the juggler and kitted-mortality guards, and
+      CLAUDE.md gained the screenshot-harness command plus the JSX
+      \uXXXX gotcha that once shipped a bug.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

@@ -10,22 +10,36 @@ homescreen as a PWA; a first round lasts one to two minutes.
 ## The loop
 
 1. **Day** (15s, or call the dusk early): Glow trickles in; you are offered
-   a draft of three structures and place **one**. That is the whole building
+   a draft of structures and get **one pair of hands** — place a structure,
+   or mend one bitten hit point out of a wall. That is the whole building
    system — no roads, no zoning, one decision with real adjacency depth
-   (wells feed farms, palisades bodyguard their neighbors, towers cover
-   theirs). Once a day, 4 Glow buys a fresh draft.
+   (wells water farms and granaries, palisades bodyguard their neighbors,
+   towers cover theirs). Once a day, 4 Glow buys a fresh draft.
 2. **Night**: shades creep from the rim toward what you built — the day
    header told you exactly how many were coming. One verb: send the Warden.
-   Towers loose bolts, lanterns slow, bells delay, walls take the teeth.
-   From night 7, heartseekers ignore the town and go for the Heart itself —
-   the Warden can stand at the Heart to meet them.
+   He grapples one shade at a time; once rested he can be redirected
+   anywhere — even torn off a hold, though the dropped shade bites fast.
+   Banishes temper him within the run (seasoned → grim → lightless), each
+   tier quickening his grip. Towers loose bolts, lanterns slow, bells
+   delay, walls take the teeth. From night 7, heartseekers ignore the town
+   and go for the Heart itself — the Warden can stand at the Heart to meet
+   them.
 3. **Omens**: every fourth night is named at the dawn before — a Hungry
-   Night brings more teeth; a Still Night brings none, and banks them.
+   Night brings more teeth; a Still Night brings none, and banks them; a
+   Veiled Night (night 8+) blinds every tower with mist, but the mist
+   muffles the dark too. A veteran tower's lamp pierces it for one bolt.
 4. **The fall**: the dark always wins eventually. When the Heart goes out,
-   the chronicle itemizes every Ember the vigil earned.
-5. **The fire**: spend Embers on permanent upgrades — start faster, go
+   the chronicle itemizes every Ember the vigil earned, and the home
+   screen's bar row remembers the last thirty falls.
+5. **The fire**: spend Embers on permanent upgrades — sturdier days, go
    longer, reach the frontier — and begin again, longer. Three pinnacles
    unlock only by *proving* vigils (8, 10, and 12 nights), not by hoarding.
+   With everything kept, one goal remains: the Long Dawn, a fifteen-night
+   vigil that closes the story.
+
+Plays with one thumb; on desktop, 1–4 pick cards, 1–3 answer threats, D
+calls the dusk, R rerolls. A save travels between devices as one
+copy-pasteable ember-script.
 
 ## Running
 
@@ -60,7 +74,10 @@ seed per local run. It asserts, among ~30 promises:
 - placement is a real choice (keeper beats random placement by ≥1 night);
 - turtling never beats building, and **no strategy is immortal** — a bot
   once found a two-structure bunker that literally never died; the fix and
-  a permanent guard profile shipped the same day;
+  a permanent guard profile shipped the same day. A `juggler` that breaks
+  grapples on every cooldown must always lose to committed holds, and even
+  a fully-upgraded town must still fall (while its 15-night Long Dawn
+  capstone stays provably reachable);
 - every meta upgrade earns its slot on a measured axis (round-1 nights,
   round-1 embers, or 5-round-arc nights) — no traps, no shelf-warmers;
 - identical seeds produce identical rounds, always.
