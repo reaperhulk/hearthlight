@@ -372,6 +372,12 @@ commit pushed to main. Update checkboxes as work lands.
       preserved); the canvas keeps its 60fps animations. Pure battery
       win, verified by smoke and the screenshot suite.
 
+- [x] **Closing audit (cycle 20)** — three full assert runs with
+      fresh random lanes (all green), every gate re-run, and the
+      Measured state section below rewritten from live numbers (it
+      had aged ~30 cycles: 27 tests and a 5.4n keeper were ancient
+      history).
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
@@ -379,20 +385,31 @@ commit pushed to main. Update checkboxes as work lands.
 
 ## Measured state (5-seed means)
 
-- Round 1: passive 2.0 nights, villager (median human) 3.6n / 110s — inside
-  the 1-2 minute first-play band — keeper ceiling 5.4n / 128s.
-- Keeper meta arc: 5.4 -> 8.4 nights (128s -> 175s), veteran-snowball seeds
-  reaching 12+.
-- Depth: keeper 5.4n vs randomPlace 4.0 (spread 1.4), bunker 4.4 (turtle
-  gap 1.0). Placement is a real choice; turtling loses; the wall wins.
-- Fun: 93% of heart loss in the final third; deaths 59% falls / 4% heart
-  strikes / 38% vents; ~4 leveled structures by arc end.
-- Meta: 11 upgrades, all earning a measured axis. Round-1 ember payers:
-  ruinsRemember +3.4e, emberChoir +2.6e; arc pillars: secondWarden +15.8n
-  (repriced to 22), swiftWarden +9.0n, morningStockpile +6.4n. Three
-  pinnacles sealed behind proven vigils (8/10/12 nights).
-- 9 structures (shrine now pays by adjacency), omens, heartseekers,
-  veteran tier, the frontier, draft reroll, ash ruins, keeper's ledger.
-- 27 unit tests; CI runs lint + unit + balance (5 fixed seeds) + build +
-  a real-Chromium smoke of the full loop; committed balance baseline
+- Round 1: passive 2.0 nights, villager (median human, now mend- and
+  reroll-aware) 3.8n / 111s — inside the 1-2 minute first-play band —
+  keeper ceiling 7.4n / 160s.
+- Keeper meta arc: 7.4 -> 9.8 nights (160s -> 204s). Kitted ceiling
+  (every upgrade owned): mean 23.4 nights, best 30 — the Long Dawn
+  capstone (15 nights, everything kept) is provably reachable and the
+  kitted town still always falls.
+- Depth: keeper 7.4n vs randomPlace 4.2 (spread 3.2), bunker 4.6
+  (turtle gap 2.8), juggler 6.0 (rotation-stalling loses to committed
+  holds). Placement is a real choice; no strategy is immortal.
+- Fun: 84% of heart loss in the final third; deaths 61% falls / 16%
+  heart strikes / 22% vents (vents now howl visibly); ~4.6 leveled
+  structures by arc end; the Warden tempers within a run
+  (seasoned/grim/lightless).
+- Meta: 11 upgrades, all earning a measured axis, condemnations
+  double-checked on a 15-seed butterfly panel. Three pinnacles sealed
+  behind proven vigils (8/10/12 nights); the Long Dawn closes the
+  story.
+- 9 structures with measured identities, one-pair-of-hands days
+  (build OR mend), three omens (hungry / still / veiled — veteran
+  lamps pierce the mist), heartseekers, veteran tier, the frontier,
+  draft reroll, ash ruins, keeper's ledger, 30-fall run history,
+  ember-script save transfer, one-fire-one-window multi-tab guard,
+  keyboard play, 10Hz state loop with 60fps canvas.
+- 39 unit tests; CI runs lint + unit + balance (5 fixed seeds +
+  15-seed confirmations) + build + a real-Chromium smoke of the full
+  loop including the save round-trip; committed balance baseline
   guards against silent drift; installable PWA that plays offline.
