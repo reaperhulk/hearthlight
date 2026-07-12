@@ -3,7 +3,7 @@ import { createInitialState, loadState, migrateState, saveState } from '../state
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
-import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, rollOmen, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
 
@@ -128,6 +128,24 @@ describe('hearthlight', () => {
     const nextNight = endDay(collected, makeRng([0.5]));
     expect(nextNight.round.shades).toHaveLength(getShadeCount(5) + STILL_DEBT);
     expect(nextNight.round.stillDebt).toBe(false);
+  });
+
+  it('a veiled night blinds the towers, and never before night 8', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, draft: ['watchtower'], glow: 40 } };
+    state = placeStructure(state, 'watchtower', 'r0s0');
+    state = { ...state, round: { ...state.round, day: 8, omen: { night: 8, type: 'veiled' } } };
+    const night = endDay(state, makeRng([0.5]));
+    expect(night.round.towerCharges['r0s0']).toBe(0);
+    expect(night.round.stats.nights.at(-1).omen).toBe('veiled');
+    // The rotation deals no Veiled Night before the town has leaned on
+    // its bolts; from night 8 the top third of the roll is mist.
+    for (const roll of [0.7, 0.9, 0.99]) {
+      expect(rollOmen(4, makeRng([roll])).type).not.toBe('veiled');
+    }
+    expect(rollOmen(8, makeRng([0.8])).type).toBe('veiled');
+    expect(rollOmen(8, makeRng([0.2])).type).toBe('hungry');
+    expect(rollOmen(8, makeRng([0.5])).type).toBe('still');
   });
 
   it('the frontier yields more glow but is reached sooner', () => {

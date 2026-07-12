@@ -122,7 +122,8 @@ export function App() {
       const entry = round.stats?.nights.at(-1);
       if (entry?.spawned === 0) sfx.still(); else sfx.dusk();
       const omen = entry?.omen === 'hungry' ? 'A Hungry Night'
-        : entry?.omen === 'still' ? `A Still Night — ${STILL_DEBT} more come tomorrow` : null;
+        : entry?.omen === 'still' ? `A Still Night — ${STILL_DEBT} more come tomorrow`
+        : entry?.omen === 'veiled' ? 'A Veiled Night — the towers are blind' : null;
       effectsRef.current = effectsRef.current.filter(effect => effect.type !== 'banner');
       effectsRef.current.push({ type: 'sweep', color: 'rgba(150, 90, 170, ', start: now });
       effectsRef.current.push({
@@ -136,7 +137,9 @@ export function App() {
     if (round.day > prev.day) {
       sfx.dawn();
       const omen = round.omen?.night === round.day
-        ? (round.omen.type === 'hungry' ? 'omen: a Hungry Night comes' : 'omen: a Still Night comes')
+        ? (round.omen.type === 'hungry' ? 'omen: a Hungry Night comes'
+          : round.omen.type === 'veiled' ? 'omen: a Veiled Night comes \u2014 mist blinds the towers'
+          : 'omen: a Still Night comes')
         : null;
       const tale = (() => {
         const entry = prev.stats?.nights.at(-1);
@@ -484,7 +487,7 @@ export function App() {
           </details>
         )}
         {[
-          { title: 'Start faster', ids: ['morningStockpile', 'stoneFoundations', 'deeperDrafts'] },
+          { title: 'Sturdier days', ids: ['morningStockpile', 'stoneFoundations', 'deeperDrafts'] },
           { title: 'Go longer', ids: ['swiftWarden', 'heartstone', 'secondWarden'] },
           { title: 'Wider and richer', ids: ['outerRing', 'emberChoir'] },
           { title: 'Proven vigils', ids: ['beaconHeart', 'emberheart', 'ruinsRemember'] },
@@ -568,7 +571,9 @@ export function App() {
           </span>
           {!fallen && isDay && (() => {
             const forecast = getNightForecast(round);
-            const omenName = forecast.omen === 'hungry' ? 'Hungry Night · ' : forecast.omen === 'still' ? 'Still Night · ' : '';
+            const omenName = forecast.omen === 'hungry' ? 'Hungry Night · '
+              : forecast.omen === 'still' ? 'Still Night · '
+              : forecast.omen === 'veiled' ? 'Veiled Night · no bolts · ' : '';
             return (
               <span className={`chip forecast${forecast.omen ? ' omen' : ''}`} title="Shades due at dusk">
                 {forecast.omen === 'still'

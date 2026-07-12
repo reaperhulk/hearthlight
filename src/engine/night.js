@@ -36,7 +36,11 @@ export const STILL_DEBT = 3;
 
 export function rollOmen(day, rng) {
   if (day < OMEN_INTERVAL || day % OMEN_INTERVAL !== 0) return null;
-  return { night: day, type: rng() < 0.5 ? 'hungry' : 'still' };
+  const roll = rng();
+  // Veiled Nights need towers to matter first — they enter the rotation
+  // once the town is old enough to have leaned on its bolts.
+  if (day >= 8 && roll >= 2 / 3) return { night: day, type: 'veiled' };
+  return { night: day, type: roll < 1 / 3 || (day < 8 && roll < 1 / 2) ? 'hungry' : 'still' };
 }
 
 // Heartseekers: from this night on, every fifth shade ignores the town
@@ -194,9 +198,12 @@ export function spawnShades(state, rng) {
   for (const slot of round.slots) {
     if (slot.structure?.type === 'watchtower') {
       // Veteran towers earn a third bolt; light finds targets — a
-      // lantern-lit tower earns one more.
+      // lantern-lit tower earns one more. On a Veiled Night the mist
+      // blinds every tower: zero bolts, the Warden stands alone.
       const lit = getAdjacentSlots(round.slots, slot.id).some(neighbor => neighbor.structure?.type === 'lantern');
-      towerCharges[slot.id] = STRUCTURES.watchtower.nightCharges + (slot.structure.level >= 3 ? 1 : 0) + (lit ? 1 : 0);
+      towerCharges[slot.id] = omen === 'veiled'
+        ? 0
+        : STRUCTURES.watchtower.nightCharges + (slot.structure.level >= 3 ? 1 : 0) + (lit ? 1 : 0);
     }
   }
 

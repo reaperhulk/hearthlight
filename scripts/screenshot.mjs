@@ -64,6 +64,19 @@ await page.evaluate(() => {
 });
 await shot('day');
 
+// The inspector, open on a bitten palisade: the mend button in frame.
+await page.evaluate(() => {
+  const round = window.__game.getState().round;
+  const slot = round.slots.find(candidate => candidate.id === 'r0s3');
+  const rect = document.querySelector('canvas.town-map').getBoundingClientRect();
+  const x = rect.left + slot.x * rect.width;
+  const y = rect.top + slot.y * rect.height;
+  const target = document.elementFromPoint(x, y);
+  ['pointerdown', 'pointerup', 'click'].forEach(type =>
+    target.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y })));
+});
+await shot('inspect');
+
 // Night under assault: shades in all phases, warden posted.
 await page.evaluate(() => {
   window.__game.setState(state => {
@@ -95,6 +108,14 @@ await page.evaluate(() => {
   }));
 });
 await shot('fallen');
+
+// The fire: collect and open the shop.
+await page.evaluate(() => {
+  const button = document.querySelector('.fallen-panel .to-the-fire');
+  if (button) button.click();
+});
+await page.waitForSelector('.shop', { timeout: 4000 }).catch(() => {});
+await shot('shop');
 
 await browser.close();
 cleanup();

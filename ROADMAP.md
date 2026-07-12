@@ -226,6 +226,14 @@ commit pushed to main. Update checkboxes as work lands.
       fails (deeperDrafts was exonerated by exactly this: screened
       -0.4n, confirmed +0.7n/+5.5 arc).
 
+- [x] **A Veiled Night (cycle 3)** — third omen: from night 8, a third
+      of omen rolls bring mist that blinds every watchtower (zero bolts;
+      the Warden stands alone). Announced a day ahead like all omens, so
+      it drives real preparation — mend the taunt wall, bank the warden.
+      Drifting mist banks on the canvas make it felt, not just labeled.
+      Also: shop tier retitled (Second Hands no longer 'starts faster'),
+      screenshot harness now captures the inspector and the shop.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

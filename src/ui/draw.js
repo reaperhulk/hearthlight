@@ -881,7 +881,26 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   drawInspectLinks(ctx, round, inspectedId, animTime);
   if (round.phase === 'day') drawPlacementPreview(ctx, round, selectedCard, hover, animTime);
   drawWardens(ctx, round, animTime, visuals, getWardenCooldown(state));
+  drawVeil(ctx, round, darkness, animTime);
   ctx.restore();
+}
+
+// A Veiled Night is FELT: pale mist banks drift across the town while
+// the towers stand blind.
+function drawVeil(ctx, round, darkness, animTime) {
+  const veiled = round.phase === 'night' && round.stats?.nights.at(-1)?.omen === 'veiled';
+  if (!veiled) return;
+  const alpha = 0.16 * darkness;
+  for (let band = 0; band < 3; band++) {
+    const drift = REDUCED_MOTION ? 0 : Math.sin(animTime * (0.12 + band * 0.05) + band * 2.1) * 60;
+    const y = CANVAS * (0.25 + band * 0.25) + (REDUCED_MOTION ? 0 : Math.sin(animTime * 0.2 + band) * 10);
+    const mist = ctx.createRadialGradient(
+      CANVAS / 2 + drift, y, 20, CANVAS / 2 + drift, y, CANVAS * 0.55);
+    mist.addColorStop(0, `rgba(196, 206, 224, ${alpha})`);
+    mist.addColorStop(1, 'rgba(196, 206, 224, 0)');
+    ctx.fillStyle = mist;
+    ctx.fillRect(0, 0, CANVAS, CANVAS);
+  }
 }
 
 // Transient hit feedback: bites, falls, and Heart strikes flash on the
