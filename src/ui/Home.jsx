@@ -1,6 +1,7 @@
 // The fire between vigils: records, the Keeper's Ledger, the Ember shop,
 // and the way back into the dark.
-import { createInitialState } from '../engine/state.js';
+import { useState } from 'react';
+import { createInitialState, migrateState } from '../engine/state.js';
 import { beginRound } from '../engine/round.js';
 import { allUpgradesKept, buyMetaUpgrade, isVigilComplete, metaUnlocked, LONG_DAWN_NIGHTS, META_UPGRADES } from '../engine/meta.js';
 import { unlockAudio } from './sound.js';
@@ -13,7 +14,24 @@ const SHOP_TIERS = [
   { title: 'Proven vigils', ids: ['beaconHeart', 'emberheart', 'ruinsRemember'] },
 ];
 
+// A save string that survives chat apps and notebooks: base64 of the
+// JSON, unicode-safe.
+function encodeSave(state) {
+  const bytes = new TextEncoder().encode(JSON.stringify(state));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function decodeSave(text) {
+  const binary = atob(text.trim());
+  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
 export function Home({ state, setState, confirming, setConfirming }) {
+  const [carryText, setCarryText] = useState('');
+  const [carryNote, setCarryNote] = useState(null);
   return (
     <div className="home">
       <h1 className={`title-emblem${isVigilComplete(state) ? ' gold' : ''}`}><StructureIcon type="lantern" size={26} /> Hearthlight</h1>
@@ -109,6 +127,50 @@ export function Home({ state, setState, confirming, setConfirming }) {
       <button className="begin" onClick={() => { unlockAudio(); setState(current => beginRound(current)); }}>
         Begin the Vigil
       </button>
+      <details className="carry">
+        <summary>Carry the fire (backup / move device)</summary>
+        <p>The whole vigil — Embers, upgrades, records — as one string. Paste it on another device to carry the fire there.</p>
+        <div className="carry-row">
+          <button
+            onClick={() => {
+              const text = encodeSave(state);
+              setCarryText(text);
+              if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(text)
+                  .then(() => setCarryNote('Copied. Keep it somewhere the dark cannot reach.'))
+                  .catch(() => setCarryNote('Copy failed — select the text below by hand.'));
+              } else {
+                setCarryNote('Select the text below and copy it by hand.');
+              }
+            }}
+          >
+            Write the ember-script
+          </button>
+          <button
+            onClick={() => {
+              try {
+                const imported = migrateState(decodeSave(carryText));
+                setState(imported);
+                setCarryNote(`The fire is carried: ${imported.embers} Embers, best ${imported.bestNights} nights.`);
+              } catch {
+                setCarryNote('That script would not catch — check the whole string was pasted.');
+              }
+            }}
+            disabled={carryText.trim().length === 0}
+          >
+            Kindle from a script
+          </button>
+        </div>
+        <textarea
+          value={carryText}
+          onChange={event => { setCarryText(event.target.value); setCarryNote(null); }}
+          placeholder="Paste an ember-script here to import it, or write yours above."
+          rows={3}
+          spellCheck={false}
+          aria-label="Save transfer text"
+        />
+        {carryNote && <p className="carry-note">{carryNote}</p>}
+      </details>
       <details className="danger">
         <summary>Begin anew</summary>
         <p>Burn the ledger, the Embers, every upgrade, every record. There is no undo.</p>

@@ -171,6 +171,27 @@ try {
   await page.waitForSelector('.fallen-panel', { timeout: 3000 });
   await page.click('.fallen-panel .to-the-fire');
 
+  // Carry the fire: export, wipe, import — the vigil survives the move.
+  await page.click('.carry summary');
+  await page.click('.carry-row button');
+  const script = await page.evaluate(() => document.querySelector('.carry textarea').value);
+  if (!script || script.length < 50) failures.push('ember-script did not render on export');
+  else {
+    await page.evaluate(() => window.localStorage.removeItem('hearthlight-save'));
+    await page.evaluate(text => {
+      const area = document.querySelector('.carry textarea');
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+      setter.call(area, text);
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+    }, script);
+    await page.click('.carry-row button:nth-of-type(2)');
+    const confirmText = await page.waitForSelector('.carry-note', { timeout: 2000 })
+      .then(element => element.evaluate(node => node.textContent))
+      .catch(() => null);
+    if (!confirmText || !confirmText.includes('carried')) failures.push(`ember-script import did not confirm (${confirmText})`);
+    else note('save round-trips through the ember-script');
+  }
+
   // No raw escape sequences leaking into visible text (\uXXXX in JSX
   // text renders literally — it has happened).
   const rawEscapes = await page.evaluate(() => /\\u[0-9a-fA-F]{4}/.test(document.body.innerText));

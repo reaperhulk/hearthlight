@@ -299,6 +299,15 @@ commit pushed to main. Update checkboxes as work lands.
       keeper 7.4n/163s; kitted ceiling 23.2n. The dawn omen copy says
       both halves now.
 
+- [x] **Carry the fire (cycle 11)** — saves lived only in one
+      browser's localStorage: a cleared cache or a new phone burned
+      everything. The home screen now writes the whole vigil as one
+      unicode-safe base64 'ember-script' (copy to clipboard, with a
+      by-hand fallback) and kindles from a pasted one (validated
+      through migrateState — garbage will not catch). The browser
+      smoke proves the full round trip: export, wipe the save,
+      import, confirm.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

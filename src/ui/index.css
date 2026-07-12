@@ -276,6 +276,23 @@ button:focus-visible, canvas:focus-visible {
   .keys-hint { display: block; margin-top: 6px; font-size: 0.68em; color: #4d5766; letter-spacing: 0.05em; }
 }
 
+.carry { margin: 10px 0; font-size: 0.8em; }
+.carry summary { color: #8793a2; cursor: pointer; letter-spacing: 0.04em; }
+.carry p { color: #77808f; margin: 8px 0 6px; line-height: 1.4; }
+.carry-row { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.carry-row button {
+  flex: 1; min-width: 140px; min-height: 40px; padding: 8px 10px;
+  background: #12141f; border: 1px solid #3a4152; border-radius: 6px;
+  color: #cdd6e4; font: inherit; cursor: pointer;
+}
+.carry-row button:disabled { opacity: 0.5; cursor: default; }
+.carry textarea {
+  width: 100%; padding: 8px; resize: vertical;
+  background: #0d0f18; border: 1px solid #2c3140; border-radius: 6px;
+  color: #8793a2; font-family: inherit; font-size: 0.9em; word-break: break-all;
+}
+.carry-note { color: #a8d68a !important; }
+
 .ledger { margin: 6px 0 10px; font-size: 0.78em; }
 .ledger summary { color: #8793a2; cursor: pointer; letter-spacing: 0.06em; }
 .ledger div { display: flex; justify-content: space-between; max-width: 300px; color: #5f6b7d; padding: 2px 0 0 14px; }
