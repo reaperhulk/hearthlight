@@ -3,7 +3,7 @@ import { createInitialState, loadState, migrateState, saveState } from '../state
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
 import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
-import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, rollOmen, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, VEILED_HUSH, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
+import { getHoldTime, getNightForecast, getShadeCount, getWardenCooldown, getWardenTemper, moveWarden, rollOmen, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, VEILED_HUSH, WARDEN_COOLDOWN, WARDEN_TEMPER_TIERS, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { allUpgradesKept, buyMetaUpgrade, isVigilComplete, LONG_DAWN_NIGHTS, META_UPGRADES } from '../meta.js';
 
@@ -106,6 +106,7 @@ describe('hearthlight', () => {
     // Held and banished: the palisade still stands, the Heart untouched
     expect(state.round.slots[2].structure).toBeTruthy();
     expect(state.round.heart).toBe(HEART_MAX);
+    expect(state.round.wardenBanishes).toBe(1);
   });
 
   it('omens are announced, bounded, and settle their debts', () => {
@@ -128,6 +129,21 @@ describe('hearthlight', () => {
     const nextNight = endDay(collected, makeRng([0.5]));
     expect(nextNight.round.shades).toHaveLength(getShadeCount(5) + STILL_DEBT);
     expect(nextNight.round.stillDebt).toBe(false);
+  });
+
+  it('banishes temper the warden within a run', () => {
+    const state = startedRound();
+    expect(getHoldTime(state)).toBe(SHADE_HOLD_TIME);
+    expect(getWardenTemper(state.round)).toBeNull();
+    const at = banishes => ({ ...state, round: { ...state.round, wardenBanishes: banishes } });
+    for (const tier of WARDEN_TEMPER_TIERS) {
+      expect(getHoldTime(at(tier.banishes))).toBeCloseTo(SHADE_HOLD_TIME * tier.factor);
+      expect(getWardenTemper(at(tier.banishes).round).name).toBe(tier.name);
+    }
+    // One short of a tier stays at the tier below.
+    expect(getHoldTime(at(5))).toBe(SHADE_HOLD_TIME);
+    // The temper is run-only: a fresh round starts untempered.
+    expect(startedRound().round.wardenBanishes).toBe(0);
   });
 
   it('a veiled night blinds the towers, and never before night 8', () => {

@@ -87,6 +87,7 @@ export function beginRound(state, rng = Math.random) {
       movedAt: -999,
     })),
     towerCharges: {},
+    wardenBanishes: 0,
     nextShadeId: 1,
     omen: null,
     stillDebt: false,

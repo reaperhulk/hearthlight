@@ -125,8 +125,30 @@ export function getNightForecast(round) {
   return { count, omen, heartseekers: getHeartseekerCount(round.day, count) };
 }
 
+// The Warden's temper: banishes THIS run quicken his grip. Towers grow
+// with levels; without this the night verb stays flat while the wall
+// scales — by the late game the player was mostly watching. Tiers are
+// run-only (they reset at the fall) so night play compounds within a
+// vigil, never across the meta.
+export const WARDEN_TEMPER_TIERS = [
+  { banishes: 6, factor: 0.85, name: 'seasoned' },
+  { banishes: 14, factor: 0.7, name: 'grim' },
+  { banishes: 24, factor: 0.55, name: 'lightless' },
+];
+
+export function getWardenTemper(round) {
+  const banishes = round?.wardenBanishes || 0;
+  let tier = null;
+  for (const candidate of WARDEN_TEMPER_TIERS) {
+    if (banishes >= candidate.banishes) tier = candidate;
+  }
+  return tier;
+}
+
 export function getHoldTime(state) {
-  return state.meta.swiftWarden ? SHADE_HOLD_TIME_SWIFT : SHADE_HOLD_TIME;
+  const base = state.meta.swiftWarden ? SHADE_HOLD_TIME_SWIFT : SHADE_HOLD_TIME;
+  const temper = getWardenTemper(state.round);
+  return base * (temper ? temper.factor : 1);
 }
 
 // The bell's toll guides the watch: each standing bell tower shaves a
@@ -279,6 +301,7 @@ export function advanceNightSlice(state, round) {
   const guarded = guardedSlotIds(round);
   const holdTime = getHoldTime(state);
   let { heart } = round;
+  let wardenBanishes = round.wardenBanishes || 0;
   let slots = round.slots;
   let towerCharges = { ...round.towerCharges };
   const shades = [];
@@ -378,7 +401,11 @@ export function advanceNightSlice(state, round) {
       } else if (now - current.heldSince >= holdFor(current)) {
         holderBySlot.delete(keyOf(current));
         nightEntry.banished += 1;
-        log.push('The Warden holds the line. A shade is banished.');
+        wardenBanishes += 1;
+        const tier = WARDEN_TEMPER_TIERS.find(candidate => candidate.banishes === wardenBanishes);
+        log.push(tier
+          ? `The Warden grows ${tier.name} — his grip quickens.`
+          : 'The Warden holds the line. A shade is banished.');
         continue;
       }
     }
@@ -426,7 +453,7 @@ export function advanceNightSlice(state, round) {
     ? [...stats.nights.slice(0, -1), nightEntry]
     : [nightEntry];
   return {
-    ...round, heart, slots, towerCharges, shades,
+    ...round, heart, wardenBanishes, slots, towerCharges, shades,
     stats: { heartLoss, nights },
     pendingLog: log,
   };

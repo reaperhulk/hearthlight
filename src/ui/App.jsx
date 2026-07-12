@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadState, saveState } from '../engine/state.js';
 import { abandonRound, getGlowRate, getRepairMax, placeStructure, repairStructure, rerollDraft, getDayLength, REPAIR_COST, REROLL_COST, HEART_MAX } from '../engine/round.js';
 import { endDay, tick } from '../engine/tick.js';
-import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT, STILL_DEBT } from '../engine/night.js';
+import { getNightForecast, getWardenCooldown, getWardenTemper, moveWarden, HEART_SLOT, STILL_DEBT } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
 import { drawEffects, drawTown, slotPixel, CANVAS } from './draw.js';
 import { STRUCTURES } from '../engine/structures.js';
@@ -652,9 +652,11 @@ export function App() {
                     ? `grappling at ${gripName}${wait <= 0 ? ' — tap a threat twice to break off' : ''}`
                     : wait > 0 ? `moves again in ${wait}s`
                     : warden.slotId ? 'ready — tap any threat to redirect him' : 'ready — tap a threat to post him';
+                  const temper = getWardenTemper(round);
+                  const title = `${temper ? `${temper.name[0].toUpperCase()}${temper.name.slice(1)} ` : ''}Warden`;
                   return (
                     <span key={warden.id} className={grip ? 'gripping' : wait > 0 ? 'cooling' : 'ready'}>
-                      Warden{round.wardens.length > 1 ? ` ${warden.id}` : ''} {label}
+                      {title}{round.wardens.length > 1 ? ` ${warden.id}` : ''} {label}
                     </span>
                   );
                 })}

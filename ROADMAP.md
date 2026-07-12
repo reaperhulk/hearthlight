@@ -317,6 +317,16 @@ commit pushed to main. Update checkboxes as work lands.
       banner now requires the day phase). Level pips, veteran stars,
       ruins, readiness rings, tethers all verified good.
 
+- [x] **The Warden's temper (cycle 13)** — the night verb stayed flat
+      while the wall scaled with levels: by the late game the player
+      was mostly watching towers work. Banishes THIS run now temper
+      the Warden — seasoned (6) / grim (14) / lightless (24), each
+      quickening his grip (hold x0.85/0.7/0.55). Run-only, resets at
+      the fall: night play compounds within a vigil, never across the
+      meta. The status chip carries the title; the log announces each
+      tier. All guards hold (bunker, juggler, kitted-mortality);
+      kitted ceiling 23.4n.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
