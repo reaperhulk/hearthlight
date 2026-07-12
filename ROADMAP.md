@@ -364,6 +364,14 @@ commit pushed to main. Update checkboxes as work lands.
       button that reloads the save and reclaims. Verified live with
       two Chromium tabs handing the fire back and forth.
 
+- [x] **Ten ticks a second is plenty (cycle 19)** — the game loop
+      called setState(tick(...)) on every animation frame, re-rendering
+      the whole React tree at 60fps on phones while the canvas already
+      painted from its own loop. Engine/React updates now flush at
+      ~10Hz with dt accumulating between flushes (nothing lost, 1s cap
+      preserved); the canvas keeps its 60fps animations. Pure battery
+      win, verified by smoke and the screenshot suite.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

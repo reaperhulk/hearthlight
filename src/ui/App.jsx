@@ -300,14 +300,23 @@ export function App() {
     return () => { delete window.__game; };
   }, []);
 
-  // Game loop: engine ticks at wall-clock speed.
+  // Game loop: engine ticks at wall-clock speed, but React state only
+  // updates ~10x a second — the canvas paints at full frame rate from
+  // its own loop, so ticking the whole component tree at 60fps was
+  // pure battery burn. dt accumulates between flushes; nothing is lost.
   useEffect(() => {
     let raf = null;
     let last = performance.now();
+    let pending = 0;
     const loop = now => {
       const dt = Math.min(1, (now - last) / 1000);
       last = now;
-      setState(current => (!elsewhereRef.current && current.round && current.round.phase !== 'fallen' ? tick(current, dt) : current));
+      pending += dt;
+      if (pending >= 0.1) {
+        const step = Math.min(1, pending);
+        pending = 0;
+        setState(current => (!elsewhereRef.current && current.round && current.round.phase !== 'fallen' ? tick(current, step) : current));
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
