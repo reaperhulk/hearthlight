@@ -271,6 +271,15 @@ commit pushed to main. Update checkboxes as work lands.
       factored out (topThreats) so keys and buttons can never
       disagree. Mending also got its voice: two woody taps.
 
+- [x] **The villager learns the verbs (cycle 8)** — the median-human
+      model that anchors the 45-150s first-play band ignored mend and
+      reroll entirely, so every new verb quietly aged the measurement.
+      The villager now rerolls a dead draft a quarter of the time and
+      mends a full town about a third of the time (random target, not
+      keeper triage). Band re-measured: unchanged at 3.8n/111s — new
+      verbs deepen the ceiling without moving the floor, which is
+      exactly where they should sit.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

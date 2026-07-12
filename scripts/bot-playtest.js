@@ -8,7 +8,7 @@
 //        --story               narrate one keeper round night by night
 import { readFileSync } from 'node:fs';
 import { createInitialState } from '../src/engine/state.js';
-import { beginRound, collectEmbers, getRepairMax, placeStructure, repairStructure, getEmbersEarned, getGlowRate, REPAIR_COST } from '../src/engine/round.js';
+import { beginRound, collectEmbers, getRepairMax, placeStructure, repairStructure, rerollDraft, getEmbersEarned, getGlowRate, REPAIR_COST, REROLL_COST } from '../src/engine/round.js';
 import { STRUCTURES, STRUCTURE_IDS } from '../src/engine/structures.js';
 import { getAdjacentSlots } from '../src/engine/map.js';
 import { endDay, tick } from '../src/engine/tick.js';
@@ -160,7 +160,27 @@ function botDay(state, profile, t, rng, collector, ban) {
   }
   const atCap = config.cap && round.slots.filter(slot => slot.structure).length >= config.cap;
   let passing = false;
-  if (!round.placedToday && !atCap && t % cadence === 0) {
+  // A villager knows the verbs too, just imperfectly: sometimes rerolls
+  // a draft with nothing affordable, and sometimes mends a full town
+  // (never the sharp triage the keeper runs — a human mends what they
+  // notice, and they notice about a third of the time).
+  if (config.day === 'noisy' && t % cadence === 0) {
+    if (!round.placedToday && !round.rerolledToday && round.glow >= REROLL_COST &&
+        !round.draft.some(id => STRUCTURES[id].cost <= round.glow) && rng() < 0.25) {
+      state = rerollDraft(state, rng) || state;
+    }
+    const current = state.round;
+    const full = !current.slots.some(slot => !slot.structure);
+    if (full && !current.placedToday && current.glow >= REPAIR_COST && rng() < 0.35) {
+      const bitten = current.slots.filter(slot =>
+        slot.structure && slot.structure.hp < getRepairMax(state, slot.structure));
+      if (bitten.length > 0) {
+        const pick = bitten[Math.floor(rng() * bitten.length)];
+        state = repairStructure(state, pick.id) || state;
+      }
+    }
+  }
+  if (!state.round.placedToday && !atCap && t % cadence === 0) {
     const card = chooseCard(state, config.day, rng, ban);
     if (card) {
       const slot = chooseSlot(state, card, config.day, rng);
