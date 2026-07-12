@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { abandonRound, beginRound, collectEmbers, drawDraft, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
+import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
 import { getNightForecast, getShadeCount, getWardenCooldown, moveWarden, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, WARDEN_COOLDOWN, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
 import { buyMetaUpgrade } from '../meta.js';
@@ -528,6 +528,15 @@ describe('hearthlight', () => {
     // No round, or an already-fallen round: nothing to abandon.
     expect(abandonRound(banked)).toBeNull();
     expect(abandonRound(walked)).toBeNull();
+  });
+
+  it('the very first day hurries no one', () => {
+    const first = startedRound();
+    expect(getDayLength(first.round)).toBe(DAY_LENGTH * 3);
+    // Later rounds, and later days, keep the real clock.
+    expect(getDayLength({ ...first.round, day: 2 })).toBe(DAY_LENGTH);
+    const veteran = beginRound({ ...createInitialState(), totalRounds: 3 }, makeRng([0.5]));
+    expect(getDayLength(veteran.round)).toBe(DAY_LENGTH);
   });
 
   it('is deterministic under the same seed', () => {

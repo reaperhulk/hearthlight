@@ -1,6 +1,6 @@
 // The round clock: day → dusk → night → dawn, in bounded deterministic
 // slices. All randomness flows through the injected rng.
-import { DAY_LENGTH, DAWN_GLOW_PER_STRUCTURE, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN, drawDraft, getGlowRate } from './round.js';
+import { getDayLength, DAWN_GLOW_PER_STRUCTURE, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN, drawDraft, getGlowRate } from './round.js';
 import { STRUCTURES } from './structures.js';
 import { advanceNightSlice, nightResolved, rollOmen, spawnShades, HUNGRY_EXTRA } from './night.js';
 
@@ -66,7 +66,7 @@ export function tick(state, dt, rng = Math.random) {
     if (round.phase === 'day') {
       const glow = round.glow + getGlowRate(current) * slice;
       current = { ...current, round: { ...round, time, glow } };
-      if (time - round.phaseStart >= DAY_LENGTH) {
+      if (time - round.phaseStart >= getDayLength(round)) {
         current = endDay(current, rng);
       }
       continue;

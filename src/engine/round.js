@@ -6,6 +6,13 @@ import { getDraftSize, getHeartMax, getUnlockedRings, getWardenCount } from './m
 import { STRUCTURE_HIT } from './night.js';
 
 export const DAY_LENGTH = 15;
+// A keeper's very first day hurries no one: triple time before dusk
+// falls on its own. Every later day keeps the real clock.
+export const FIRST_DAY_GRACE = 3;
+
+export function getDayLength(round) {
+  return DAY_LENGTH * (round.gentleDay && round.day === 1 ? FIRST_DAY_GRACE : 1);
+}
 export const START_GLOW = 12;
 export const DAWN_GLOW_PER_STRUCTURE = 3;
 export const REROLL_COST = 4;
@@ -64,6 +71,7 @@ export function beginRound(state, rng = Math.random) {
     phase: 'day',
     time: 0,
     phaseStart: 0,
+    gentleDay: state.totalRounds === 0,
     glow: START_GLOW + (state.meta.morningStockpile ? 15 : 0),
     heart: getHeartMax(state),
     heartMax: getHeartMax(state),

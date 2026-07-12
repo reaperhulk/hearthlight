@@ -303,3 +303,16 @@ button:focus-visible, canvas:focus-visible {
   .playfield { grid-template-columns: minmax(0, 46vh) 1fr; align-items: start; }
 }
 .overscroll-guard { overscroll-behavior: none; }
+
+.to-the-fire {
+  width: 100%; margin-top: 8px; padding: 9px; min-height: 40px;
+  background: #12141f; border: 1px solid #3a4152; border-radius: 6px;
+  color: #8793a2; font-family: inherit; font-size: 0.8em; cursor: pointer;
+}
+/* Draft cards arrive like a hand being dealt. */
+.draft button { animation: dealIn 0.3s ease-out backwards; }
+.draft button:nth-child(2) { animation-delay: 0.07s; }
+.draft button:nth-child(3) { animation-delay: 0.14s; }
+.draft button:nth-child(4) { animation-delay: 0.21s; }
+@keyframes dealIn { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .draft button { animation: none; } }

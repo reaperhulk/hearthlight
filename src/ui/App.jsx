@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createInitialState, loadState, saveState } from '../engine/state.js';
-import { abandonRound, beginRound, collectEmbers, getGlowRate, getEmberBreakdown, levelGlowMult, placeStructure, rerollDraft, REROLL_COST, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
+import { abandonRound, beginRound, collectEmbers, getGlowRate, getEmberBreakdown, levelGlowMult, placeStructure, rerollDraft, getDayLength, REROLL_COST, DAWN_GLOW_PER_STRUCTURE, DAY_LENGTH, FRONTIER_YIELD, HEART_MAX, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 import { getAdjacentSlots } from '../engine/map.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, moveWarden, HEART_SLOT, STILL_DEBT } from '../engine/night.js';
@@ -218,6 +218,19 @@ export function App() {
     }
     if (nightSum(round.stats, 'towerKills') > nightSum(prev.stats, 'towerKills')) sfx.tower();
   }, [state]);
+
+  // A reloaded mid-round save says so — the vigil was never lost.
+  useEffect(() => {
+    if (stateRef.current.round && stateRef.current.round.phase !== 'fallen') {
+      effectsRef.current.push({
+        type: 'banner',
+        text: 'The vigil continues',
+        subtext: `night ${stateRef.current.round.day} of this town`,
+        color: 'rgba(255, 208, 130, ',
+        start: performance.now() / 1000,
+      });
+    }
+  }, []);
 
   // Destructive actions want a second tap; the intent expires on its own.
   useEffect(() => {
@@ -441,7 +454,8 @@ export function App() {
     ? round.slots.find(slot => slot.id === inspectedId && slot.structure)
     : null;
   const inspected = inspectedSlot ? describeSlot(round, inspectedSlot) : null;
-  const dayRemaining = Math.max(0, DAY_LENGTH - (round.time - round.phaseStart));
+  const dayLength = getDayLength(round);
+  const dayRemaining = Math.max(0, dayLength - (round.time - round.phaseStart));
   const threats = round.shades
     .filter(shade => shade.phase !== 'held' &&
       !round.wardens.some(warden => warden.slotId === (shade.targetSlotId ?? HEART_SLOT)))
@@ -464,7 +478,7 @@ export function App() {
         <div className="chips">
           <span className={`chip phase ${round.phase}${isDay && dayRemaining < 5 ? ' urgent' : ''}`}>
             {!fallen && isDay && (
-              <i className="day-fill" style={{ width: `${(dayRemaining / DAY_LENGTH) * 100}%` }} />
+              <i className="day-fill" style={{ width: `${(dayRemaining / dayLength) * 100}%` }} />
             )}
             <span>{fallen ? 'Fallen' : isDay ? `☀ Day ${round.day} · ${Math.ceil(dayRemaining)}s` : `☾ Night ${round.day}`}</span>
           </span>
@@ -552,8 +566,28 @@ export function App() {
               </>
             );
           })()}
-          <button className="begin" onClick={() => { setState(current => collectEmbers(current)); setSelectedCard(null); }}>
-            Return to the Fire
+          <button
+            className="begin"
+            autoFocus
+            onClick={() => {
+              unlockAudio();
+              setSelectedCard(null);
+              setState(current => beginRound(collectEmbers(current)));
+            }}
+          >
+            Begin the next vigil
+          </button>
+          <button
+            className="to-the-fire"
+            onClick={() => { setState(current => collectEmbers(current)); setSelectedCard(null); }}
+          >
+            Return to the Fire{(() => {
+              const earned = getEmberBreakdown(round, state.meta).total;
+              const bank = state.embers + earned;
+              const affordable = Object.values(META_UPGRADES).filter(upgrade =>
+                !state.meta[upgrade.id] && metaUnlocked(state, upgrade.id) && bank >= upgrade.cost).length;
+              return affordable > 0 ? ` — ${affordable} upgrade${affordable === 1 ? '' : 's'} affordable` : '';
+            })()}
           </button>
         </div>
       ) : (
@@ -620,7 +654,9 @@ export function App() {
                 {(() => {
                   const forecast = getNightForecast(round);
                   const brings = forecast.omen === 'still' ? 'a still night' : `${forecast.count} come`;
-                  return round.placedToday ? `Call the Dusk — ${brings}` : `Skip the day — ${brings}`;
+                  return round.placedToday
+                    ? `Call the Dusk — ${brings} · auto in ${Math.ceil(dayRemaining)}s`
+                    : `Skip the day — ${brings}`;
                 })()}
               </button>
               {selectedCard && <p className="hint">Tap an empty slot to build the {STRUCTURES[selectedCard].name}.</p>}
