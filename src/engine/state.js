@@ -10,6 +10,7 @@ export function createInitialState() {
     bestNights: 0,
     totalRounds: 0,
     lastRound: null,   // { nights, embers } from the most recent fall
+    history: [],       // last 30 falls, oldest first: { nights, embers }
     // The Keeper's Ledger: everything ever endured, across all vigils.
     lifetime: { nights: 0, embers: 0, banished: 0, towerKills: 0, structuresLost: 0 },
     round: null,
@@ -35,6 +36,10 @@ export function migrateState(saved) {
   if (!Number.isFinite(migrated.embers) || migrated.embers < 0) migrated.embers = 0;
   if (!Number.isFinite(migrated.bestNights) || migrated.bestNights < 0) migrated.bestNights = 0;
   if (!Number.isFinite(migrated.totalRounds) || migrated.totalRounds < 0) migrated.totalRounds = 0;
+  if (!Array.isArray(migrated.history)) migrated.history = [];
+  migrated.history = migrated.history
+    .filter(entry => entry && Number.isFinite(entry.nights) && Number.isFinite(entry.embers))
+    .slice(-30);
   if (migrated.round && (typeof migrated.round !== 'object' || !migrated.round.phase)) {
     migrated.round = null;
   }

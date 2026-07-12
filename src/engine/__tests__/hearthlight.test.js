@@ -555,6 +555,28 @@ describe('hearthlight', () => {
     expect(repairStructure(mended, 'r0s0')).toBeNull(); // still once per day
   });
 
+  it('the vigil history remembers the last thirty falls', () => {
+    let state = startedRound();
+    state = { ...state, round: { ...state.round, day: 4, phase: 'fallen', heart: 0, shades: [] } };
+    const collected = collectEmbers(state);
+    expect(collected.history).toHaveLength(1);
+    expect(collected.history[0].nights).toBe(3);
+    // Caps at thirty, oldest dropped.
+    const stuffed = {
+      ...collected,
+      history: Array.from({ length: 30 }, (_, index) => ({ nights: index, embers: 1 })),
+      round: { ...state.round },
+    };
+    const again = collectEmbers(stuffed);
+    expect(again.history).toHaveLength(30);
+    expect(again.history.at(-1).nights).toBe(3);
+    expect(again.history[0].nights).toBe(1); // the oldest fell off
+    // Migration scrubs garbage and keeps honest entries.
+    const migrated = migrateState({ history: [{ nights: 2, embers: 1 }, 'junk', { nights: NaN, embers: 1 }] });
+    expect(migrated.history).toEqual([{ nights: 2, embers: 1 }]);
+    expect(migrateState({}).history).toEqual([]);
+  });
+
   it('the Long Dawn closes the story only with everything kept', () => {
     const bare = createInitialState();
     expect(allUpgradesKept(bare)).toBe(false);

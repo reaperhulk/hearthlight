@@ -282,6 +282,9 @@ export function collectEmbers(state) {
     embers: state.embers + earned,
     bestNights: Math.max(state.bestNights, round.day - 1),
     lastRound: { nights: round.day - 1, embers: earned },
+    // The vigil history: every town remembered, newest last. Thirty is
+    // enough to see a shape without hoarding the save.
+    history: [...(state.history || []), { nights: round.day - 1, embers: earned }].slice(-30),
     lifetime: {
       nights: lifetime.nights + (round.day - 1),
       embers: lifetime.embers + earned,

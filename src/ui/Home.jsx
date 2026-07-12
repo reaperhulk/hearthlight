@@ -38,6 +38,21 @@ export function Home({ state, setState, confirming, setConfirming }) {
         <span>Best: <strong>{state.bestNights} nights</strong></span>
         <span>Vigils: <strong>{state.totalRounds}</strong></span>
       </div>
+      {state.history?.length > 1 && (
+        <div className="history" aria-label="Nights survived, recent vigils">
+          <span className="history-label">Past vigils</span>
+          <div className="history-bars">
+            {state.history.map((run, index) => (
+              <i
+                key={index}
+                className={run.nights >= state.bestNights ? 'best' : ''}
+                style={{ height: `${6 + (run.nights / Math.max(1, state.bestNights)) * 26}px` }}
+                title={`${run.nights} night${run.nights === 1 ? '' : 's'}, ${run.embers} embers`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
       {state.lifetime?.nights > 0 && (
         <details className="ledger">
           <summary>The Keeper's Ledger</summary>

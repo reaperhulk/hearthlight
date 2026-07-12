@@ -255,6 +255,14 @@ commit pushed to main. Update checkboxes as work lands.
       in these stones — the bridge to theruinsremember), and the vigil
       that first crosses the line gets its own golden record line.
 
+- [x] **Past vigils (cycle 6)** — the genre gap: an incremental lives
+      on visible progression between runs, and Hearthlight kept only
+      the last one. The save now carries the last 30 falls; the home
+      screen draws them as a bar row (height = nights, gold = the
+      record), so the climb toward the Long Dawn is a shape you can
+      see. Migration scrubs malformed entries; capped so the save
+      never bloats.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
