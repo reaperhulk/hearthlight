@@ -47,6 +47,18 @@ const hash = n => {
   return s - Math.floor(s);
 };
 
+// Users who prefer reduced motion get a stiller sky and no shake.
+const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// The star field never changes — compute it once.
+const STARS = Array.from({ length: 46 }, (_, i) => ({
+  x: hash(i + 1) * CANVAS,
+  y: hash(i + 101) * CANVAS,
+  rate: 0.8 + hash(i + 201),
+  w: hash(i + 301) > 0.8 ? 1.6 : 1,
+  h: hash(i + 401) > 0.8 ? 1.6 : 1,
+}));
+
 // ── Scene layers ────────────────────────────────────────────────────────────
 function drawSky(ctx, darkness, animTime) {
   const inner = mix(SKY_DAY_IN, SKY_NIGHT_IN, darkness);
@@ -60,12 +72,11 @@ function drawSky(ctx, darkness, animTime) {
   // Stars wake as the light dies.
   if (darkness > 0.15) {
     const wake = darkness - 0.15;
-    for (let i = 0; i < 46; i++) {
-      const x = hash(i + 1) * CANVAS;
-      const y = hash(i + 101) * CANVAS;
-      const twinkle = 0.5 + 0.5 * Math.sin(animTime * (0.8 + hash(i + 201)) + i);
+    for (let i = 0; i < STARS.length; i++) {
+      const star = STARS[i];
+      const twinkle = REDUCED_MOTION ? 0.7 : 0.5 + 0.5 * Math.sin(animTime * star.rate + i);
       ctx.fillStyle = `rgba(205, 214, 228, ${wake * 0.5 * twinkle})`;
-      ctx.fillRect(x, y, hash(i + 301) > 0.8 ? 1.6 : 1, hash(i + 401) > 0.8 ? 1.6 : 1);
+      ctx.fillRect(star.x, star.y, star.w, star.h);
     }
     // A few named stars burn brighter, with a cross of light.
     for (let i = 0; i < 3; i++) {
@@ -82,7 +93,7 @@ function drawSky(ctx, darkness, animTime) {
       ctx.fillRect(x - 1, y - 1, 2, 2);
     }
     // Fog drifts once the dark settles.
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < (REDUCED_MOTION ? 0 : 3); i++) {
       const fx = CANVAS / 2 + Math.cos(animTime * 0.07 + i * 2.1) * CANVAS * 0.3;
       const fy = CANVAS / 2 + Math.sin(animTime * 0.05 + i * 1.7) * CANVAS * 0.3;
       const fog = ctx.createRadialGradient(fx, fy, 8, fx, fy, 85);
@@ -273,6 +284,8 @@ function drawShades(ctx, round, animTime) {
     }
     const headX = from.x + (to.x - from.x) * progress;
     const headY = from.y + (to.y - from.y) * progress;
+    // Shades condense out of the rim rather than popping into being.
+    ctx.globalAlpha = Math.min(1, Math.max(0.1, (round.time - shade.spawnedAt) / 0.8));
     ctx.strokeStyle = 'rgba(176, 106, 208, 0.55)';
     ctx.lineWidth = 1.6;
     ctx.setLineDash([4, 3]);
@@ -336,6 +349,7 @@ function drawShades(ctx, round, animTime) {
     ctx.arc(drawX - backY * 2.4 - backX * 1.8, drawY + backX * 2.4 - backY * 1.8, 1.15, 0, Math.PI * 2);
     ctx.arc(drawX + backY * 2.4 - backX * 1.8, drawY - backX * 2.4 - backY * 1.8, 1.15, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -834,6 +848,12 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   const round = state.round;
   const darkness = getDarkness(round);
   ctx.clearRect(0, 0, CANVAS, CANVAS);
+  ctx.save();
+  // A structure falling rattles the world, briefly.
+  if (!REDUCED_MOTION && visuals.shakeUntil && animTime < visuals.shakeUntil) {
+    const power = (visuals.shakeUntil - animTime) * 8;
+    ctx.translate(Math.sin(animTime * 70) * power, Math.cos(animTime * 61) * power);
+  }
   drawSky(ctx, darkness, animTime);
   drawGround(ctx, round, darkness);
   drawRim(ctx, round, darkness, animTime);
@@ -845,6 +865,7 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   drawInspectLinks(ctx, round, inspectedId, animTime);
   if (round.phase === 'day') drawPlacementPreview(ctx, round, selectedCard, hover, animTime);
   drawWardens(ctx, round, animTime, visuals);
+  ctx.restore();
 }
 
 // Transient hit feedback: bites, falls, and Heart strikes flash on the
@@ -920,10 +941,14 @@ export function drawEffects(ctx, effects, animTime) {
     } else if (effect.type === 'number' && age < 1.1) {
       // The cost, stated where it happened, drifting toward memory.
       const alpha = age < 0.15 ? age / 0.15 : Math.max(0, 1 - (age - 0.15) / 0.95);
-      ctx.font = 'bold 15px "Courier New", monospace';
+      const heavy = Math.abs(parseInt(effect.text.replace(/[^0-9-]/g, ''), 10) || 0) >= 18;
+      ctx.font = `bold ${heavy ? 18 : 14}px "Courier New", monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = `rgba(240, 150, 150, ${alpha})`;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = `rgba(10, 8, 14, ${alpha * 0.8})`;
+      ctx.strokeText(effect.text, effect.x, effect.y - age * 18);
+      ctx.fillStyle = `rgba(244, 150, 150, ${alpha})`;
       ctx.fillText(effect.text, effect.x, effect.y - age * 18);
     } else if (effect.type === 'sated' && age < 0.6) {
       // A sated shade disperses: three motes drifting apart and fading.
@@ -939,19 +964,32 @@ export function drawEffects(ctx, effects, animTime) {
         ctx.fill();
       }
     } else if (effect.type === 'sweep' && age < 0.9) {
-      // Dusk rolls out from the Heart; dawn washes back in.
-      const alpha = 0.5 * (1 - age / 0.9);
+      // Dusk rolls out from the Heart; dawn washes back in — eased, so
+      // the wave leaps and then settles.
+      const t = age / 0.9;
+      const eased = 1 - Math.pow(1 - t, 3);
+      const alpha = 0.5 * (1 - t);
       ctx.strokeStyle = `${effect.color}${alpha})`;
-      ctx.lineWidth = 14 * (1 - age / 0.9) + 2;
+      ctx.lineWidth = 14 * (1 - t) + 2;
       ctx.beginPath();
-      ctx.arc(CANVAS / 2, CANVAS / 2, 10 + (age / 0.9) * CANVAS * 0.52, 0, Math.PI * 2);
+      ctx.arc(CANVAS / 2, CANVAS / 2, 10 + eased * CANVAS * 0.52, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (effect.type === 'sparkle' && age < 0.7) {
+      // Dawn thanks the survivors: a small gold glint.
+      const alpha = 0.9 * (1 - age / 0.7);
+      const reach = 3 + age * 8;
+      ctx.strokeStyle = `rgba(255, 224, 150, ${alpha})`;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(effect.x - reach, effect.y); ctx.lineTo(effect.x + reach, effect.y);
+      ctx.moveTo(effect.x, effect.y - reach); ctx.lineTo(effect.x, effect.y + reach);
       ctx.stroke();
     } else if (effect.type === 'banner' && age < 2.6) {
       // A title card for the night: fades in, holds, fades out.
       const fadeIn = Math.min(1, age / 0.35);
       const fadeOut = Math.max(0, 1 - Math.max(0, age - 2.0) / 0.6);
       const alpha = fadeIn * fadeOut;
-      ctx.font = 'bold 19px "Courier New", monospace';
+      ctx.font = 'bold 21px "Courier New", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.save();
@@ -960,6 +998,13 @@ export function drawEffects(ctx, effects, animTime) {
       ctx.fillStyle = `rgba(240, 240, 250, ${alpha})`;
       ctx.fillText(effect.text, CANVAS / 2, 56 - (1 - fadeIn) * 8);
       ctx.restore();
+      // An ornament line beneath the title.
+      ctx.strokeStyle = effect.color ? `${effect.color}${alpha * 0.7})` : `rgba(255, 208, 130, ${alpha * 0.7})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(CANVAS / 2 - 52, 68);
+      ctx.lineTo(CANVAS / 2 + 52, 68);
+      ctx.stroke();
       if (effect.subtext) {
         ctx.font = '12px "Courier New", monospace';
         ctx.fillStyle = `rgba(190, 196, 212, ${alpha * 0.9})`;

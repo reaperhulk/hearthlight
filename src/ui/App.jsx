@@ -134,6 +134,10 @@ export function App() {
         : null;
       effectsRef.current = effectsRef.current.filter(effect => effect.type !== 'banner');
       effectsRef.current.push({ type: 'sweep', color: 'rgba(255, 208, 130, ', start: now });
+      for (const slot of round.slots.filter(candidate => candidate.structure).slice(0, 8)) {
+        const { x, y } = slotPixel(slot);
+        effectsRef.current.push({ type: 'sparkle', x: x + 8, y: y - 10, start: now + Math.min(0.4, (x + y) % 0.4) });
+      }
       effectsRef.current.push({
         type: 'banner',
         text: `Day ${round.day}`,
@@ -343,7 +347,7 @@ export function App() {
   if (!round) {
     return (
       <div className="home">
-        <h1>Hearthlight</h1>
+        <h1 className="title-emblem"><StructureIcon type="lantern" size={26} /> Hearthlight</h1>
         <p className="lore">Something in the dark keeps eating the towns. Light the Heart. Last longer.</p>
         <p className="lore dim">The shades are the Forgetting. Every town they take becomes ruins — and the ruins remember every wall you raised.</p>
         {state.totalRounds === 0 && (
@@ -450,7 +454,7 @@ export function App() {
           </button>
         </div>
         <div className="chips">
-          <span className={`chip phase ${round.phase}`}>
+          <span className={`chip phase ${round.phase}${isDay && dayRemaining < 5 ? ' urgent' : ''}`}>
             {!fallen && isDay && (
               <i className="day-fill" style={{ width: `${(dayRemaining / DAY_LENGTH) * 100}%` }} />
             )}
