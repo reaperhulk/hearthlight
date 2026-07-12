@@ -2,6 +2,7 @@
 // slices. All randomness flows through the injected rng.
 import { getDayLength, DAWN_GLOW_PER_STRUCTURE, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN, drawDraft, getGlowRate } from './round.js';
 import { STRUCTURES } from './structures.js';
+import { getAdjacentSlots } from './map.js';
 import { advanceNightSlice, nightResolved, rollOmen, spawnShades, HUNGRY_EXTRA } from './night.js';
 
 function appendLog(round, day, messages) {
@@ -12,9 +13,15 @@ function appendLog(round, day, messages) {
 function dawn(state, rng) {
   const round = state.round;
   let glow = round.glow;
+  // Watered ground: a well pays its dawnAdjacency into each matching
+  // neighbor (the well's identity is making OTHER ground richer).
+  const wateredBonus = slot => getAdjacentSlots(round.slots, slot.id).reduce((sum, neighbor) => {
+    const giving = neighbor.structure && STRUCTURES[neighbor.structure.type].dawnAdjacency;
+    return sum + (giving?.[slot.structure.type] || 0);
+  }, 0);
   const slots = round.slots.map(slot => {
     if (!slot.structure) return slot;
-    glow += DAWN_GLOW_PER_STRUCTURE + (STRUCTURES[slot.structure.type].dawnGlow || 0);
+    glow += DAWN_GLOW_PER_STRUCTURE + (STRUCTURES[slot.structure.type].dawnGlow || 0) + wateredBonus(slot);
     const nightsSurvived = slot.structure.nightsSurvived + 1;
     let level = slot.structure.level;
     let hp = slot.structure.hp;

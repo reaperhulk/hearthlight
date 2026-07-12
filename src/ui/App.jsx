@@ -41,7 +41,12 @@ function describeSlot(round, slot) {
       ? boosted.map(neighbor => `${STRUCTURES[neighbor.structure.type].name} +${(def.adjacencyBonus[neighbor.structure.type] * levelMult).toFixed(1)}/s`).join(', ')
       : 'nothing adjacent yet']);
   }
-  rows.push(['At dawn', `+${DAWN_GLOW_PER_STRUCTURE + (def.dawnGlow || 0)} Glow`]);
+  const watered = neighbors.reduce((sum, neighbor) => {
+    const giving = STRUCTURES[neighbor.structure.type].dawnAdjacency;
+    return sum + (giving?.[structure.type] || 0);
+  }, 0);
+  rows.push(['At dawn', `+${DAWN_GLOW_PER_STRUCTURE + (def.dawnGlow || 0) + watered} Glow${watered > 0 ? ' (watered)' : ''}`]);
+  if (def.dawnAdjacency) rows.push(['Waters', 'adjacent Granaries +3 Glow at dawn']);
   if (def.slowsAdjacent) {
     rows.push(['Slows', `shades on lit neighbors ×${def.slowsAdjacent}`]);
     rows.push(['Lamplight', 'the Warden banishes 40% faster on lit ground']);
@@ -775,12 +780,12 @@ export function App() {
                   {inspectedSlot.structure.hp < getRepairMax(state, inspectedSlot.structure) && (
                     <button
                       className="mend"
-                      disabled={round.placedToday || round.mendedToday || round.glow < REPAIR_COST}
+                      disabled={(!state.meta.morningStockpile && round.placedToday) || round.mendedToday || round.glow < REPAIR_COST}
                       onClick={() => setState(prev => repairStructure(prev, inspectedSlot.id) || prev)}
                     >
-                      {round.placedToday || round.mendedToday
+                      {(!state.meta.morningStockpile && round.placedToday) || round.mendedToday
                         ? 'The hands are spent for today'
-                        : `Mend the teeth-marks — ${REPAIR_COST} Glow (the day's act)`}
+                        : `Mend the teeth-marks — ${REPAIR_COST} Glow${state.meta.morningStockpile ? '' : " (the day's act)"}`}
                     </button>
                   )}
                 </div>

@@ -210,6 +210,22 @@ commit pushed to main. Update checkboxes as work lands.
       exactly +0.0n/+0.0e (interchangeable filler; queued for identity
       work), and 'resting' in the night rail now reads 'Warden resting'.
 
+- [x] **The economy tail earns its keep (cycle 2)** — identity pass on
+      the four cards the ban-one panel found at +0.0/+0.0: granary is
+      tempo (+9 at dawn), the well waters (Farms +0.6/s, Granaries +3 at
+      dawn), the kiln banks surplus (cap 6), the shrine remembers harder
+      (+2 base). Keeper's economy tail is now situational (granary while
+      dawns compound, payout cards once the wall stands). Chasing the
+      remaining zeros exposed two deeper truths, both fixed: (1) early
+      Glow tempo is worthless in this design — three reworks of Morning
+      Stockpile (+15, +24, +1/dawn/structure, first-structure-free) all
+      measured EXACTLY +0.0n, so the slot became Second Hands (mend no
+      longer spends the day's act, +1.6 arc nights); (2) the 5-seed meta
+      panel flaps under placement butterflies — condemned upgrades now
+      get their verdict confirmed on a 15-seed panel before the gate
+      fails (deeperDrafts was exonerated by exactly this: screened
+      -0.4n, confirmed +0.7n/+5.5 arc).
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

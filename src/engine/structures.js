@@ -18,10 +18,11 @@ export const STRUCTURES = {
     cost: 8,
     hp: 1,
     glowPerSecond: 0.2,
-    adjacencyBonus: { farm: 0.4 },
+    adjacencyBonus: { farm: 0.6 },
+    dawnAdjacency: { granary: 3 },
     weight: 2,
     defensive: false,
-    description: 'A little Glow, and +0.4/s to each neighboring Farm.',
+    description: 'Waters its neighbors: Farms +0.6/s, Granaries +3 at dawn.',
   },
   lantern: {
     id: 'lantern',
@@ -58,10 +59,10 @@ export const STRUCTURES = {
     name: 'Granary',
     cost: 12,
     hp: 1,
-    dawnGlow: 6,
+    dawnGlow: 9,
     weight: 2,
     defensive: false,
-    description: '+6 Glow at every dawn it survives.',
+    description: '+9 Glow at every dawn it survives \u2014 tempo for the wall.',
   },
   belltower: {
     id: 'belltower',
@@ -80,7 +81,7 @@ export const STRUCTURES = {
     hp: 1,
     weight: 1,
     defensive: false,
-    description: 'At the fall: +1 Ember per 20 Glow held, up to 3.',
+    description: 'At the fall: +1 Ember per 20 Glow held, up to 6. Bank the surplus.',
   },
   shrine: {
     id: 'shrine',
@@ -89,7 +90,7 @@ export const STRUCTURES = {
     hp: 1,
     weight: 1,
     defensive: false,
-    description: 'At the fall: +1 Ember, +1 more per neighbor still standing.',
+    description: 'At the fall: +2 Embers, +1 more per neighbor still standing.',
   },
 };
 

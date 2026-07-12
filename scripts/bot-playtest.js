@@ -78,7 +78,17 @@ function chooseCard(state, style, rng, ban) {
   // DEFENSE_FIRST fallback order already buys economy when defenses are
   // unaffordable, which is all the economy floor the round needs.
   const preference = DEFENSE_FIRST.filter(id => affordable.includes(id));
-  return preference[0] || affordable[0];
+  const pick = preference[0] || affordable[0];
+  // The economy tail is situational: granary tempo while dawns compound,
+  // payout cards (shrine/kiln) once the wall already stands.
+  if (pick === 'farm' && round.day <= 3 && affordable.includes('granary')) return 'granary';
+  const defenses = round.slots.filter(slot =>
+    slot.structure && STRUCTURES[slot.structure.type].defensive).length;
+  if ((pick === 'farm' || pick === 'well') && defenses >= 3) {
+    const payout = ['shrine', 'emberKiln'].find(id => affordable.includes(id));
+    if (payout) return payout;
+  }
+  return pick;
 }
 
 function chooseSlot(state, structureId, style, rng) {
@@ -167,11 +177,15 @@ function botDay(state, profile, t, rng, collector, ban) {
     }
   }
   // Mend is the day's act when there is nothing left to build: a full
-  // town turns its hands to the most-bitten wall.
-  if (config.day === 'smart' && !state.round.placedToday) {
+  // town turns its hands to the most-bitten wall. With Second Hands the
+  // keeper also mends alongside building, keeping a tower banked.
+  if (config.day === 'smart') {
     const current = state.round;
+    const secondHands = Boolean(state.meta.morningStockpile);
     const full = !current.slots.some(slot => !slot.structure);
-    if (full && current.glow >= REPAIR_COST) {
+    const may = full ? !current.placedToday || secondHands : secondHands;
+    const reserve = full ? 0 : 16;
+    if (may && current.glow >= REPAIR_COST + reserve) {
       const bitten = current.slots
         .filter(slot => slot.structure && slot.structure.hp < getRepairMax(state, slot.structure))
         .sort((a, b) => a.structure.hp - b.structure.hp)[0];
@@ -452,6 +466,30 @@ if (!quick) {
   }
   say(`  meta arc value (Δ nights over the 5-round arc, pre-owned): ${Object.keys(META_UPGRADES).map(id =>
     `${id} ${fmtDelta(depth.metaValue[`${id}.arcNights`])}`).join(' | ')}`);
+  // Butterfly guard: a 5-seed Δ is the difference of two noisy means —
+  // one placement change reshuffles every night after it, and honest
+  // upgrades flap across the trap/shelf-warmer thresholds run to run.
+  // Any upgrade the assertions below would condemn gets its verdict
+  // retried on a 3x fixed panel first; the wider number is kept.
+  const CONFIRM_SEEDS = [111111, 222222, 333333, 555555, 777777, 999999, 123456, 654321, 246810, 135791];
+  const condemned = id => {
+    const nights = depth.metaValue[`${id}.nights`];
+    const embers = depth.metaValue[`${id}.embers`];
+    const arcNights = depth.metaValue[`${id}.arcNights`];
+    return (nights < -0.5 && arcNights < 0.5) || (nights < 0.3 && embers < 1 && arcNights < 1);
+  };
+  for (const id of Object.keys(META_UPGRADES).filter(condemned)) {
+    const seeds = [...DEPTH_SEEDS, ...CONFIRM_SEEDS];
+    const base = seeds.map(seed => playRound(createInitialState(), 'keeper', mulberry32(seed)));
+    const withIt = seeds.map(seed =>
+      playRound({ ...createInitialState(), meta: { [id]: true } }, 'keeper', mulberry32(seed)));
+    depth.metaValue[`${id}.nights`] = mean(withIt.map(run => run.nights)) - mean(base.map(run => run.nights));
+    depth.metaValue[`${id}.embers`] = mean(withIt.map(run => run.embers)) - mean(base.map(run => run.embers));
+    depth.metaValue[`${id}.arcNights`] =
+      mean(seeds.map(seed => playArc(seed, { [id]: true }))) - mean(seeds.map(seed => playArc(seed, {})));
+    say(`  confirm (${seeds.length} seeds) ${id}: ${fmtDelta(depth.metaValue[`${id}.nights`])}n/${fmtDelta(depth.metaValue[`${id}.embers`])}e, arc ${fmtDelta(depth.metaValue[`${id}.arcNights`])}n`);
+  }
+
   say(`  picks: ${STRUCTURE_IDS.map(id => `${id} ${collector.picks[id] || 0}`).join(' | ')}`);
   depth.picks = { ...collector.picks };
 }

@@ -11,9 +11,9 @@ export const META_UPGRADES = {
   },
   morningStockpile: {
     id: 'morningStockpile',
-    name: 'Morning Stockpile',
+    name: 'Second Hands',
     cost: 5,
-    description: 'Each round begins with +15 Glow.',
+    description: 'Mending no longer spends the day\u2019s act \u2014 build and mend in one dusk.',
   },
   swiftWarden: {
     id: 'swiftWarden',

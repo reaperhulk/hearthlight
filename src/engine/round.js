@@ -72,7 +72,7 @@ export function beginRound(state, rng = Math.random) {
     time: 0,
     phaseStart: 0,
     gentleDay: state.totalRounds === 0,
-    glow: START_GLOW + (state.meta.morningStockpile ? 15 : 0),
+    glow: START_GLOW,
     heart: getHeartMax(state),
     heartMax: getHeartMax(state),
     slots: createSlots(getUnlockedRings(state)),
@@ -174,7 +174,11 @@ export function getRepairMax(state, structure) {
 
 export function repairStructure(state, slotId) {
   const round = state.round;
-  if (!round || round.phase !== 'day' || round.placedToday || round.mendedToday) return null;
+  // Second Hands (meta): mend stops sharing the day's act with placement
+  // — the once-per-day cap still holds.
+  const sharesAct = !state.meta.morningStockpile;
+  if (!round || round.phase !== 'day' || round.mendedToday) return null;
+  if (sharesAct && round.placedToday) return null;
   if (round.glow < REPAIR_COST) return null;
   const slotIndex = round.slots.findIndex(slot => slot.id === slotId);
   const structure = round.slots[slotIndex]?.structure;
@@ -186,7 +190,7 @@ export function repairStructure(state, slotId) {
     round: {
       ...round,
       glow: round.glow - REPAIR_COST,
-      placedToday: true,
+      placedToday: sharesAct ? true : round.placedToday,
       mendedToday: true,
       slots,
       log: [...round.log, { day: round.day, message: `Fresh timber in the ${STRUCTURES[structure.type].name} — it stands taller.` }].slice(-30),
@@ -223,13 +227,15 @@ export function getEmberBreakdown(round, meta = {}) {
   // standing at the fall — economy that placement earns.
   const shrineEmbers = round.slots
     .filter(slot => slot.structure?.type === 'shrine')
-    .reduce((total, slot) => total + 1 +
+    .reduce((total, slot) => total + 2 +
       getAdjacentSlots(round.slots, slot.id).filter(neighbor => neighbor.structure).length, 0);
   const parts = {
     nights,
     standing: Math.floor(alive / 2),
     shrines: shrineEmbers,
-    kiln: kilns * Math.min(3, Math.floor(round.glow / 20)),
+    // Cap 6, not 3: with mend the only Glow sink, a kiln town banking
+    // its surplus is a deliberate harvest line, not an accident.
+    kiln: kilns * Math.min(6, Math.floor(round.glow / 20)),
     choir: meta.emberChoir ? Math.floor(nights / 2) : 0,
     emberheart: meta.emberheart ? Math.max(0, nights - 4) : 0,
     ruins: meta.ruinsRemember

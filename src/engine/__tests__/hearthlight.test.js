@@ -79,7 +79,7 @@ describe('hearthlight', () => {
     const before = getGlowRate(state);
     state = { ...state, round: { ...state.round, placedToday: false, draft: ['well'] } };
     state = placeStructure(state, 'well', 'r0s1');
-    expect(getGlowRate(state)).toBeCloseTo(before + 0.2 + 0.4);
+    expect(getGlowRate(state)).toBeCloseTo(before + 0.2 + 0.6);
   });
 
   it('spawns escalating nights and holds/banishes with the Warden', () => {
@@ -346,6 +346,26 @@ describe('hearthlight', () => {
     expect(state.round.stats.nights.at(-1).banished).toBe(2);
   });
 
+  it('a well waters neighboring granaries at dawn', () => {
+    // Two identical towns — granary at r0s0, well adjacent (r0s1) vs far
+    // (r0s3). Same glow rate, same clock; the only dawn difference is
+    // the +3 watering bonus.
+    const town = wellSlot => {
+      let state = startedRound();
+      state = { ...state, round: { ...state.round, draft: ['granary', 'well'], glow: 60 } };
+      state = placeStructure(state, 'granary', 'r0s0');
+      state = { ...state, round: { ...state.round, placedToday: false } };
+      state = placeStructure(state, 'well', wellSlot);
+      state = { ...state, round: { ...state.round, phase: 'night', phaseStart: state.round.time, shades: [], towerCharges: {} } };
+      return runSeconds(state, 12, makeRng([0.9])).round;
+    };
+    const near = town('r0s1');
+    const far = town('r0s3');
+    expect(near.phase).toBe('day'); // both dawns have passed
+    expect(far.phase).toBe('day');
+    expect(near.glow - far.glow).toBeCloseTo(3, 5);
+  });
+
   it('mending buys back one bite a day, by daylight only', () => {
     let state = startedRound();
     state = { ...state, round: { ...state.round, draft: ['palisade'], glow: 40 } };
@@ -495,11 +515,26 @@ describe('hearthlight', () => {
 
     state = buyMetaUpgrade(state, 'secondWarden');
     state = beginRound(state, makeRng());
-    expect(state.round.glow).toBe(27);
     expect(state.round.wardens).toHaveLength(2);
-    state = { ...state, round: { ...state.round, draft: ['palisade'] } };
+    state = { ...state, round: { ...state.round, draft: ['palisade'], glow: 40 } };
     state = placeStructure(state, 'palisade', 'r0s0');
     expect(state.round.slots[0].structure.hp).toBe(4);
+
+    // Second Hands: mending no longer spends the day's act — a town that
+    // built today can still mend (once), and vice versa.
+    state = {
+      ...state,
+      round: {
+        ...state.round,
+        slots: state.round.slots.map(slot => slot.id === 'r0s0'
+          ? { ...slot, structure: { ...slot.structure, hp: 1 } }
+          : slot),
+      },
+    };
+    expect(state.round.placedToday).toBe(true);
+    const mended = repairStructure(state, 'r0s0');
+    expect(mended.round.slots[0].structure.hp).toBe(2);
+    expect(repairStructure(mended, 'r0s0')).toBeNull(); // still once per day
   });
 
   it('the ledger accumulates across vigils and survives old saves', () => {
@@ -673,7 +708,7 @@ describe('hearthlight', () => {
 
     // Granary: extra Glow at dawn (baseline structure pays 3, granary pays 9)
     const dawnGlow = STRUCTURES.granary.dawnGlow;
-    expect(dawnGlow).toBe(6);
+    expect(dawnGlow).toBe(9);
 
     // Ember Kiln: converts held Glow at the fall (+1 per 20, capped at 3)
     const fallen = { day: 5, glow: 65, slots: [
@@ -703,7 +738,7 @@ describe('hearthlight', () => {
 
     // Adjacency contribution is measurable
     const breakdown = getGlowBreakdown(state);
-    expect(breakdown.adjacency).toBeCloseTo(0.4);
+    expect(breakdown.adjacency).toBeCloseTo(0.6);
     expect(breakdown.total).toBeGreaterThan(breakdown.adjacency);
 
     // A night that eats the farm attributes the loss
