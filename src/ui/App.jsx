@@ -13,6 +13,15 @@ import { FallenPanel } from './FallenPanel.jsx';
 
 const HIT_RADIUS = 40;
 
+// The night rail's triage order — also what the number keys answer.
+function topThreats(round) {
+  return round.shades
+    .filter(shade => shade.phase !== 'held' &&
+      !round.wardens.some(warden => warden.slotId === (shade.targetSlotId ?? HEART_SLOT)))
+    .sort((a, b) => (a.phase === 'approach' ? a.arrivesAt : a.feedsAt ?? 0) - (b.phase === 'approach' ? b.arrivesAt : b.feedsAt ?? 0))
+    .slice(0, 3);
+}
+
 export function App() {
   const [state, setState] = useState(() => loadState(window.localStorage));
   const [selectedCard, setSelectedCard] = useState(null);
@@ -316,6 +325,39 @@ export function App() {
     setBreakTarget(slotId);
   }, []);
 
+  // Desktop hands: 1-4 pick a card (day) or answer a threat (night);
+  // D calls the dusk, R rerolls, Escape drops selection. Touch is still
+  // the primary instrument — keys are for the keyboard-bound.
+  useEffect(() => {
+    const onKey = event => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const current = stateRef.current;
+      const round = current.round;
+      if (!round || round.phase === 'fallen') return;
+      const key = event.key.toLowerCase();
+      if (round.phase === 'day') {
+        if (key >= '1' && key <= '4') {
+          const id = round.draft[Number(key) - 1];
+          if (id && round.glow >= STRUCTURES[id].cost && !round.placedToday) {
+            setSelectedCard(previous => (previous === id ? null : id));
+          }
+        } else if (key === 'd') {
+          setState(state => endDay(state));
+        } else if (key === 'r') {
+          setState(state => rerollDraft(state) || state);
+        } else if (key === 'escape') {
+          setSelectedCard(null);
+          setInspectedId(null);
+        }
+      } else if (key >= '1' && key <= '3') {
+        const target = topThreats(round)[Number(key) - 1];
+        if (target) sendWarden(target.targetSlotId ?? HEART_SLOT);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sendWarden]);
+
   const handleCanvasMove = useCallback(event => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -407,11 +449,7 @@ export function App() {
   const inspected = inspectedSlot ? describeSlot(round, inspectedSlot) : null;
   const dayLength = getDayLength(round);
   const dayRemaining = Math.max(0, dayLength - (round.time - round.phaseStart));
-  const threats = round.shades
-    .filter(shade => shade.phase !== 'held' &&
-      !round.wardens.some(warden => warden.slotId === (shade.targetSlotId ?? HEART_SLOT)))
-    .sort((a, b) => (a.phase === 'approach' ? a.arrivesAt : a.feedsAt ?? 0) - (b.phase === 'approach' ? b.arrivesAt : b.feedsAt ?? 0))
-    .slice(0, 3);
+  const threats = topThreats(round);
 
   return (
     <div className="game">
@@ -565,6 +603,7 @@ export function App() {
                     : `Skip the day — ${brings}`;
                 })()}
               </button>
+              <p className="keys-hint">keys: 1–4 pick · D dusk · R reroll · Esc clear</p>
               {selectedCard && <p className="hint">Tap an empty slot to build the {STRUCTURES[selectedCard].name}.</p>}
               {!selectedCard && !inspected && <p className="hint">Tap a building to inspect it.</p>}
               {inspected && (
@@ -584,7 +623,11 @@ export function App() {
                     <button
                       className="mend"
                       disabled={(!state.meta.morningStockpile && round.placedToday) || round.mendedToday || round.glow < REPAIR_COST}
-                      onClick={() => setState(prev => repairStructure(prev, inspectedSlot.id) || prev)}
+                      onClick={() => setState(prev => {
+                        const mended = repairStructure(prev, inspectedSlot.id);
+                        if (mended) sfx.mend();
+                        return mended || prev;
+                      })}
                     >
                       {(!state.meta.morningStockpile && round.placedToday) || round.mendedToday
                         ? 'The hands are spent for today'
@@ -656,6 +699,7 @@ export function App() {
                 }
                 return rows;
               })()}
+              <p className="keys-hint">keys: 1–3 send the Warden</p>
             </div>
           )}
 

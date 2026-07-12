@@ -269,6 +269,13 @@ button:focus-visible, canvas:focus-visible {
 }
 .history-bars i.best { background: linear-gradient(180deg, #ffd082, #a8874f); box-shadow: 0 0 6px rgba(255, 208, 130, 0.35); }
 
+/* Key hints only where a keyboard is likely: wide screens with a
+   real pointer. Phones never see them. */
+.keys-hint { display: none; }
+@media (min-width: 880px) and (hover: hover) {
+  .keys-hint { display: block; margin-top: 6px; font-size: 0.68em; color: #4d5766; letter-spacing: 0.05em; }
+}
+
 .ledger { margin: 6px 0 10px; font-size: 0.78em; }
 .ledger summary { color: #8793a2; cursor: pointer; letter-spacing: 0.06em; }
 .ledger div { display: flex; justify-content: space-between; max-width: 300px; color: #5f6b7d; padding: 2px 0 0 14px; }

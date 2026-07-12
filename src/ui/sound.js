@@ -59,6 +59,11 @@ export const sfx = {
   release() {
     tone({ freq: 300, freqEnd: 80, duration: 0.22, type: 'sawtooth', gain: 0.05 });
   },
+  // Fresh timber knocked into place: two quick woody taps.
+  mend() {
+    tone({ freq: 190, freqEnd: 160, duration: 0.07, type: 'square', gain: 0.05 });
+    tone({ freq: 240, freqEnd: 200, duration: 0.08, type: 'square', gain: 0.05, delay: 0.09 });
+  },
   // Dawn breaks.
   dawn() {
     tone({ freq: 330, freqEnd: 660, duration: 0.35, type: 'sine', gain: 0.04 });

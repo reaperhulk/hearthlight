@@ -263,6 +263,14 @@ commit pushed to main. Update checkboxes as work lands.
       see. Migration scrubs malformed entries; capped so the save
       never bloats.
 
+- [x] **Desktop hands + the mend knock (cycle 7)** — the game was
+      touch-only: now 1-4 pick a card by day (1-3 answer the night
+      rail's threats), D calls the dusk, R rerolls, Escape drops the
+      selection. Key hints render only on wide hover-capable screens —
+      phones never see them. The night rail's triage order was
+      factored out (topThreats) so keys and buttons can never
+      disagree. Mending also got its voice: two woody taps.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
