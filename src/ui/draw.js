@@ -292,30 +292,49 @@ function drawShades(ctx, round, animTime) {
       drawY += Math.sin(animTime * 11 + shade.id * 1.9) * 2.5;
       radius = 6 + Math.sin(animTime * 8 + shade.id) * 1.5;
     }
-    // A wisp, not a dot: a bright core inside a smoky body, with two
-    // trailing lobes strung back along its path.
+    // A wisp, not a dot: a bright-cored smoky body trailing ghosts of
+    // itself. Heartseekers burn crimson; held shades burn gold.
     const span = Math.hypot(to.x - from.x, to.y - from.y) || 1;
     const backX = (from.x - to.x) / span;
     const backY = (from.y - to.y) / span;
     const wave = Math.sin(animTime * 5 + shade.id * 1.7);
     const held = shade.phase === 'held';
+    const seeker = shade.targetSlotId === null;
+    const body = held ? [230, 199, 102] : seeker ? [226, 96, 118] : [176, 106, 208];
+    // Ghosts of its own passage, strung back along the path.
+    if (shade.phase === 'approach') {
+      for (let ghost = 3; ghost >= 1; ghost--) {
+        const gx = drawX + backX * ghost * 7 + backY * wave * ghost * 1.5;
+        const gy = drawY + backY * ghost * 7 - backX * wave * ghost * 1.5;
+        ctx.fillStyle = rgb(body, 0.28 - ghost * 0.07);
+        ctx.beginPath();
+        ctx.arc(gx, gy, radius * (1 - ghost * 0.2), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
     for (let lobe = 2; lobe >= 0; lobe--) {
       const drift = lobe * (5 + wave);
       const lx = drawX + backX * drift + backY * wave * lobe * 2;
       const ly = drawY + backY * drift - backX * wave * lobe * 2;
       const lr = radius * (1 - lobe * 0.28);
-      ctx.fillStyle = held
-        ? `rgba(230, 199, 102, ${0.75 - lobe * 0.22})`
-        : `rgba(176, 106, 208, ${0.7 - lobe * 0.2})`;
+      if (lobe === 0) {
+        const core = ctx.createRadialGradient(lx - 1, ly - 1, 0.5, lx, ly, lr + 1.5);
+        core.addColorStop(0, rgb(mix(body, [255, 255, 255], 0.55), 0.95));
+        core.addColorStop(0.55, rgb(body, 0.8));
+        core.addColorStop(1, rgb(body, 0));
+        ctx.fillStyle = core;
+      } else {
+        ctx.fillStyle = rgb(body, 0.6 - lobe * 0.18);
+      }
       ctx.beginPath();
-      ctx.arc(lx, ly, lr, 0, Math.PI * 2);
+      ctx.arc(lx, ly, lr + (lobe === 0 ? 1.5 : 0), 0, Math.PI * 2);
       ctx.fill();
     }
-    // Eyes of the dark: two pinpricks facing the prize.
-    ctx.fillStyle = held ? '#fff6e0' : '#e8d6f5';
+    // Eyes of the dark: two glowing pinpricks facing the prize.
+    ctx.fillStyle = held ? '#fff6e0' : seeker ? '#ffd6dc' : '#f2e6fb';
     ctx.beginPath();
-    ctx.arc(drawX - backY * 2.2 - backX * 1.5, drawY + backX * 2.2 - backY * 1.5, 0.9, 0, Math.PI * 2);
-    ctx.arc(drawX + backY * 2.2 - backX * 1.5, drawY - backX * 2.2 - backY * 1.5, 0.9, 0, Math.PI * 2);
+    ctx.arc(drawX - backY * 2.4 - backX * 1.8, drawY + backX * 2.4 - backY * 1.8, 1.15, 0, Math.PI * 2);
+    ctx.arc(drawX + backY * 2.4 - backX * 1.8, drawY - backX * 2.4 - backY * 1.8, 1.15, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -722,15 +741,45 @@ function drawWardens(ctx, round, animTime, visuals) {
   const dt = Math.min(0.1, Math.max(0.001, animTime - (visuals.lastTime ?? animTime)));
   visuals.lastTime = animTime;
   for (const warden of round.wardens) {
-    if (!warden.slotId) continue;
-    const slot = round.slots.find(candidate => candidate.id === warden.slotId);
-    if (!slot && warden.slotId !== HEART_SLOT) continue;
-    const target = slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
+    const slot = warden.slotId ? round.slots.find(candidate => candidate.id === warden.slotId) : null;
+    if (warden.slotId && !slot && warden.slotId !== HEART_SLOT) continue;
+    // Unposted wardens wait by the fire; posted ones stand a pace
+    // rimward of their charge, facing the dark.
+    let target;
+    if (!warden.slotId) {
+      target = { x: CANVAS / 2 + (warden.id === 1 ? 26 : -26), y: CANVAS / 2 + 14 };
+    } else {
+      const post = slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
+      const outX = post.x - CANVAS / 2;
+      const outY = post.y - CANVAS / 2;
+      const away = Math.hypot(outX, outY) || 1;
+      target = slot
+        ? { x: post.x + (outX / away) * 21, y: post.y + (outY / away) * 21 }
+        : { x: post.x + 4, y: post.y - 24 };
+    }
     let pos = visuals.wardens.get(warden.id);
     if (!pos) { pos = { ...target }; visuals.wardens.set(warden.id, pos); }
     pos.x += (target.x - pos.x) * Math.min(1, dt * 7);
     pos.y += (target.y - pos.y) * Math.min(1, dt * 7);
     const moving = Math.hypot(target.x - pos.x, target.y - pos.y) > 2;
+    const posted = Boolean(warden.slotId);
+    const postPixel = !posted ? null
+      : (slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 });
+    // A gold tether binds the warden to the shade in his grip.
+    if (posted && !moving) {
+      const gripped = round.shades.find(shade =>
+        shade.phase === 'held' && (shade.targetSlotId ?? HEART_SLOT) === warden.slotId);
+      if (gripped) {
+        ctx.strokeStyle = `rgba(230, 199, 102, ${0.55 + 0.2 * Math.sin(animTime * 6)})`;
+        ctx.lineWidth = 1.3;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(pos.x + 5, pos.y - 8);
+        ctx.lineTo(postPixel.x, postPixel.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
 
     // Lantern light pools around the standing warden.
     const pool = ctx.createRadialGradient(pos.x, pos.y, 2, pos.x, pos.y, 26);
@@ -768,13 +817,13 @@ function drawWardens(ctx, round, animTime, visuals) {
     ctx.fill();
 
     // On station: a faint watch-circle marks the guarded post.
-    if (!moving) {
+    if (!moving && posted) {
       ctx.strokeStyle = `rgba(159, 242, 255, ${0.35 + 0.15 * Math.sin(animTime * 3)})`;
       ctx.lineWidth = 1.2;
       ctx.setLineDash([5, 5]);
       ctx.lineDashOffset = animTime * 6;
       ctx.beginPath();
-      ctx.arc(target.x, target.y, 18, 0, Math.PI * 2);
+      ctx.arc(postPixel.x, postPixel.y, 18, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -803,7 +852,19 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
 export function drawEffects(ctx, effects, animTime) {
   for (const effect of effects) {
     const age = animTime - effect.start;
-    if (effect.type === 'built' && age < 0.55) {
+    if (effect.type === 'banish' && age < 0.45) {
+      // A shade unmade: the smoke collapses inward, gold at the last.
+      const t = age / 0.45;
+      ctx.strokeStyle = `rgba(176, 106, 208, ${0.8 * (1 - t)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, 14 * (1 - t) + 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255, 232, 170, ${(1 - t) * 0.9})`;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, 2.5 * (1 - t) + 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (effect.type === 'built' && age < 0.55) {
       // A new building settles: a gold ring blooms and fades.
       const alpha = 0.8 * (1 - age / 0.55);
       ctx.strokeStyle = `rgba(255, 208, 130, ${alpha})`;
@@ -817,6 +878,17 @@ export function drawEffects(ctx, effects, animTime) {
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(effect.x, effect.y, 13 + age * 14, 0, Math.PI * 2);
+      ctx.stroke();
+      // Splinters fly.
+      ctx.strokeStyle = `rgba(230, 200, 170, ${alpha})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let s = 0; s < 4; s++) {
+        const angle = s * 1.7 + 0.5;
+        const reach = 8 + age * 30;
+        ctx.moveTo(effect.x + Math.cos(angle) * reach, effect.y + Math.sin(angle) * reach);
+        ctx.lineTo(effect.x + Math.cos(angle) * (reach + 3.5), effect.y + Math.sin(angle) * (reach + 3.5));
+      }
       ctx.stroke();
     } else if (effect.type === 'fall' && age < 0.7) {
       const alpha = 0.7 * (1 - age / 0.7);

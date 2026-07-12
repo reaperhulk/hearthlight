@@ -117,6 +117,7 @@ export function App() {
       if (entry?.spawned === 0) sfx.still(); else sfx.dusk();
       const omen = entry?.omen === 'hungry' ? 'A Hungry Night'
         : entry?.omen === 'still' ? `A Still Night — ${STILL_DEBT} more come tomorrow` : null;
+      effectsRef.current = effectsRef.current.filter(effect => effect.type !== 'banner');
       effectsRef.current.push({ type: 'sweep', color: 'rgba(150, 90, 170, ', start: now });
       effectsRef.current.push({
         type: 'banner',
@@ -131,6 +132,7 @@ export function App() {
       const omen = round.omen?.night === round.day
         ? (round.omen.type === 'hungry' ? 'omen: a Hungry Night comes' : 'omen: a Still Night comes')
         : null;
+      effectsRef.current = effectsRef.current.filter(effect => effect.type !== 'banner');
       effectsRef.current.push({ type: 'sweep', color: 'rgba(255, 208, 130, ', start: now });
       effectsRef.current.push({
         type: 'banner',
@@ -199,7 +201,16 @@ export function App() {
     const built = slots => slots.filter(slot => slot.structure).length;
     if (built(round.slots) > built(prev.slots) && round.phase === 'day') sfx.place();
     const nightSum = (stats, key) => (stats?.nights || []).reduce((sum, night) => sum + night[key], 0);
-    if (nightSum(round.stats, 'banished') > nightSum(prev.stats, 'banished')) sfx.banish();
+    if (nightSum(round.stats, 'banished') > nightSum(prev.stats, 'banished')) {
+      sfx.banish();
+      for (const shade of prev.shades) {
+        if (shade.phase !== 'held') continue;
+        if (round.shades.some(candidate => candidate.id === shade.id)) continue;
+        const slot = shade.targetSlotId ? round.slots.find(candidate => candidate.id === shade.targetSlotId) : null;
+        const at = slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
+        effectsRef.current.push({ type: 'banish', x: at.x, y: at.y, start: now });
+      }
+    }
     if (nightSum(round.stats, 'towerKills') > nightSum(prev.stats, 'towerKills')) sfx.tower();
   }, [state]);
 
