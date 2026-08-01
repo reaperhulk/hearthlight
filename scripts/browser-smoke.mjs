@@ -110,6 +110,35 @@ try {
   if (!posted) failures.push('night threat button did not post the warden');
   else note('warden posted from the night panel');
 
+  // Motion must follow the FRAME, not the engine flush. The engine ticks
+  // ten times a second for battery; if the drawn clock only advanced with
+  // it, every shade would step 10x a second however fast the canvas
+  // painted — which is exactly what "stuttery" looked like before the
+  // render loop learned to interpolate between flushes.
+  const smoothness = await page.evaluate(() => new Promise(resolve => {
+    const drawn = [];
+    const engine = [];
+    const started = performance.now();
+    const step = () => {
+      drawn.push(window.__game.clock());
+      engine.push(window.__game.getState().round.time);
+      if (performance.now() - started < 900) requestAnimationFrame(step);
+      else resolve({
+        frames: drawn.length,
+        drawnValues: new Set(drawn.map(value => value.toFixed(4))).size,
+        engineValues: new Set(engine.map(value => value.toFixed(4))).size,
+      });
+    };
+    requestAnimationFrame(step);
+  }));
+  if (smoothness.frames < 20) {
+    note(`skipped smoothness check (only ${smoothness.frames} frames sampled)`);
+  } else if (smoothness.drawnValues < smoothness.frames * 0.9) {
+    failures.push(`the drawn clock stepped ${smoothness.drawnValues} times over ${smoothness.frames} frames — motion is quantized to the engine flush`);
+  } else {
+    note(`motion is frame-smooth: ${smoothness.drawnValues} drawn positions over ${smoothness.frames} frames (engine flushed ${smoothness.engineValues}x)`);
+  }
+
   // Fast-forward the whole round to its inevitable end.
   for (let hops = 0; hops < 20; hops++) {
     const phase = await page.evaluate(() => {

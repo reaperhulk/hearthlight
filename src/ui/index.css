@@ -464,7 +464,11 @@ button:focus-visible, canvas:focus-visible {
    with the live canvas transparent on top. Nothing here is repainted by
    the frame loop. */
 canvas.town-map.terrain { position: absolute; inset: 0; pointer-events: none; }
-canvas.town-map.terrain.dark { will-change: opacity; }
+/* React sets this from the engine clock, which flushes ten times a
+   second — without a transition the dusk fade steps just like the shades
+   did. The compositor fills in the gaps for free. */
+canvas.town-map.terrain.dark { will-change: opacity; transition: opacity 0.12s linear; }
+@media (prefers-reduced-motion: reduce) { canvas.town-map.terrain.dark { transition: none; } }
 .canvas-wrap > canvas.town-map:not(.terrain) { position: relative; }
 /* The last of the light: the dark presses in from the edges as the Heart
    fails, and throbs below 30%. Opacity on its own layer — the compositor

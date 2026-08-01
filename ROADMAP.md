@@ -508,6 +508,30 @@ commit pushed to main. Update checkboxes as work lands.
       after an unchanged build measured 58fps and then 33fps an hour
       apart and silently invalidated an afternoon of comparisons.
 
+- [x] **The wave moves like a wave (cycle 26)** — playtest: "it looks
+      stuttery for the movement of the shades. Are they on a low tick rate
+      or something?" They were, and no amount of frame rate was ever going
+      to fix it. Cycle 19 dropped the engine/React flush to 10Hz for
+      battery and claimed "the canvas keeps its 60fps animations" — true
+      for anything driven by `animTime` (stars, flame, dash offsets) and
+      FALSE for everything positioned from `round.time`: shades in flight,
+      countdown arcs, Warden readiness rings. Those advanced ten times a
+      second while the canvas painted at 60-120, so every shade held the
+      same position for five or six frames and then jumped. Every cycle of
+      render optimization raised the frame rate without making the motion
+      any smoother, which is exactly the shape of the complaint.
+      The paint loop now carries an interpolated clock between flushes
+      (`renderTime()`, clamped at 250ms so a stalled engine can never let
+      the picture run away from the simulation) and the whole moving half
+      of the scene reads from it — including the tap hit-test, so a tap
+      lands on the wisp the player can actually see. The dusk fade got the
+      same treatment via a CSS transition on the dark layer's opacity.
+      Measured, not assumed: the browser smoke samples the drawn clock
+      against the engine clock and now reports 55 distinct drawn positions
+      over 55 frames against 10 engine flushes — it would have been 10
+      before — and fails if motion ever quantizes to the flush again.
+      Same-session control comparison confirms no render cost.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

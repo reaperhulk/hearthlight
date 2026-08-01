@@ -106,6 +106,17 @@ the Long Dawn (15 nights, everything kept) closes the story.
   drawn once per entity wants a cached sprite (`coreSprite`), and any
   dashed stroke wants to be SHORT — dash tessellation is charged by path
   length, every frame, and a trail across the map is expensive.
+- THE ENGINE FLUSHES AT 10Hz; THE CANVAS PAINTS AT THE DISPLAY'S RATE.
+  Anything positioned from `round.time` therefore moves in 100ms steps
+  unless it reads the INTERPOLATED clock the paint loop carries between
+  flushes (`renderTime()` in App, threaded into `drawTown`). This shipped
+  broken for five cycles: shades, countdown arcs and Warden readiness all
+  stepped ten times a second while the frame rate climbed past 120, and no
+  amount of render optimization touched it — a fast frame rate drawing
+  stale positions is still stuttery. The browser smoke asserts the drawn
+  clock takes a distinct value EVERY frame. Anything React drives from the
+  engine clock (the dark terrain layer's opacity) wants a CSS transition
+  for the same reason.
 - Render by CHANGE FREQUENCY, in three tiers: terrain (two stacked
   canvases cross-faded by CSS opacity, painted when the map's shape
   changes), the town (`paintTown`, repainted when `townKey` changes — a

@@ -51,6 +51,9 @@ export function App() {
   const selectedRef = useRef(selectedCard);
   const inspectedRef = useRef(inspectedId);
   const canvasRef = useRef(null);
+  // Wall-clock anchor for the engine's last flush, so the paint loop can
+  // carry round.time forward smoothly between them.
+  const clockRef = useRef({ time: 0, at: 0 });
   // The terrain lives on two stacked canvases the compositor cross-fades:
   // painting it costs nothing per frame, and the dusk ease is a CSS
   // opacity animation rather than a full-canvas blend sixty times a second.
@@ -63,7 +66,20 @@ export function App() {
     stateRef.current = state;
     selectedRef.current = selectedCard;
     inspectedRef.current = inspectedId;
+    const flushed = state.round?.time;
+    if (flushed != null && flushed !== clockRef.current.time) {
+      clockRef.current = { time: flushed, at: performance.now() / 1000 };
+    }
   }, [state, selectedCard, inspectedId]);
+
+  // round.time as it should be RIGHT NOW, not as of the last flush.
+  // Clamped so a stalled or paused engine can never let the picture run
+  // away from the simulation.
+  const renderTime = useCallback(() => {
+    const clock = clockRef.current;
+    if (!clock.at) return stateRef.current.round?.time ?? 0;
+    return clock.time + Math.min(0.25, Math.max(0, performance.now() / 1000 - clock.at));
+  }, []);
 
   // Persistence: save every 2s and whenever the tab hides — unless
   // another window holds the fire now.
@@ -334,9 +350,13 @@ export function App() {
         };
       },
       resetPaint: () => { paintRef.current = { frames: 0, total: 0, max: 0, worst: [] }; },
+      // The clock the canvas actually draws with. The engine flushes at
+      // 10Hz; if this only advanced with it, every moving thing would
+      // step 10 times a second no matter the frame rate.
+      clock: () => renderTime(),
     };
     return () => { delete window.__game; };
-  }, []);
+  }, [renderTime]);
 
   // Game loop: engine ticks at wall-clock speed, but React state only
   // updates ~10x a second — the canvas paints at full frame rate from
@@ -426,7 +446,8 @@ export function App() {
         paintTownLayer();
       }
       if (stateRef.current.round) {
-        drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current, visualsRef.current, hoverRef.current);
+        drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current,
+          visualsRef.current, hoverRef.current, renderTime());
         pruneEffects(effectsRef.current, animTime);
         drawEffects(ctx, effectsRef.current, animTime);
         const cost = performance.now() - started;
@@ -444,7 +465,7 @@ export function App() {
       window.removeEventListener('resize', onResize);
     };
     // Remount the paint loop when a round starts or ends.
-  }, [hasRound]);
+  }, [hasRound, renderTime]);
 
   const [breakTarget, setBreakTarget] = useState(null);
   const breakTargetRef = useRef(null);
@@ -555,7 +576,9 @@ export function App() {
         let progress = 1;
         if (shade.phase === 'approach') {
           const span = Math.max(0.001, shade.arrivesAt - shade.spawnedAt);
-          progress = Math.max(0, Math.min(1, (round.time - shade.spawnedAt) / span));
+          // The same interpolated clock the canvas drew with, so a tap
+          // lands on the wisp the player can actually see.
+          progress = Math.max(0, Math.min(1, (renderTime() - shade.spawnedAt) / span));
         }
         const headX = from.x + (to.x - from.x) * progress;
         const headY = from.y + (to.y - from.y) * progress;
@@ -591,7 +614,7 @@ export function App() {
     } else if (current.round.phase === 'night') {
       sendWarden(nearest.id);
     }
-  }, [sendWarden]);
+  }, [sendWarden, renderTime]);
 
   if (elsewhere) {
     return (

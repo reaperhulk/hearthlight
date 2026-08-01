@@ -995,8 +995,15 @@ function drawWardens(ctx, round, animTime, visuals, cooldown, byId) {
   }
 }
 
-export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visuals = { wardens: new Map() }, hover = null) {
-  const round = state.round;
+export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visuals = { wardens: new Map() }, hover = null, renderTime = null) {
+  // The engine flushes ten times a second; the canvas paints at the
+  // display's rate. Everything positioned from round.time — shades in
+  // flight, countdown arcs, the Warden's readiness — would therefore move
+  // in 100ms steps however fast we paint, which is exactly what "stuttery"
+  // looks like. The render loop hands us an interpolated clock and the
+  // whole moving half of the scene reads from it instead.
+  const live = state.round;
+  const round = renderTime == null ? live : { ...live, time: renderTime };
   const darkness = getDarkness(round);
   ctx.save();
   // A structure falling rattles the world, briefly.
