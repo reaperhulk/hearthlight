@@ -5,7 +5,7 @@ import { STRUCTURES, STRUCTURE_IDS } from './structures.js';
 import { cheapestRootCost, getChoirVoices, getDraftSize, getFoundationBonus, getHeartMax, getUnlockedRings, getWardenCount } from './meta.js';
 import { STRUCTURE_HIT } from './night.js';
 
-export const DAY_LENGTH = 15;
+export const DAY_LENGTH = 12;
 // A keeper's very first day hurries no one: triple time before dusk
 // falls on its own. Every later day keeps the real clock.
 export const FIRST_DAY_GRACE = 3;
@@ -13,8 +13,8 @@ export const FIRST_DAY_GRACE = 3;
 export function getDayLength(round) {
   return DAY_LENGTH * (round.gentleDay && round.day === 1 ? FIRST_DAY_GRACE : 1);
 }
-export const START_GLOW = 12;
-export const DAWN_GLOW_PER_STRUCTURE = 3;
+export const START_GLOW = 30;
+export const DAWN_GLOW_PER_STRUCTURE = 5;
 export const REROLL_COST = 4;
 export const LEVEL_UP_NIGHTS = 3;
 export const LEVEL_UP_NIGHTS_VETERAN = 7;
@@ -79,7 +79,7 @@ export function beginRound(state, rng = Math.random) {
     draft: [],
     placedToday: false,
     rerolledToday: false,
-    mendedToday: false,
+    mendedToday: 0,
     shades: [],
     wardens: Array.from({ length: getWardenCount(state) }, (_, index) => ({
       id: index + 1,
@@ -103,17 +103,26 @@ export function getStructureHp(state, structureId) {
   return STRUCTURES[structureId].hp + getFoundationBonus(state);
 }
 
-// Glow production per second, split so adjacency's real contribution is
+// Glow arrives at DAWN, as a lump, and is spent immediately. It used to
+// trickle in real time, which is what made the day a waiting room: you
+// picked a card in the first second and then watched a number rise for
+// fourteen more. The town's yield is unchanged in total — a day's worth
+// of trickle is now a day's wage, paid up front — but the SHAPE is the
+// whole point. A budget you hold is a decision; a budget you are waiting
+// for is a queue.
+export const YIELD_DAY = 15;   // a day's worth of what a structure makes
+
+// Glow production per day, split so adjacency's real contribution is
 // measurable (depth telemetry: is spatial placement earning its keep?).
 export function getGlowBreakdown(state) {
   const round = state.round;
   if (!round) return { total: 0, adjacency: 0 };
-  let base = 1; // the Heart's own trickle
+  let base = 2; // the Heart's own keeping
   let adjacency = 0;
   for (const slot of round.slots) {
     if (!slot.structure) continue;
     const def = STRUCTURES[slot.structure.type];
-    const levelMult = levelGlowMult(slot.structure.level) * (slot.ring > 0 ? FRONTIER_YIELD : 1);
+    const levelMult = levelGlowMult(slot.structure.level) * (slot.ring >= 2 ? FRONTIER_YIELD : 1);
     base += (def.glowPerSecond || 0) * levelMult;
     if (def.adjacencyBonus) {
       for (const neighbor of getAdjacentSlots(round.slots, slot.id)) {
@@ -125,14 +134,32 @@ export function getGlowBreakdown(state) {
   return { total: base + adjacency, adjacency };
 }
 
+// Kept as "what the town yields in a day" — the same number the old
+// per-second rate described, just paid once.
 export function getGlowRate(state) {
   return getGlowBreakdown(state).total;
 }
 
-// The one day decision: place a drafted structure on an empty slot.
+export function getDawnWage(state) {
+  const round = state.round;
+  if (!round) return 0;
+  const built = round.slots.filter(slot => slot.structure);
+  const perStructure = built.reduce((sum, slot) =>
+    sum + DAWN_GLOW_PER_STRUCTURE + (STRUCTURES[slot.structure.type].dawnGlow || 0), 0);
+  return Math.round(getGlowRate(state) * YIELD_DAY + perStructure);
+}
+
+// The day is a HAND, not a single act. Cards are drafted, and you play as
+// many as your Glow affords; each one is consumed as it is played, and a
+// fresh hand is dealt at dawn.
+//
+// This replaces the old one-placement-per-day rule, which was the single
+// biggest source of dead time in the game: the day was one click followed
+// by fifteen seconds of watching a number rise. Glow is the only budget
+// now — the decision is WHICH cards and WHERE, not "wait until I may act".
 export function placeStructure(state, structureId, slotId) {
   const round = state.round;
-  if (!round || round.phase !== 'day' || round.placedToday) return null;
+  if (!round || round.phase !== 'day') return null;
   if (!round.draft.includes(structureId)) return null;
   const def = STRUCTURES[structureId];
   if (round.glow < def.cost) return null;
@@ -150,24 +177,31 @@ export function placeStructure(state, structureId, slotId) {
       nightsSurvived: 0,
     },
   };
+  const hand = [...round.draft];
+  hand.splice(hand.indexOf(structureId), 1);
   return {
     ...state,
     round: {
       ...round,
       glow: round.glow - def.cost,
       slots,
-      placedToday: true,
+      draft: hand,
+      placedToday: true,   // still true once anything has been built today
     },
   };
 }
 
-// Mending: one pair of hands each day — build, OR buy back one bitten
-// hit point. Mend shares the day's single act with placement because
-// anything looser measured as an immortality engine (uncapped: keeper
-// 6.8 -> 9.4 nights; a free daily mend on top of building: 250s rounds).
-// As the day's act it is real triage — and it gives a full town (every
-// slot built) something worth doing at dawn.
+// Mending buys back one bitten hit point. It keeps a hard per-day cap
+// because an uncapped mend measured as an immortality engine (keeper
+// 6.8 -> 9.4 nights), but it no longer competes with building — the day
+// is a hand now, and spending it all on repairs instead of walls is the
+// decision, not "which single act do I get".
 export const REPAIR_COST = 12;
+
+// Second Hands (meta): a second pair of hands mends twice a day.
+export function getMendsPerDay(state) {
+  return state.meta.morningStockpile ? 2 : 1;
+}
 
 export function getRepairMax(state, structure) {
   return getStructureHp(state, structure.type) + (structure.level - 1);
@@ -175,11 +209,8 @@ export function getRepairMax(state, structure) {
 
 export function repairStructure(state, slotId) {
   const round = state.round;
-  // Second Hands (meta): mend stops sharing the day's act with placement
-  // — the once-per-day cap still holds.
-  const sharesAct = !state.meta.morningStockpile;
-  if (!round || round.phase !== 'day' || round.mendedToday) return null;
-  if (sharesAct && round.placedToday) return null;
+  if (!round || round.phase !== 'day') return null;
+  if ((round.mendedToday || 0) >= getMendsPerDay(state)) return null;
   if (round.glow < REPAIR_COST) return null;
   const slotIndex = round.slots.findIndex(slot => slot.id === slotId);
   const structure = round.slots[slotIndex]?.structure;
@@ -191,8 +222,7 @@ export function repairStructure(state, slotId) {
     round: {
       ...round,
       glow: round.glow - REPAIR_COST,
-      placedToday: sharesAct ? true : round.placedToday,
-      mendedToday: true,
+      mendedToday: (round.mendedToday || 0) + 1,
       slots,
       log: [...round.log, { day: round.day, message: `Fresh timber in the ${STRUCTURES[structure.type].name} — it stands taller.` }].slice(-30),
     },
@@ -203,7 +233,7 @@ export function repairStructure(state, slotId) {
 // a real decision: 4 Glow now versus a shot at the card you need.
 export function rerollDraft(state, rng = Math.random) {
   const round = state.round;
-  if (!round || round.phase !== 'day' || round.placedToday || round.rerolledToday) return null;
+  if (!round || round.phase !== 'day' || round.rerolledToday) return null;
   if (round.glow < REROLL_COST) return null;
   const next = { ...round, glow: round.glow - REROLL_COST, rerolledToday: true };
   next.draft = drawDraft({ ...state, round: next }, rng);

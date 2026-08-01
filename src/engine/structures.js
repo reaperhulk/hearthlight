@@ -39,10 +39,10 @@ export const STRUCTURES = {
     name: 'Watchtower',
     cost: 16,
     hp: 1,
-    nightCharges: 2,
+    nightCharges: 1,
     weight: 2,
     defensive: true,
-    description: 'Two bolts each night burn shades reaching its neighbors. Cannot save itself.',
+    description: 'One bolt each night burns a shade reaching its neighbors. Cannot save itself.',
   },
   palisade: {
     id: 'palisade',

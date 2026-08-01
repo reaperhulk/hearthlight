@@ -1,9 +1,19 @@
 // The town map: radial slots in rings around the Heart (0.5, 0.5).
 // No roads, no zoning — every slot is a placement decision.
 
+// A town you can keep building. Six slots filled up in two days once the
+// day became a hand rather than a single act, and a full map is a dead
+// day — the back half of every round had nothing to decide. The inner
+// keep is bigger and the frontier bigger still, so the map is somewhere
+// you are still shaping when the dark finally wins.
+// Three rings, two of them open from the first dusk. A day is a hand now,
+// so a nine-slot town fills by day four and every day after it is dead
+// air — the exact failure the old six-slot map had at day six. The town
+// has to be somewhere you are STILL shaping when the dark finally wins.
 export const RINGS = [
-  { radius: 0.2, slots: 6 },
-  { radius: 0.36, slots: 10 },
+  { radius: 0.18, slots: 9 },
+  { radius: 0.31, slots: 13 },
+  { radius: 0.43, slots: 15 },
 ];
 
 export function createSlots(unlockedRings = 1) {

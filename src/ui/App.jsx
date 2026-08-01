@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadState, saveState } from '../engine/state.js';
-import { abandonRound, getGlowRate, getRepairMax, placeStructure, repairStructure, rerollDraft, getDayLength, REPAIR_COST, REROLL_COST, HEART_MAX } from '../engine/round.js';
+import { abandonRound, getDawnWage, getMendsPerDay, getRepairMax, placeStructure, repairStructure, rerollDraft, getDayLength, REPAIR_COST, REROLL_COST, HEART_MAX } from '../engine/round.js';
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, getWardenTemper, moveWarden, HEART_SLOT, STILL_DEBT, WARDEN_TEMPER_TIERS } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
@@ -517,7 +517,7 @@ export function App() {
       if (round.phase === 'day') {
         if (key >= '1' && key <= '4') {
           const id = round.draft[Number(key) - 1];
-          if (id && round.glow >= STRUCTURES[id].cost && !round.placedToday) {
+          if (id && round.glow >= STRUCTURES[id].cost) {
             setSelectedCard(previous => (previous === id ? null : id));
           }
         } else if (key === 'd') {
@@ -683,7 +683,9 @@ export function App() {
               </span>
             );
           })()}
-          <span className="chip stat">Glow <strong>{Math.floor(round.glow)}</strong> <em>+{getGlowRate(state).toFixed(1)}/s</em></span>
+          <span className="chip stat" title="Glow in hand — spend it now; the town pays again at dawn">
+            Glow <strong>{Math.floor(round.glow)}</strong> <em>dawn +{getDawnWage(state)}</em>
+          </span>
           <span className="chip stat">Embers <strong>{state.embers}</strong></span>
         </div>
       </header>
@@ -749,7 +751,7 @@ export function App() {
               aria-hidden="true"
             />
           )}
-          {state.totalRounds === 1 && round.day === 1 && isDay && !round.placedToday && (
+          {state.totalRounds === 1 && round.day === 1 && isDay && round.draft.length > 0 && (
             <div className="coach">{selectedCard ? 'now tap a stone pad on the map' : 'pick a card below ↓'}</div>
           )}
           {state.totalRounds === 1 && round.day === 1 && !isDay && !fallen &&
@@ -770,12 +772,11 @@ export function App() {
               <div className="draft">
                 {round.draft.map(id => {
                   const def = STRUCTURES[id];
-                  const affordable = round.glow >= def.cost && !round.placedToday;
-                  const rate = getGlowRate(state);
-                  const eta = Math.ceil((def.cost - round.glow) / Math.max(0.1, rate));
-                  const etaLabel = round.placedToday ? null
-                    : round.glow >= def.cost ? null
-                    : eta <= Math.ceil(dayRemaining) ? `in ${eta}s` : 'not today';
+                  const affordable = round.glow >= def.cost;
+                  // Nothing accrues during the day any more, so a card you
+                  // cannot afford is a card for tomorrow — say that plainly
+                  // instead of counting down to a trickle that never comes.
+                  const etaLabel = affordable ? null : `needs ${def.cost - Math.floor(round.glow)}`;
                   return (
                     <button
                       key={id}
@@ -802,7 +803,7 @@ export function App() {
                   );
                 })}
               </div>
-              {!round.placedToday && !round.rerolledToday && (
+              {!round.rerolledToday && (
                 <button
                   className="reroll"
                   disabled={round.glow < REROLL_COST}
@@ -815,9 +816,7 @@ export function App() {
                 {(() => {
                   const forecast = getNightForecast(round);
                   const brings = forecast.omen === 'still' ? 'a still night' : `${forecast.count} come`;
-                  return round.placedToday
-                    ? `Call the Dusk — ${brings} · auto in ${Math.ceil(dayRemaining)}s`
-                    : `Skip the day — ${brings}`;
+                  return `Call the Dusk — ${brings} · auto in ${Math.ceil(dayRemaining)}s`;
                 })()}
               </button>
               <p className="keys-hint">keys: 1–4 pick · D dusk · R reroll · Esc clear</p>
@@ -839,16 +838,16 @@ export function App() {
                   {inspectedSlot.structure.hp < getRepairMax(state, inspectedSlot.structure) && (
                     <button
                       className="mend"
-                      disabled={(!state.meta.morningStockpile && round.placedToday) || round.mendedToday || round.glow < REPAIR_COST}
+                      disabled={(round.mendedToday || 0) >= getMendsPerDay(state) || round.glow < REPAIR_COST}
                       onClick={() => setState(prev => {
                         const mended = repairStructure(prev, inspectedSlot.id);
                         if (mended) sfx.mend();
                         return mended || prev;
                       })}
                     >
-                      {(!state.meta.morningStockpile && round.placedToday) || round.mendedToday
+                      {(round.mendedToday || 0) >= getMendsPerDay(state)
                         ? 'The hands are spent for today'
-                        : `Mend the teeth-marks — ${REPAIR_COST} Glow${state.meta.morningStockpile ? '' : " (the day's act)"}`}
+                        : `Mend the teeth-marks — ${REPAIR_COST} Glow`}
                     </button>
                   )}
                 </div>

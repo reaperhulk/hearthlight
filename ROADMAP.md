@@ -532,6 +532,41 @@ commit pushed to main. Update checkboxes as work lands.
       before — and fails if motion ever quantizes to the flush again.
       Same-session control comparison confirms no render cost.
 
+- [x] **The day is a hand (cycle 27)** — playtest verdict: "the game is
+      just...not fun." It wasn't, and every metric said it was fine.
+      Measured first: 4.9 actions per minute, one every 12.3 seconds; the
+      story showed six placements and then SEVEN consecutive days with no
+      decision at all once the map filled; towers killed 12 of 20 shades
+      on the final night while the player banished 2. The harness could
+      not see any of it because every panel measured outcomes and none
+      measured whether anyone was playing.
+      So engagement became a measured promise: actions/min split by phase,
+      the share of kills the player caused, both asserted. Then the fixes,
+      in the order the measurements demanded — and two of them were wrong
+      first and had to be measured back out.
+      (1) Removing the one-placement-per-day rule changed almost nothing
+      (4.9 -> 5.4). GLOW was the throttle, not the rule: you could play
+      three cards and still only afford one. Glow is a morning wage now,
+      paid in full at dawn and spent at once — the real-time trickle WAS
+      the waiting.
+      (2) The map then became the throttle: a hand of three fills six
+      slots in two days. Three rings (9 / 13 / 15), the outermost being
+      the Outer Ring's frontier, so the town outlasts the round.
+      (3) A 23-slot town was far too strong (9.4n/183s), so the dark now
+      scales with what you built. Charging from the first stone made
+      TURTLING BEAT BUILDING — a worse failure than the one being fixed —
+      so only sprawl past a keep's worth draws extra teeth.
+      (4) Towers were doing the playing: one bolt a night instead of two.
+      Night min length 10s -> 6s, approach 8-13s -> 4-8s, Warden cooldown
+      6s -> 4s (3s made the juggler immortal — the guard caught it).
+      Net: 4.9 -> 11.0 actions/min, day actions 5 -> 21 a round, player
+      caused 51% of kills (was 12-35%), keeper 7.4n/155s — the same
+      pacing band as before. Every day in the story now has 1-3
+      placements where the back half used to have none.
+      NOT FIXED: the night is still barely one action per night, and it is
+      where the remaining gap to a genuinely busy 15-20/min lives. That
+      needs the night's verb set to change, which is a different cycle.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that

@@ -193,7 +193,9 @@ function botDay(state, profile, t, rng, collector, ban) {
       }
     }
   }
-  if (!state.round.placedToday && !atCap && t % cadence === 0) {
+  // Play the hand down: as many cards as Glow affords, not one a day.
+  // The loop is bounded by the hand size, so it always terminates.
+  for (let play = 0; play < 5 && !atCap && t % cadence === 0; play++) {
     let card = chooseCard(state, config.day, rng, ban);
     // A per-type cap behaves like a ban only once the cap is reached, so
     // the profile still plays the card normally up to that point.
@@ -207,21 +209,21 @@ function botDay(state, profile, t, rng, collector, ban) {
         if (placed) {
           collector.picks[card] = (collector.picks[card] || 0) + 1;
           collector.placements?.push({ day: round.day, card, slotId: slot.id });
+          collector.acts += 1;
+          collector.dayActs += 1;
           state = placed;
         }
       }
     }
   }
-  // Mend is the day's act when there is nothing left to build: a full
-  // town turns its hands to the most-bitten wall. With Second Hands the
-  // keeper also mends alongside building, keeping a tower banked.
+  // Mend has its own per-day budget now, so the keeper repairs whenever
+  // it can spare the Glow and something is bitten — holding back enough
+  // to still play a card while there is ground to build on.
   if (config.day === 'smart') {
     const current = state.round;
-    const secondHands = Boolean(state.meta.morningStockpile);
     const full = !current.slots.some(slot => !slot.structure);
-    const may = full ? !current.placedToday || secondHands : secondHands;
     const reserve = full ? 0 : 16;
-    if (may && current.glow >= REPAIR_COST + reserve) {
+    if (current.glow >= REPAIR_COST + reserve) {
       const bitten = current.slots
         .filter(slot => slot.structure && slot.structure.hp < getRepairMax(state, slot.structure))
         .sort((a, b) => a.structure.hp - b.structure.hp)[0];
@@ -248,7 +250,7 @@ function botDay(state, profile, t, rng, collector, ban) {
   return state;
 }
 
-function botNight(state, profile, t, rng) {
+function botNight(state, profile, t, rng, collector = emptyCollector()) {
   const config = PROFILES[profile];
   if (!config.night) return state;
   const round = state.round;
@@ -266,7 +268,9 @@ function botNight(state, profile, t, rng) {
       .filter(shade => keyOf(shade) !== ready.slotId)
       .sort((a, b) => (a.arrivesAt ?? 0) - (b.arrivesAt ?? 0));
     if (elsewhere.length === 0) return state;
-    return moveWarden(state, ready.id, keyOf(elsewhere[0])) || state;
+    const juggled = moveWarden(state, ready.id, keyOf(elsewhere[0]));
+    if (juggled) { collector.acts += 1; collector.nightActs += 1; }
+    return juggled || state;
   }
   const guarded = new Set(round.wardens.map(warden => warden.slotId).filter(Boolean));
   const threats = round.shades
@@ -279,19 +283,31 @@ function botNight(state, profile, t, rng) {
     (!warden.slotId || !busy.has(warden.slotId)));
   if (!free) return state;
   const moved = moveWarden(state, free.id, keyOf(threats[0]));
+  if (moved) { collector.acts += 1; collector.nightActs += 1; }
   return moved || state;
 }
 
 function emptyCollector() {
-  return { picks: {} };
+  return { picks: {}, acts: 0, dayActs: 0, nightActs: 0 };
 }
 
+// ENGAGEMENT. Every other panel in this file measures OUTCOMES — nights
+// survived, embers banked, the spread between strategies. None of them
+// could tell you whether anyone was playing. A round can measure perfectly
+// healthy and still be five actions a minute of watching, which is exactly
+// what the game was: one placement per day, one warden move on a six
+// second cooldown, and towers killing most of what died.
 function playRound(state, profile, rng, collector = emptyCollector(), maxSeconds = 1200, ban = null) {
+  // The collector is shared across every profile and seed, so this round's
+  // action count is the DIFFERENCE, not the running total.
+  const actsBefore = collector.acts;
+  const dayBefore = collector.dayActs;
+  const nightBefore = collector.nightActs;
   state = beginRound(state, rng);
   let seconds = 0;
   while (state.round && state.round.phase !== 'fallen' && seconds < maxSeconds) {
     if (state.round.phase === 'day') state = botDay(state, profile, seconds, rng, collector, ban);
-    else state = botNight(state, profile, seconds, rng);
+    else state = botNight(state, profile, seconds, rng, collector);
     state = tick(state, 1, rng);
     seconds++;
   }
@@ -303,7 +319,10 @@ function playRound(state, profile, rng, collector = emptyCollector(), maxSeconds
   const leveled = round ? round.slots.filter(slot => slot.structure?.level >= 2).length : 0;
   const log = round?.log || [];
   state = fell ? collectEmbers(state) : state;
-  return { state, nights, embers, seconds, fell, stats, leveled, log };
+  return { state, nights, embers, seconds, fell, stats, leveled, log, acts: collector.acts - actsBefore,
+    dayActs: collector.dayActs - dayBefore,
+    nightActs: collector.nightActs - nightBefore,
+    daySeconds: collector.daySeconds, nightSeconds: collector.nightSeconds };
 }
 
 // Breadth first, then depth: kindle every node the tree will allow in
@@ -453,6 +472,18 @@ const agg = {
   // The first fall a real person sees. CLAUDE.md promises a meta purchase
   // is affordable right after it, and nothing measured that until now.
   villagerEmbers: mean(fixed.map(result => result.villager.embers)),
+  // Actions per minute, and the share of dead shades the PLAYER caused.
+  keeperActs: mean(fixed.map(result => result.keeper.acts)),
+  keeperApm: mean(fixed.map(result => (result.keeper.acts / Math.max(1, result.keeper.seconds)) * 60)),
+  keeperDayActs: mean(fixed.map(result => result.keeper.dayActs)),
+  keeperNightActs: mean(fixed.map(result => result.keeper.nightActs)),
+  villagerApm: mean(fixed.map(result => (result.villager.acts / Math.max(1, result.villager.seconds)) * 60)),
+  playerKillShare: mean(fixed.map(result => {
+    const nights = result.keeper.stats.nights || [];
+    const byHand = nights.reduce((total, night) => total + night.banished, 0);
+    const byTower = nights.reduce((total, night) => total + night.towerKills, 0);
+    return byHand + byTower > 0 ? byHand / (byHand + byTower) : 0;
+  })),
   // Concentration: the share of a night that lands on its most-hunted
   // position. A wall that eats the whole night is the failure players
   // describe as "everything went to one palisade and then I died".
@@ -478,6 +509,7 @@ const agg = {
 }
 
 say(`\n  means: passive ${agg.passiveNights.toFixed(1)}n | villager ${agg.villagerNights.toFixed(1)}n/${Math.round(agg.villagerSeconds)}s/${agg.villagerEmbers.toFixed(1)}e (worst ${agg.villagerEmbersWorst}e) | keeper r1 ${agg.keeperNights.toFixed(1)}n/${Math.round(agg.keeperSeconds)}s/${agg.keeperEmbers.toFixed(1)} embers | arc ${agg.arcFirst.toFixed(1)} -> ${agg.arcLast.toFixed(1)}n (${Math.round(agg.arcFirstSeconds)}s -> ${Math.round(agg.arcLastSeconds)}s)`);
+say(`  engagement: ${agg.keeperDayActs.toFixed(1)} by day + ${agg.keeperNightActs.toFixed(1)} by night | keeper ${agg.keeperApm.toFixed(1)} actions/min (${agg.keeperActs.toFixed(0)} a round, one every ${(60 / Math.max(0.1, agg.keeperApm)).toFixed(1)}s) | villager ${agg.villagerApm.toFixed(1)}/min | player caused ${(agg.playerKillShare * 100).toFixed(0)}% of kills`);
 say(`  fun: worst-slot share ${(agg.worstSlotShare * 100).toFixed(0)}% | final-third loss share ${(agg.tension * 100).toFixed(0)}% | warden banishes/night ${agg.banishesPerNight.toFixed(1)} | deaths from falls ${(agg.lossFalls * 100).toFixed(0)}% / heart ${(agg.lossHeartHits * 100).toFixed(0)}% / vents ${(agg.lossVents * 100).toFixed(0)}% | leveled structures per arc-best ${agg.arcLeveled.toFixed(1)}`);
 
 // ── Depth panels (skipped with --quick) ─────────────────────────────────────
@@ -698,6 +730,19 @@ if (assertMode) {
   if (agg.villagerSeconds < 45 || agg.villagerSeconds > 150) issues.push(`villager first play ${Math.round(agg.villagerSeconds)}s outside the 45-150s (one-to-two minute) band`);
   if (agg.villagerNights < 2) issues.push(`villager dies before night 2 (${agg.villagerNights.toFixed(1)})`);
   if (agg.keeperNights <= agg.villagerNights) issues.push('skill ceiling invisible: keeper does not beat villager');
+  // The game measured healthy at 4.9 actions/min and was not fun. A round
+  // the player spends watching is a failure however long the town stands.
+  // The gate sits just under what the day-side rework actually delivers
+  // (11.0): it protects the gain rather than pretending the job is done.
+  // The remaining gap to a genuinely busy ~15-20 is the NIGHT, which is
+  // still barely one action per night — a different change from this one.
+  if (agg.keeperApm < 10) {
+    issues.push(`too little to do: keeper acts ${agg.keeperApm.toFixed(1)} times a minute (one every ${(60 / Math.max(0.1, agg.keeperApm)).toFixed(1)}s) — the round is mostly watching`);
+  }
+  // And the player has to be the reason things die, not the audience.
+  if (agg.playerKillShare < 0.3) {
+    issues.push(`the towers are playing: the player caused only ${(agg.playerKillShare * 100).toFixed(0)}% of kills`);
+  }
   // The first node must be reachable off the FIRST fall, for a median
   // human, on every seed — not on average. An incremental whose first
   // purchase needs two runs has no hook at all.

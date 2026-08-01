@@ -1,7 +1,8 @@
 # Hearthlight — agent instructions
 
-A round-based city-defense incremental. Days: one pair of hands — place one
-drafted structure OR mend one bitten hit point. Nights: shades creep from
+A round-based city-defense incremental. Days: a HAND — Glow arrives as a
+morning wage and you play as many drafted cards as it affords, plus a
+capped mend. Nights: shades creep from
 the rim; one verb — send the Warden (rested wardens redirect freely; tearing
 one off a grapple costs, and banishes temper him within the run). The dark
 always wins; nights survived become Embers; Embers buy permanent upgrades;
@@ -53,7 +54,31 @@ the Long Dawn (15 nights, everything kept) closes the story.
 - ROADMAP.md is the iteration queue; update its checkboxes as work lands.
 
 ## Design doctrine (non-negotiable)
-- Decisions, not busywork. One placement per day; one verb per night.
+- Decisions, not busywork — but NOT so few that there is nothing to do.
+  The rule was "one placement per day; one verb per night" for twenty-five
+  cycles, and it measured healthy the whole time while playing inert: 4.9
+  actions a minute, one every twelve seconds, seven consecutive days with
+  no decision at all once the map filled, and towers killing three
+  quarters of everything that died. The day is a hand now; the night is
+  still one verb, and is still the thin half.
+- ENGAGEMENT IS A MEASURED PROMISE, not a feeling. The harness reports
+  actions/min split by phase and the share of kills the PLAYER caused, and
+  asserts on both. Every other panel measures OUTCOMES — nights survived,
+  embers banked, the spread between strategies — and a game can pass all
+  of them while nobody is playing. That is exactly what happened.
+- Glow is a MORNING WAGE, paid in full at dawn and spent immediately. It
+  used to trickle in real time, which made the correct play "stand still
+  until the meter catches up with the card you already chose". A budget
+  you hold is a decision; a budget you are waiting for is a queue.
+- The map must outlast the day. Six slots plus a hand of three filled up
+  by day two and every day after was dead air; three rings (9 / 13 / 15,
+  the third being the Outer Ring's frontier) keep the town somewhere you
+  are still shaping when the dark finally wins.
+- The dark comes for WHAT YOU BUILT: past a keep's worth of buildings,
+  every few structures draws another shade. Without it a sprawling town
+  was strictly safer than a small one and placement stopped being a
+  choice; charging from the first stone instead made turtling beat
+  building, which is worse. Only sprawl pays.
 - The wall always wins; how long you delay it is the scoreboard.
 - Randomness is bounded and visible (draft pity guarantees a defense option;
   gambles like deep-route double-finds have stated odds).

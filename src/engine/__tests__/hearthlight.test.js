@@ -28,9 +28,12 @@ function runSeconds(state, seconds, rng) {
 describe('hearthlight', () => {
   it('lays out radial slots with sane adjacency', () => {
     const inner = createSlots(1);
-    expect(inner).toHaveLength(6);
+    expect(inner).toHaveLength(9);
+    // Two rings are the town proper; the third is the frontier the Outer
+    // Ring unlocks. A day is a hand now, so the map has to outlast it.
     const both = createSlots(2);
-    expect(both).toHaveLength(16);
+    expect(both).toHaveLength(22);
+    expect(createSlots(3)).toHaveLength(37);
     const neighbors = getAdjacentSlots(both, 'r0s0');
     expect(neighbors.length).toBeGreaterThanOrEqual(2);
     expect(neighbors.every(slot => slot.id !== 'r0s0')).toBe(true);
@@ -58,19 +61,28 @@ describe('hearthlight', () => {
     const state = startedRound();
     expect(state.round.phase).toBe('day');
     expect(state.round.heart).toBe(HEART_MAX);
-    expect(state.round.glow).toBe(12);
+    expect(state.round.glow).toBe(30);
     expect(state.round.draft).toHaveLength(3);
     expect(state.round.wardens).toHaveLength(1);
   });
 
-  it('places one drafted structure per day, paying Glow', () => {
+  it('plays a hand of drafted structures, paying Glow for each', () => {
     let state = startedRound();
-    state = { ...state, round: { ...state.round, draft: ['farm', 'well', 'palisade'], glow: 20 } };
+    state = { ...state, round: { ...state.round, draft: ['farm', 'well', 'palisade'], glow: 30 } };
     state = placeStructure(state, 'farm', 'r0s0');
-    expect(state.round.glow).toBe(10);
+    expect(state.round.glow).toBe(20);
     expect(state.round.slots[0].structure.type).toBe('farm');
-    // One placement per day; undrafted and occupied are refused
-    expect(placeStructure(state, 'well', 'r0s1')).toBeNull();
+    // The card is spent, but the day is not: the rest of the hand is live.
+    expect(state.round.draft).toEqual(['well', 'palisade']);
+    state = placeStructure(state, 'well', 'r0s1');
+    expect(state.round.glow).toBe(12);
+    expect(state.round.draft).toEqual(['palisade']);
+    // A card already played, and occupied ground, are both refused.
+    expect(placeStructure(state, 'farm', 'r0s2')).toBeNull();
+    expect(placeStructure(state, 'palisade', 'r0s0')).toBeNull();
+    // Glow is the only budget: an unaffordable card stays unplayed.
+    const broke = { ...state, round: { ...state.round, glow: 2 } };
+    expect(placeStructure(broke, 'palisade', 'r0s2')).toBeNull();
   });
 
   it('wells boost adjacent farms', () => {
@@ -185,9 +197,9 @@ describe('hearthlight', () => {
     state = beginRound(state, makeRng([0.1, 0.4, 0.7]));
     state = { ...state, round: { ...state.round, draft: ['farm'], glow: 20 } };
     const inner = placeStructure(state, 'farm', 'r0s0');
-    const outer = placeStructure(state, 'farm', 'r1s0');
-    const innerRate = getGlowRate(inner) - 1; // strip the Heart's trickle
-    const outerRate = getGlowRate(outer) - 1;
+    const outer = placeStructure(state, 'farm', 'r2s0');
+    const innerRate = getGlowRate(inner) - 2; // strip the Heart's own keepingckle
+    const outerRate = getGlowRate(outer) - 2;
     expect(outerRate).toBeCloseTo(innerRate * FRONTIER_YIELD);
 
     // Identical rolls: the shade closes on the frontier farm sooner.
@@ -352,9 +364,10 @@ describe('hearthlight', () => {
     expect(tower.level).toBe(3);
     expect(tower.hp).toBe(3);
     expect(levelGlowMult(tower.level)).toBe(2);
-    // A veteran tower carries a third bolt into the night.
+    // A veteran tower carries an extra bolt into the night — towers assist
+    // the Warden now (one bolt base) rather than out-killing him.
     state = endDay(state, makeRng([0.5]));
-    expect(state.round.towerCharges['r0s0']).toBe(3);
+    expect(state.round.towerCharges['r0s0']).toBe(STRUCTURES.watchtower.nightCharges + 1);
   });
 
   it('a warden grapples one shade at a time — no immortal bunker', () => {
@@ -430,16 +443,21 @@ describe('hearthlight', () => {
       },
     });
     state = bite(state);
-    // One pair of hands: the day already built, so it cannot also mend.
-    expect(repairStructure(state, 'r0s2')).toBeNull();
-    state = { ...state, round: { ...state.round, placedToday: false } };
+    // Mending no longer competes with building — the day is a hand, and
+    // spending it on repairs instead of walls is the decision.
     const glowBefore = state.round.glow;
     const hpBefore = state.round.slots[2].structure.hp;
     const mended = repairStructure(state, 'r0s2');
     expect(mended.round.slots[2].structure.hp).toBe(hpBefore + 1);
     expect(mended.round.glow).toBe(glowBefore - REPAIR_COST);
-    // ...and a day that mended cannot also build or mend again.
+    // ...but mending keeps its own hard per-day cap: uncapped repair
+    // measured as an immortality engine.
     expect(repairStructure(mended, 'r0s2')).toBeNull();
+    // Second Hands buys exactly one more mend, not unlimited ones.
+    const twoHands = { ...mended, meta: { morningStockpile: 1 } };
+    const again = repairStructure(twoHands, 'r0s2');
+    expect(again).toBeTruthy();
+    expect(repairStructure(again, 'r0s2')).toBeNull();
     expect(placeStructure(mended, 'palisade', 'r0s0')).toBeNull();
     // A structure at full toughness has nothing to mend.
     expect(repairStructure({ ...state, round: { ...state.round, slots: startedRound().round.slots } }, 'r0s2')).toBeNull();
@@ -584,8 +602,7 @@ describe('hearthlight', () => {
     state = placeStructure(state, 'palisade', 'r0s0');
     expect(state.round.slots[0].structure.hp).toBe(4);
 
-    // Second Hands: mending no longer spends the day's act — a town that
-    // built today can still mend (once), and vice versa.
+    // Second Hands: two mends a day instead of one.
     state = {
       ...state,
       round: {
@@ -595,10 +612,11 @@ describe('hearthlight', () => {
           : slot),
       },
     };
-    expect(state.round.placedToday).toBe(true);
     const mended = repairStructure(state, 'r0s0');
     expect(mended.round.slots[0].structure.hp).toBe(2);
-    expect(repairStructure(mended, 'r0s0')).toBeNull(); // still once per day
+    const twice = repairStructure(mended, 'r0s0');
+    expect(twice.round.slots[0].structure.hp).toBe(3);
+    expect(repairStructure(twice, 'r0s0')).toBeNull(); // two hands, not endless
   });
 
   it('the vigil history remembers the last thirty falls', () => {

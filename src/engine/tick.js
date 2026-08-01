@@ -1,6 +1,6 @@
 // The round clock: day → dusk → night → dawn, in bounded deterministic
 // slices. All randomness flows through the injected rng.
-import { getDayLength, DAWN_GLOW_PER_STRUCTURE, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN, drawDraft, getGlowRate } from './round.js';
+import { getDayLength, DAWN_GLOW_PER_STRUCTURE, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN, YIELD_DAY, drawDraft, getGlowRate } from './round.js';
 import { STRUCTURES } from './structures.js';
 import { getAdjacentSlots } from './map.js';
 import { advanceNightSlice, nightResolved, rollOmen, spawnShades, HUNGRY_EXTRA } from './night.js';
@@ -39,6 +39,10 @@ function dawn(state, rng) {
     };
   });
 
+  // The morning wage: a full day's yield from everything still standing,
+  // paid up front so the day is spent deciding rather than accruing.
+  glow += Math.round(getGlowRate({ ...state, round: { ...round, slots } }) * YIELD_DAY);
+
   const day = round.day + 1;
   // Roll tonight's omen now, at dawn — announced a full day ahead.
   const omen = rollOmen(day, rng);
@@ -56,7 +60,7 @@ function dawn(state, rng) {
     slots,
     omen,
     rerolledToday: false,
-    mendedToday: false,
+    mendedToday: 0,
     log: appendLog(round, day, messages),
   };
   withDawn.draft = drawDraft({ ...state, round: withDawn }, rng);
@@ -79,8 +83,7 @@ export function tick(state, dt, rng = Math.random) {
     const time = round.time + slice;
 
     if (round.phase === 'day') {
-      const glow = round.glow + getGlowRate(current) * slice;
-      current = { ...current, round: { ...round, time, glow } };
+      current = { ...current, round: { ...round, time } };
       if (time - round.phaseStart >= getDayLength(round)) {
         current = endDay(current, rng);
       }

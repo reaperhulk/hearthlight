@@ -3,7 +3,7 @@
 import { STRUCTURES } from './structures.js';
 import { getAdjacentSlots, nearHeart } from './map.js';
 
-export const NIGHT_MIN_LENGTH = 10;
+export const NIGHT_MIN_LENGTH = 6;
 export const NIGHT_MIN_LENGTH_STILL = 4; // a night that spawned nothing passes quickly
 export const SHADE_FEED_TIME = 5;
 // A shade dropped mid-grapple comes back angry: it bites on a short
@@ -12,8 +12,8 @@ export const SHADE_FEED_TIME = 5;
 export const RELEASED_FEED_TIME = 1.5;
 export const SHADE_HOLD_TIME = 3.5;
 export const SHADE_HOLD_TIME_SWIFT = 2;
-export const WARDEN_COOLDOWN = 6;
-export const WARDEN_COOLDOWN_SWIFT = 2;
+export const WARDEN_COOLDOWN = 4;
+export const WARDEN_COOLDOWN_SWIFT = 1.5;
 export const HEART_HIT = 20;      // a shade that reaches the Heart
 export const STRUCTURE_HIT = 18;  // heart-light lost when a structure falls
 // A shade that finds only ash vents its hunger at the Heart. Priced close
@@ -26,6 +26,23 @@ export const NIGHT_ESCALATION = 1.22;
 // compounds. It always wins eventually — that is the scoreboard.
 export function getShadeCount(night) {
   return night + Math.floor((night - 1) / 2);
+}
+
+// THE DARK COMES FOR WHAT YOU BUILT. With a three-ring town the player
+// can raise twenty-odd buildings, and a night scaled only by its number
+// left a sprawling town safer than a small one — so building everything
+// was strictly correct and placement stopped being a decision. Every few
+// standing structures now draws one more shade: sprawl is a real trade,
+// not a free win.
+// A keep's worth of buildings draws nothing extra — charging from the
+// first stone made building strictly worse than turtling, which inverts
+// the whole game. Only SPRAWL past the inner ring pulls more teeth.
+export const SHADES_FREE_STRUCTURES = 9;
+export const SHADES_PER_STRUCTURES = 4;
+
+export function getTownDraw(round) {
+  const built = round.slots.filter(slot => slot.structure).length;
+  return Math.floor(Math.max(0, built - SHADES_FREE_STRUCTURES) / SHADES_PER_STRUCTURES);
 }
 
 // Omens: every fourth night carries a named event, rolled and announced at
@@ -120,7 +137,8 @@ export function getNightForecast(round) {
   if (omen === 'still') return { count: 0, omen, heartseekers: 0 };
   const beacon = round.beacon && round.day >= BEACON_NIGHT ? 1 : 0;
   const count = Math.max(0,
-    getShadeCount(round.day) + (omen === 'hungry' ? HUNGRY_EXTRA : 0) + (round.stillDebt ? STILL_DEBT : 0)
+    getShadeCount(round.day) + getTownDraw(round)
+    + (omen === 'hungry' ? HUNGRY_EXTRA : 0) + (round.stillDebt ? STILL_DEBT : 0)
     - beacon - (omen === 'veiled' ? VEILED_HUSH : 0));
   return { count, omen, heartseekers: getHeartseekerCount(round.day, count) };
 }
@@ -191,7 +209,7 @@ export function spawnShades(state, rng) {
     // kept near the center slows them — light guards the Heart.
     if (index < heartseekers) {
       const heartLit = round.slots.some(slot => slot.structure?.type === 'lantern' && nearHeart(slot));
-      const approach = ((8 + 5 * rng()) / speed) * (heartLit ? STRUCTURES.lantern.slowsAdjacent : 1) + bellDelay;
+      const approach = ((4 + 4 * rng()) / speed) * (heartLit ? STRUCTURES.lantern.slowsAdjacent : 1) + bellDelay;
       shades.push({
         id: nextId++,
         targetSlotId: null,
@@ -207,9 +225,9 @@ export function spawnShades(state, rng) {
     const pick = planned[index - heartseekers];
     if (pick) {
       targetSlotId = pick.id;
-      ringFactor = pick.ring > 0 ? FRONTIER_APPROACH : 1;
+      ringFactor = pick.ring >= 2 ? FRONTIER_APPROACH : 1;
     }
-    const approach = ((8 + 5 * rng()) / speed) * ringFactor * (targetSlotId ? lanternSlow(round, targetSlotId) : 1) + bellDelay;
+    const approach = ((4 + 4 * rng()) / speed) * ringFactor * (targetSlotId ? lanternSlow(round, targetSlotId) : 1) + bellDelay;
     shades.push({
       id: nextId++,
       targetSlotId, // null targets the Heart itself

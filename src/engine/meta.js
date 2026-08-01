@@ -67,7 +67,7 @@ export const META_UPGRADES = {
     branch: 'stone',
     requires: ['stoneFoundations'],
     at: { x: 0.13, y: 0.35 },
-    description: 'Mending no longer spends the day’s act — build and mend in one dusk.',
+    description: 'A second pair of hands: mend twice a day instead of once.',
   },
   deeperDrafts: {
     id: 'deeperDrafts',
@@ -126,7 +126,7 @@ export const META_UPGRADES = {
     branch: 'ember',
     requires: ['emberChoir'],
     at: { x: 0.72, y: 0.35 },
-    description: 'Ten frontier slots: richer ground (+50% Glow) — but the dark reaches them first.',
+    description: 'A third ring of fifteen frontier slots: richer ground (+50% Glow) — but the dark reaches them first.',
   },
   heartstone: {
     id: 'heartstone',
@@ -295,7 +295,7 @@ export function getWardenCount(state) {
 }
 
 export function getUnlockedRings(state) {
-  return metaRank(state, 'outerRing') >= 1 ? 2 : 1;
+  return metaRank(state, 'outerRing') >= 1 ? 3 : 2;
 }
 
 // Ranked: each Heartstone set in the hearth is another 25 light.
