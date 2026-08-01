@@ -5,7 +5,7 @@ import { STRUCTURES } from '../structures.js';
 import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
 import { getHoldTime, getNightForecast, getShadeCount, getWardenCooldown, getWardenTemper, moveWarden, rollOmen, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, VEILED_HUSH, WARDEN_COOLDOWN, WARDEN_TEMPER_TIERS, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
-import { allUpgradesKept, buyMetaUpgrade, isVigilComplete, LONG_DAWN_NIGHTS, META_UPGRADES } from '../meta.js';
+import { allUpgradesKept, branchKept, buyMetaUpgrade, isVigilComplete, metaChildren, metaStatus, LONG_DAWN_NIGHTS, META_BRANCHES, META_UPGRADES } from '../meta.js';
 
 function makeRng(sequence = [0.5]) {
   let index = 0;
@@ -554,10 +554,14 @@ describe('hearthlight', () => {
 
   it('meta upgrades are bought with Embers and shape the next round', () => {
     let state = { ...createInitialState(), embers: 40 };
-    expect(buyMetaUpgrade(state, 'secondWarden')).toBeTruthy();
-    state = buyMetaUpgrade(state, 'morningStockpile');
+    // The tree is a path: Second Hands grows out of Stone Foundations,
+    // and the Second Warden out of the Swift one.
+    expect(buyMetaUpgrade(state, 'morningStockpile')).toBeNull(); // unrooted
+    expect(buyMetaUpgrade(state, 'secondWarden')).toBeNull(); // unrooted
     state = buyMetaUpgrade(state, 'stoneFoundations');
-    expect(state.embers).toBe(30);
+    state = buyMetaUpgrade(state, 'morningStockpile');
+    state = buyMetaUpgrade(state, 'swiftWarden');
+    expect(state.embers).toBe(22);
     expect(buyMetaUpgrade(state, 'morningStockpile')).toBeNull(); // owned
     expect(buyMetaUpgrade({ ...state, embers: 10 }, 'secondWarden')).toBeNull(); // pinnacle price
 
@@ -651,9 +655,71 @@ describe('hearthlight', () => {
     expect(migrated.lifetime).toEqual({ nights: 0, embers: 0, banished: 0, towerKills: 0, structuresLost: 0 });
   });
 
+  it('the ember tree is a well-formed graph with reachable cheap roots', () => {
+    const upgrades = Object.values(META_UPGRADES);
+    // Every node names a real branch and real parents; no cycles, no
+    // orphans pointing at upgrades that do not exist.
+    for (const upgrade of upgrades) {
+      expect(META_BRANCHES[upgrade.branch]).toBeTruthy();
+      expect(Array.isArray(upgrade.requires)).toBe(true);
+      for (const parent of upgrade.requires) {
+        expect(META_UPGRADES[parent]).toBeTruthy();
+        // A branch never grafts onto another: roots stay separable.
+        expect(META_UPGRADES[parent].branch).toBe(upgrade.branch);
+      }
+      expect(upgrade.at.x).toBeGreaterThan(0);
+      expect(upgrade.at.y).toBeGreaterThan(0);
+    }
+    // Every branch has exactly one root, and every node reaches it.
+    for (const branch of Object.keys(META_BRANCHES)) {
+      const nodes = upgrades.filter(upgrade => upgrade.branch === branch);
+      expect(nodes.filter(upgrade => upgrade.requires.length === 0)).toHaveLength(1);
+      for (const node of nodes) {
+        let walk = node;
+        for (let hops = 0; hops < upgrades.length && walk.requires.length > 0; hops++) {
+          walk = META_UPGRADES[walk.requires[0]];
+        }
+        expect(walk.requires).toHaveLength(0);
+      }
+    }
+    // Costs never fall as a branch deepens: a keeper spending greedily
+    // down the tree always affords the parent before the child, which is
+    // why the gating costs the measured arc nothing.
+    for (const upgrade of upgrades) {
+      for (const parent of upgrade.requires) {
+        expect(META_UPGRADES[parent].cost).toBeLessThanOrEqual(upgrade.cost);
+      }
+    }
+    // Round 1 promise: a root is affordable off the very first fall.
+    const roots = upgrades.filter(upgrade => upgrade.requires.length === 0);
+    expect(Math.min(...roots.map(upgrade => upgrade.cost))).toBeLessThanOrEqual(5);
+    expect(metaChildren('stoneFoundations').map(child => child.id)).toEqual(['morningStockpile']);
+  });
+
+  it('the tree reports what each node is doing right now', () => {
+    let state = { ...createInitialState(), embers: 5, bestNights: 0 };
+    expect(metaStatus(state, 'stoneFoundations')).toBe('ready');
+    expect(metaStatus(state, 'swiftWarden')).toBe('costly');    // rooted, unaffordable
+    expect(metaStatus(state, 'morningStockpile')).toBe('rooted'); // path unopened
+    expect(metaStatus(state, 'ruinsRemember')).toBe('rooted');
+    state = buyMetaUpgrade(state, 'stoneFoundations');
+    expect(metaStatus(state, 'stoneFoundations')).toBe('kept');
+    expect(metaStatus(state, 'morningStockpile')).toBe('costly');
+    // A sealed pinnacle reads as sealed only once its path is open.
+    state = { ...state, embers: 99, meta: { ...state.meta, morningStockpile: true, deeperDrafts: true } };
+    expect(metaStatus(state, 'ruinsRemember')).toBe('sealed');
+    expect(branchKept(state, 'stone')).toBe(false);
+    state = { ...state, bestNights: 12 };
+    expect(metaStatus(state, 'ruinsRemember')).toBe('ready');
+    state = buyMetaUpgrade(state, 'ruinsRemember');
+    expect(branchKept(state, 'stone')).toBe(true);
+    expect(branchKept(state, 'watch')).toBe(false);
+  });
+
   it('milestone upgrades are sealed until the vigil is proven', () => {
-    // Rich but unproven: the seal holds.
+    // Rich but unproven: the seal holds, even with the path open.
     let state = { ...createInitialState(), embers: 60, bestNights: 5 };
+    state = buyMetaUpgrade(state, 'swiftWarden');
     expect(buyMetaUpgrade(state, 'beaconHeart')).toBeNull();
     // Proven: the seal breaks.
     state = { ...state, bestNights: 8 };
@@ -801,8 +867,8 @@ describe('hearthlight', () => {
 
   it('heartstone and ember choir shape rounds and payouts', () => {
     let state = { ...createInitialState(), embers: 40, meta: {} };
-    state = buyMetaUpgrade(state, 'heartstone');
     state = buyMetaUpgrade(state, 'emberChoir');
+    state = buyMetaUpgrade(state, 'heartstone');
     state = beginRound(state, makeRng());
     expect(state.round.heart).toBe(105);
     expect(state.round.heartMax).toBe(105);

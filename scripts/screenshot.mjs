@@ -175,13 +175,35 @@ await page.evaluate(() => {
 });
 await shot('fallen');
 
-// The fire: collect and open the shop.
+// The fire: collect and open the Ember tree.
 await page.evaluate(() => {
   const button = document.querySelector('.fallen-panel .to-the-fire');
   if (button) button.click();
 });
-await page.waitForSelector('.shop', { timeout: 4000 }).catch(() => {});
+await page.waitForSelector('.tree-panel', { timeout: 4000 }).catch(() => {});
 await shot('shop');
+
+// The tree part-grown: a kept root, a ready node, a sealed pinnacle and
+// a path not yet opened — every node state in one frame.
+await page.evaluate(() => {
+  window.__game.setState(state => ({
+    ...state,
+    embers: 24,
+    bestNights: 9,
+    meta: { stoneFoundations: true, morningStockpile: true, swiftWarden: true, emberChoir: true },
+  }));
+});
+await page.evaluate(() => {
+  const nodes = [...document.querySelectorAll('.tree-node')];
+  (nodes.find(node => node.className.includes('ready')) || nodes[0]).click();
+});
+await shot('tree');
+
+// Mid-kindling: the vein ignites, the medallion blooms, sparks rise.
+await page.evaluate(() => document.querySelector('.tree-detail .kindle')?.click());
+await new Promise(resolve => setTimeout(resolve, 320));
+await page.screenshot({ path: `${outDir}/tree-kindle.png` });
+console.log('  tree-kindle.png');
 
 await browser.close();
 cleanup();

@@ -131,12 +131,39 @@ try {
   if (!(embersEarned >= 1)) failures.push(`fall paid ${embersEarned} embers`);
   else note(`fall pays ${embersEarned} embers`);
   await page.click('.fallen-panel .to-the-fire');
-  await page.waitForSelector('.shop', { timeout: 4000 });
-  const banked = await page.evaluate(() => window.__game === undefined
-    ? null
-    : document.querySelectorAll('.shop button').length);
-  if (!banked) failures.push('shop did not render after collecting');
-  else note('embers banked, shop open');
+  await page.waitForSelector('.tree-panel', { timeout: 4000 });
+  const banked = await page.evaluate(() => document.querySelectorAll('.tree-node').length);
+  if (banked !== 12) failures.push(`ember tree drew ${banked} nodes, expected 12 (11 upgrades + the crown)`);
+  else note('embers banked, the Ember tree is open');
+
+  // The tree is a path: kindling a root opens what grows from it, and
+  // the node that was blocked becomes reachable.
+  const kindling = await page.evaluate(async () => {
+    window.__game.setState(state => ({ ...state, embers: 40, meta: {} }));
+    await new Promise(resolve => setTimeout(resolve, 60));
+    const before = document.querySelectorAll('.tree-node.rooted').length;
+    const root = [...document.querySelectorAll('.tree-node.ready')][0];
+    if (!root) return { error: 'no ready root on a full purse' };
+    root.click();
+    await new Promise(resolve => setTimeout(resolve, 60));
+    const kindle = document.querySelector('.tree-detail .kindle');
+    if (!kindle) return { error: 'a ready node offered no way to kindle it' };
+    kindle.click();
+    await new Promise(resolve => setTimeout(resolve, 120));
+    return {
+      before,
+      after: document.querySelectorAll('.tree-node.rooted').length,
+      kept: document.querySelectorAll('.tree-node.kept').length,
+      spent: window.__game.getState().embers,
+      banner: document.querySelector('.kindled-banner')?.textContent ?? null,
+    };
+  });
+  if (kindling.error) failures.push(kindling.error);
+  else if (kindling.kept !== 1) failures.push(`kindling left ${kindling.kept} kept nodes, expected 1`);
+  else if (kindling.after >= kindling.before) failures.push('kindling a root opened no path (rooted count did not fall)');
+  else if (kindling.spent !== 35) failures.push(`kindling spent ${40 - kindling.spent} embers, expected 5`);
+  else if (!kindling.banner) failures.push('kindling announced nothing');
+  else note(`node kindled: ${kindling.before - kindling.after} path(s) opened, banner shown`);
 
   // A vigil can be abandoned: double-tap walks away, the chronicle pays.
   await page.click('.begin');

@@ -15,7 +15,8 @@
     "balance:baseline": "node scripts/bot-playtest.js --json > scripts/balance-baseline.json",
     "balance:compare": "node scripts/bot-playtest.js --compare scripts/balance-baseline.json",
     "test:quality": "npm run lint && npm run test:unit && npm run test:balance && npm run build",
-    "test:smoke": "npm run build && node scripts/browser-smoke.mjs"
+    "test:smoke": "npm run build && node scripts/browser-smoke.mjs",
+    "perf:probe": "npm run build && node scripts/perf-probe.mjs"
   },
   "dependencies": {
     "react": "^19.2.7",

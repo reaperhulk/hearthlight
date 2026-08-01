@@ -86,6 +86,18 @@ export const sfx = {
     tone({ freq: 740, freqEnd: 1180, duration: 0.16, type: 'triangle', gain: 0.05 });
     tone({ freq: 1110, freqEnd: 1480, duration: 0.14, type: 'sine', gain: 0.035, delay: 0.1 });
   },
+  // A node of the Ember tree takes light: a rising third, struck twice.
+  kindle() {
+    tone({ freq: 523, freqEnd: 784, duration: 0.22, type: 'triangle', gain: 0.06 });
+    tone({ freq: 784, duration: 0.3, type: 'sine', gain: 0.045, delay: 0.12 });
+    tone({ freq: 1046, duration: 0.35, type: 'sine', gain: 0.03, delay: 0.2 });
+  },
+  // A whole root kept: the chord closes.
+  rootKept() {
+    tone({ freq: 392, duration: 0.7, type: 'sine', gain: 0.05, delay: 0.35 });
+    tone({ freq: 587, duration: 0.7, type: 'sine', gain: 0.04, delay: 0.42 });
+    tone({ freq: 784, duration: 0.8, type: 'sine', gain: 0.035, delay: 0.5 });
+  },
   // The town falls. A slow toll.
   toll() {
     tone({ freq: 110, freqEnd: 55, duration: 1.2, type: 'triangle', gain: 0.12 });

@@ -378,10 +378,77 @@ commit pushed to main. Update checkboxes as work lands.
       had aged ~30 cycles: 27 tests and a 5.4n keeper were ancient
       history).
 
+- [x] **The Ember tree, and the frames to draw it (cycle 21)** — two
+      findings, one commit. (1) The meta layer was a flat shop: eleven
+      cards in four tiers, every one of them independent, so Embers
+      bought a shopping list and the only decision was "which is
+      cheapest". It is now a tree with three roots — Stone (the town
+      endures), Watch (the night is answered), Ember (the light reaches
+      further) — where every node past a root grows out of another and
+      the three pinnacles crown their own branches. The Long Dawn is a
+      node now, not a paragraph: a crown fed by all three pinnacles,
+      showing best-nights over 15. Kindling a node runs light up the
+      vein that fed it, blooms the medallion, throws sparks, sounds a
+      rising third, and (when a root completes) floods the whole branch
+      and says so. The gating is provably balance-neutral: a child never
+      costs less than its parent and every edge runs forward through the
+      harness's META_ORDER, so a greedy keeper buys exactly what it
+      bought before — `balance:compare` is clean on all five seeds, arc
+      for arc. Both invariants are now unit-asserted so the tree cannot
+      silently grow a shape that taxes the player.
+      (2) Chasing "make it performant" with a new `perf:probe` harness
+      (throttled Chromium, real paint timings off `window.__game.paint()`)
+      found the game running at **15fps on a phone-grade core** — and
+      the cause was not the JS everyone had been optimizing. A CPU
+      profile put 96% of the frame in `(program)`: rasterization. No-oping
+      `fillRect` alone restored 59fps; halving the backing store restored
+      55. The game was fill-rate bound on five full-canvas gradient fills
+      per frame. Now: sky, soil, rings, pads and vignette live on two
+      cached layers (full day, full dark) cross-faded by the hour, so the
+      2.5s dusk ease rebuilds nothing; the Heart's additive glow is
+      bounded to its own reach instead of the whole canvas; the veiled
+      mist renders at quarter scale and stretches; the dread throb moved
+      from a 5Hz full-canvas fill to a compositor-driven CSS overlay; the
+      backing store sizes to what the display can actually resolve instead
+      of a flat 2x. **Day 15 → 58fps, late night 13 → 58fps**; worst frame
+      21.2ms → 6.7ms. Renders verified pixel-faithful against before-shots.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
   remember (bridge to theruinsremember).
+
+### Fun queue (measured gaps, most promising first)
+
+- **The tree has flat roots.** The Ember root fans three ways off one
+  node because cost order forbids chaining (heartstone 20 gates nothing;
+  emberheart 16 and outerRing 12 are cheaper). Re-pricing that root — or
+  adding one cheap Ember node between the choir and the rest — would make
+  it a real path like Stone's. Requires a deliberate balance change and a
+  re-baseline; measure `outerRing`'s -1.0n round-1 / +14.2 arc split first,
+  since it is the upgrade most likely to be mispriced.
+- **Nothing is ever spent twice.** Every node is a permanent yes; there is
+  no branch you must give up. A respec ("scatter the embers") or a
+  root-exclusive capstone would make the tree a decision rather than a
+  checklist — the doctrine's "decisions, not busywork" applied to the meta
+  layer. Guard with the arc panels: an exclusive choice must not measure
+  as one correct answer.
+- **The dead cards are still dead.** The ban-one panel has well, granary,
+  emberKiln and shrine at +0.0n/+0.0e after a whole identity cycle. Their
+  identities read well and measure as nothing; the next honest step is to
+  cut one and see whether the draft improves.
+- **The night verb is still one verb.** The Warden's temper gave it depth
+  within a run; a second night verb (something a keeper spends instead of
+  a reposition) is the biggest untouched design space.
+
+### Perf queue
+
+- The remaining per-frame full-canvas work is the star field and three fog
+  gradients. Cheap today, but they are what a new effect would stack on.
+- `drawSlots` recreates a radial gradient per structure per frame for the
+  seat disc; a per-colour cache would pay off on a full outer ring.
+- The React tree still re-renders wholesale at 10Hz. Measured as noise
+  next to raster, but it is the next floor if the canvas gets cheaper.
 
 ## Measured state (5-seed means)
 
@@ -399,10 +466,15 @@ commit pushed to main. Update checkboxes as work lands.
   heart strikes / 22% vents (vents now howl visibly); ~4.6 leveled
   structures by arc end; the Warden tempers within a run
   (seasoned/grim/lightless).
-- Meta: 11 upgrades, all earning a measured axis, condemnations
-  double-checked on a 15-seed butterfly panel. Three pinnacles sealed
-  behind proven vigils (8/10/12 nights); the Long Dawn closes the
-  story.
+- Meta: 11 upgrades on a three-root tree, all earning a measured axis,
+  condemnations double-checked on a 15-seed butterfly panel. Three
+  pinnacles crown their roots, sealed behind proven vigils (8/10/12
+  nights); the Long Dawn is the tree's crown and closes the story. The
+  tree's prerequisites are balance-neutral by construction (child cost
+  >= parent cost; edges run forward through META_ORDER).
+- Render: 58fps on a 4x-throttled core in both the cheapest and the
+  heaviest scene (was 15 and 13), 1.14ms / 2.14ms mean paint. Guarded
+  by `npm run perf:probe`.
 - 9 structures with measured identities, one-pair-of-hands days
   (build OR mend), three omens (hungry / still / veiled — veteran
   lamps pierce the mist), heartseekers, veteran tier, the frontier,

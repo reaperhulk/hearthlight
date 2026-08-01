@@ -31,11 +31,14 @@ homescreen as a PWA; a first round lasts one to two minutes.
 4. **The fall**: the dark always wins eventually. When the Heart goes out,
    the chronicle itemizes every Ember the vigil earned, and the home
    screen's bar row remembers the last thirty falls.
-5. **The fire**: spend Embers on permanent upgrades — sturdier days, go
-   longer, reach the frontier — and begin again, longer. Three pinnacles
-   unlock only by *proving* vigils (8, 10, and 12 nights), not by hoarding.
-   With everything kept, one goal remains: the Long Dawn, a fifteen-night
-   vigil that closes the story.
+5. **The fire**: spend Embers on the **Ember tree** — three roots growing
+   from the Heart (Stone: the town endures; Watch: the night is answered;
+   Ember: the light reaches further). Every node past a root grows out of
+   another, so Embers buy a *path*, not a shopping list, and each kindling
+   runs light up the vein that fed it. Three pinnacles crown their roots
+   and unlock only by *proving* vigils (8, 10, and 12 nights), never by
+   hoarding. With everything kept, one node remains lit at the crown: the
+   Long Dawn, a fifteen-night vigil that closes the story.
 
 Plays with one thumb; on desktop, 1–4 pick cards, 1–3 answer threats, D
 calls the dusk, R rerolls. A save travels between devices as one
@@ -61,7 +64,15 @@ npm run test:quality    # lint + unit + balance + build
 npm run test:smoke      # a real Chromium plays one full loop
 npm run balance:story   # narrate one round night by night
 npm run balance:compare # diff current numbers against the committed baseline
+npm run perf:probe      # render cost in a real Chromium at phone-grade CPU
 ```
+
+`perf:probe` is to frames what the balance harness is to nights: it drives
+a throttled Chromium through the game's cheapest and most expensive scenes
+and reads the paint loop's own timings back out, so render work is tuned
+against measurements instead of hunches. It is what caught the game being
+fill-rate bound on full-canvas gradient fills (19fps on a phone-grade core,
+now 58).
 
 The balance harness plays deterministic bot profiles — a do-nothing
 **passive**, a **builder** who sleeps at night, the optimal **keeper**, a

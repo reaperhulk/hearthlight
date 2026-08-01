@@ -60,7 +60,41 @@ const STARS = Array.from({ length: 46 }, (_, i) => ({
 }));
 
 // ── Scene layers ────────────────────────────────────────────────────────────
-function drawSky(ctx, darkness, animTime) {
+// The sky, the soil, the orbit rings and the stone pads are functions of
+// the hour and the shape of the town — never of the frame. Painted
+// straight to the screen they cost three full-canvas gradient fills every
+// frame, which measured as the ENTIRE frame budget on phone-grade CPU
+// (19fps; no-oping fillRect alone restored 59). They now live on an
+// offscreen layer redrawn only when the hour or the map actually changes,
+// and the frame blits it once.
+// Two layers only — full daylight and full dark — cross-faded by the
+// hour. Every colour in them is linear in darkness, so blending the ends
+// is the same picture the per-frame gradients drew, at the cost of one
+// alpha blit instead of three gradient rasters. It also means the 2.5s
+// dusk ease costs nothing extra: nothing is rebuilt while the light
+// changes, only while the town or the Heart does.
+function terrainLayers(round, visuals, scale) {
+  const key = `${Math.round(dreadOf(round) * 20)}|${round.slots.length}|${scale}`;
+  const cached = visuals.terrain;
+  if (cached && cached.key === key) return cached;
+  const surface = () => Object.assign(document.createElement('canvas'), {
+    width: Math.round(CANVAS * scale), height: Math.round(CANVAS * scale),
+  });
+  const lit = cached?.scale === scale ? cached.lit : surface();
+  const dark = cached?.scale === scale ? cached.dark : surface();
+  for (const [canvas, darkness] of [[lit, 0], [dark, 1]]) {
+    const layer = canvas.getContext('2d');
+    layer.setTransform(scale, 0, 0, scale, 0, 0);
+    layer.clearRect(0, 0, CANVAS, CANVAS);
+    drawSkyBase(layer, darkness);
+    drawGround(layer, round, darkness);
+    drawVignette(layer, round);
+  }
+  visuals.terrain = { key, lit, dark, scale };
+  return visuals.terrain;
+}
+
+function drawSkyBase(ctx, darkness) {
   const inner = mix(SKY_DAY_IN, SKY_NIGHT_IN, darkness);
   const outer = mix(SKY_DAY_OUT, SKY_NIGHT_OUT, darkness);
   const bg = ctx.createRadialGradient(CANVAS / 2, CANVAS / 2, 20, CANVAS / 2, CANVAS / 2, CANVAS * 0.62);
@@ -68,7 +102,10 @@ function drawSky(ctx, darkness, animTime) {
   bg.addColorStop(1, rgb(outer));
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, CANVAS, CANVAS);
+}
 
+// What the sky does that the layer cannot: twinkle and drift.
+function drawSkyMotion(ctx, darkness, animTime) {
   // Stars wake as the light dies.
   if (darkness > 0.15) {
     const wake = darkness - 0.15;
@@ -190,14 +227,21 @@ function drawRim(ctx, round, darkness, animTime) {
   }
 }
 
-function drawVignette(ctx, round, animTime) {
-  // Low light: the dark presses in from the edges.
-  const dread = 1 - round.heart / (round.heartMax || HEART_MAX);
+// How close the town is to the end, 0..1. Drives the vignette and the
+// CSS dread-pulse over the map.
+export function dreadOf(round) {
+  return 1 - round.heart / (round.heartMax || HEART_MAX);
+}
+
+function drawVignette(ctx, round) {
+  // Low light: the dark presses in from the edges. Steady here — the
+  // throb below 30% is a compositor-cheap CSS overlay, not a full-canvas
+  // gradient fill five times a second.
+  const dread = dreadOf(round);
   if (dread <= 0.3) return;
   const vignette = ctx.createRadialGradient(CANVAS / 2, CANVAS / 2, CANVAS * 0.22, CANVAS / 2, CANVAS / 2, CANVAS * 0.62);
   vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  const pulse = dread > 0.7 ? 0.06 * Math.sin(animTime * 5) : 0;
-  vignette.addColorStop(1, `rgba(20, 4, 24, ${Math.min(0.75, (dread - 0.3) * 1.1 + pulse)})`);
+  vignette.addColorStop(1, `rgba(20, 4, 24, ${Math.min(0.75, (dread - 0.3) * 1.1)})`);
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, CANVAS, CANVAS);
 }
@@ -225,11 +269,14 @@ function drawHeart(ctx, round, animTime) {
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const heartGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 60 + 80 * light);
+  // Bounded to the glow's actual reach: an additive blend over the whole
+  // canvas cost four times the pixels for light that never landed there.
+  const reach = 60 + 80 * light;
+  const heartGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, reach);
   heartGlow.addColorStop(0, `rgba(255, 190, 110, ${0.30 + 0.25 * light})`);
   heartGlow.addColorStop(1, 'rgba(255, 190, 110, 0)');
   ctx.fillStyle = heartGlow;
-  ctx.fillRect(0, 0, CANVAS, CANVAS);
+  ctx.fillRect(cx - reach, cy - reach, reach * 2, reach * 2);
   ctx.restore();
 
   // Below a third of its light, the flame gutters — irregular, anxious.
@@ -269,13 +316,13 @@ function drawHeart(ctx, round, animTime) {
   }
 }
 
-function drawShades(ctx, round, animTime) {
+function drawShades(ctx, round, animTime, byId) {
   for (const shade of round.shades) {
     const from = {
       x: CANVAS / 2 + Math.cos(shade.spawnAngle) * CANVAS * 0.46,
       y: CANVAS / 2 + Math.sin(shade.spawnAngle) * CANVAS * 0.46,
     };
-    const targetSlot = shade.targetSlotId ? round.slots.find(slot => slot.id === shade.targetSlotId) : null;
+    const targetSlot = shade.targetSlotId ? byId.get(shade.targetSlotId) : null;
     const to = targetSlot ? slotPixel(targetSlot) : { x: CANVAS / 2, y: CANVAS / 2 };
     let progress = 1;
     if (shade.phase === 'approach') {
@@ -578,7 +625,7 @@ function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
 // ── Threat telegraphy ───────────────────────────────────────────────────────
 // Every targeted position wears a countdown arc: purple shrinking while a
 // shade approaches, red growing while one feeds. Towers show their bolts.
-function drawThreats(ctx, round, holdTime) {
+function drawThreats(ctx, round, holdTime, byId) {
   if (round.phase !== 'night') {
     // By day, towers preview their full quiver.
     for (const slot of round.slots) {
@@ -599,7 +646,7 @@ function drawThreats(ctx, round, holdTime) {
     }
   }
   for (const [key, shade] of soonest) {
-    const slot = key === HEART_SLOT ? null : round.slots.find(candidate => candidate.id === key);
+    const slot = key === HEART_SLOT ? null : byId.get(key);
     const { x, y } = slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
     const radius = key === HEART_SLOT ? 24 : 17;
     let fraction;
@@ -626,7 +673,7 @@ function drawThreats(ctx, round, holdTime) {
 
   // Grappled shades wear a gold arc: banished when it closes.
   const posOf = key => {
-    const slot = key === HEART_SLOT ? null : round.slots.find(candidate => candidate.id === key);
+    const slot = key === HEART_SLOT ? null : byId.get(key);
     return slot ? slotPixel(slot) : { x: CANVAS / 2, y: CANVAS / 2 };
   };
   for (const shade of round.shades) {
@@ -751,11 +798,11 @@ function drawInspectLinks(ctx, round, inspectedId, animTime) {
 
 // The warden is a lantern-bearer, not a ring. Render-side smoothing walks
 // them between posts; `visuals` persists across frames (UI-only state).
-function drawWardens(ctx, round, animTime, visuals, cooldown = 6) {
+function drawWardens(ctx, round, animTime, visuals, cooldown, byId) {
   const dt = Math.min(0.1, Math.max(0.001, animTime - (visuals.lastTime ?? animTime)));
   visuals.lastTime = animTime;
   for (const warden of round.wardens) {
-    const slot = warden.slotId ? round.slots.find(candidate => candidate.id === warden.slotId) : null;
+    const slot = warden.slotId ? byId.get(warden.slotId) : null;
     if (warden.slotId && !slot && warden.slotId !== HEART_SLOT) continue;
     // Unposted wardens wait by the fire; posted ones stand a pace
     // rimward of their charge, facing the dark.
@@ -863,49 +910,85 @@ function drawWardens(ctx, round, animTime, visuals, cooldown = 6) {
 export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visuals = { wardens: new Map() }, hover = null) {
   const round = state.round;
   const darkness = getDarkness(round);
-  ctx.clearRect(0, 0, CANVAS, CANVAS);
   ctx.save();
   // A structure falling rattles the world, briefly.
-  if (!REDUCED_MOTION && visuals.shakeUntil && animTime < visuals.shakeUntil) {
+  const shaking = !REDUCED_MOTION && visuals.shakeUntil && animTime < visuals.shakeUntil;
+  if (shaking) {
     const power = (visuals.shakeUntil - animTime) * 8;
     ctx.translate(Math.sin(animTime * 70) * power, Math.cos(animTime * 61) * power);
+    // Only a shake can leave ground uncovered; the layer is opaque.
+    ctx.clearRect(-20, -20, CANVAS + 40, CANVAS + 40);
   }
-  drawSky(ctx, darkness, animTime);
-  drawGround(ctx, round, darkness);
+  // One slot index per frame, instead of a linear scan per lookup in
+  // every layer that needs to find a slot by id.
+  const byId = visuals.byId || (visuals.byId = new Map());
+  byId.clear();
+  for (const slot of round.slots) byId.set(slot.id, slot);
+
+  const terrain = terrainLayers(round, visuals, visuals.scale || 2);
+  ctx.drawImage(terrain.lit, 0, 0, CANVAS, CANVAS);
+  if (darkness > 0.002) {
+    ctx.globalAlpha = Math.min(1, darkness);
+    ctx.drawImage(terrain.dark, 0, 0, CANVAS, CANVAS);
+    ctx.globalAlpha = 1;
+  }
+  drawSkyMotion(ctx, darkness, animTime);
   drawRim(ctx, round, darkness, animTime);
-  drawVignette(ctx, round, animTime);
   drawHeart(ctx, round, animTime);
-  drawShades(ctx, round, animTime);
+  drawShades(ctx, round, animTime, byId);
   drawSlots(ctx, round, selectedCard, inspectedId, animTime);
-  drawThreats(ctx, round, getHoldTime(state));
+  drawThreats(ctx, round, getHoldTime(state), byId);
   drawInspectLinks(ctx, round, inspectedId, animTime);
   if (round.phase === 'day') drawPlacementPreview(ctx, round, selectedCard, hover, animTime);
-  drawWardens(ctx, round, animTime, visuals, getWardenCooldown(state));
-  drawVeil(ctx, round, darkness, animTime);
+  drawWardens(ctx, round, animTime, visuals, getWardenCooldown(state), byId);
+  drawVeil(ctx, round, darkness, animTime, visuals);
   ctx.restore();
 }
 
 // A Veiled Night is FELT: pale mist banks drift across the town while
-// the towers stand blind.
-function drawVeil(ctx, round, darkness, animTime) {
+// the towers stand blind. Four full-canvas gradient fills a frame is
+// exactly the cost that made late nights the worst-performing state in
+// the game, so the mist is rendered at quarter scale and stretched —
+// which is free accuracy, since mist has no edges to lose.
+const VEIL_SCALE = 4;
+
+function drawVeil(ctx, round, darkness, animTime, visuals) {
   const veiled = round.phase === 'night' && round.stats?.nights.at(-1)?.omen === 'veiled';
   if (!veiled) return;
+  const size = CANVAS / VEIL_SCALE;
+  if (!visuals.veil) {
+    visuals.veil = Object.assign(document.createElement('canvas'), { width: size, height: size });
+  }
+  const mistCtx = visuals.veil.getContext('2d');
+  mistCtx.setTransform(1 / VEIL_SCALE, 0, 0, 1 / VEIL_SCALE, 0, 0);
+  mistCtx.clearRect(0, 0, CANVAS, CANVAS);
   // A flat pall first, then three drifting banks — the mist must READ
   // as mist at a glance, not as a rendering accident.
-  ctx.fillStyle = `rgba(186, 196, 216, ${0.10 * darkness})`;
-  ctx.fillRect(0, 0, CANVAS, CANVAS);
+  mistCtx.fillStyle = `rgba(186, 196, 216, ${0.10 * darkness})`;
+  mistCtx.fillRect(0, 0, CANVAS, CANVAS);
   const alpha = 0.24 * darkness;
   for (let band = 0; band < 3; band++) {
     const drift = REDUCED_MOTION ? 0 : Math.sin(animTime * (0.12 + band * 0.05) + band * 2.1) * 70;
     const y = CANVAS * (0.22 + band * 0.28) + (REDUCED_MOTION ? 0 : Math.sin(animTime * 0.2 + band) * 12);
-    const mist = ctx.createRadialGradient(
+    const mist = mistCtx.createRadialGradient(
       CANVAS / 2 + drift, y, 30, CANVAS / 2 + drift, y, CANVAS * 0.6);
     mist.addColorStop(0, `rgba(200, 210, 228, ${alpha})`);
     mist.addColorStop(0.55, `rgba(196, 206, 224, ${alpha * 0.45})`);
     mist.addColorStop(1, 'rgba(196, 206, 224, 0)');
-    ctx.fillStyle = mist;
-    ctx.fillRect(0, 0, CANVAS, CANVAS);
+    mistCtx.fillStyle = mist;
+    mistCtx.fillRect(0, 0, CANVAS, CANVAS);
   }
+  ctx.drawImage(visuals.veil, 0, 0, CANVAS, CANVAS);
+}
+
+// Effects age out in place. Rebuilding the array with .filter() sixty
+// times a second was pure garbage for the collector to chase.
+export function pruneEffects(effects, animTime) {
+  let write = 0;
+  for (let read = 0; read < effects.length; read += 1) {
+    if (animTime - effects[read].start < 3) effects[write++] = effects[read];
+  }
+  effects.length = write;
 }
 
 // Transient hit feedback: bites, falls, and Heart strikes flash on the

@@ -3,16 +3,10 @@
 import { useState } from 'react';
 import { createInitialState, migrateState } from '../engine/state.js';
 import { beginRound } from '../engine/round.js';
-import { allUpgradesKept, buyMetaUpgrade, isVigilComplete, metaUnlocked, LONG_DAWN_NIGHTS, META_UPGRADES } from '../engine/meta.js';
+import { allUpgradesKept, isVigilComplete, LONG_DAWN_NIGHTS } from '../engine/meta.js';
 import { unlockAudio } from './sound.js';
 import { StructureIcon } from './StructureIcon.jsx';
-
-const SHOP_TIERS = [
-  { title: 'Sturdier days', ids: ['morningStockpile', 'stoneFoundations', 'deeperDrafts'] },
-  { title: 'Go longer', ids: ['swiftWarden', 'heartstone', 'secondWarden'] },
-  { title: 'Wider and richer', ids: ['outerRing', 'emberChoir'] },
-  { title: 'Proven vigils', ids: ['beaconHeart', 'emberheart', 'ruinsRemember'] },
-];
+import { SkillTree } from './SkillTree.jsx';
 
 // A save string that survives chat apps and notebooks: base64 of the
 // JSON, unicode-safe.
@@ -81,28 +75,7 @@ export function Home({ state, setState, confirming, setConfirming }) {
           <div><span>Buildings taken by the dark</span><strong>{state.lifetime.structuresLost}</strong></div>
         </details>
       )}
-      {SHOP_TIERS.map(tier => (
-        <div key={tier.title} className="shop-tier">
-          <h3>{tier.title}</h3>
-          <div className="shop">
-            {tier.ids.map(id => META_UPGRADES[id]).filter(Boolean).map(upgrade => {
-              const unlocked = metaUnlocked(state, upgrade.id);
-              return (
-                <button
-                  key={upgrade.id}
-                  className={state.meta[upgrade.id] ? 'owned' : !unlocked ? 'locked' : ''}
-                  disabled={state.meta[upgrade.id] || !unlocked || state.embers < upgrade.cost}
-                  onClick={() => setState(current => buyMetaUpgrade(current, upgrade.id) || current)}
-                >
-                  <strong>{upgrade.name}</strong>
-                  <span>{unlocked ? upgrade.description : `Sealed. Keep a vigil of ${upgrade.requiresBestNights} nights.`}</span>
-                  <em>{state.meta[upgrade.id] ? '✓ Kept' : unlocked ? `${upgrade.cost} ✦` : `Best: ${state.bestNights} nights`}</em>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      <SkillTree state={state} setState={setState} />
       {allUpgradesKept(state) && (
         isVigilComplete(state) ? (
           <div className="capstone complete">

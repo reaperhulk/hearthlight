@@ -23,6 +23,11 @@ the Long Dawn (15 nights, everything kept) closes the story.
   the UI (place, night, fall, collect, shop); fails on console errors or
   horizontal overflow. Uses CHROME_PATH or the preinstalled Chromium.
   `window.__game` (getState/setState/fastForward) is the test handle.
+- `npm run perf:probe` — build + drive a CPU-throttled Chromium through the
+  cheapest and heaviest scenes, reporting fps and per-frame paint cost.
+  This is the render-side balance harness: measure before and after any
+  drawing change. `--throttle N` (default 4x ≈ a mid-range phone),
+  `--seconds N`, `--json`.
 - `npm run balance:story` — narrate one keeper round night by night (add `-- --seed N`)
 - `node scripts/screenshot.mjs [outDir]` — hydrate key states (day, inspector,
   night, kitted veiled late-night, fall, shop) and capture PNGs; review real
@@ -53,5 +58,17 @@ the Long Dawn (15 nights, everything kept) closes the story.
 - Measure before and after every balance change with the bot harness; tune
   numbers only against measurements, and encode each promise as an assertion
   so it can never silently regress.
+- The same rule binds rendering: measure with `perf:probe` before and after
+  any drawing change. The game is fill-rate bound, not JS bound — a
+  full-canvas `fillRect` with a gradient is the expensive thing, and the
+  cost lands in rasterization where a JS profiler will not show it. The
+  static scene lives on cached day/dark layers that are cross-faded, so
+  adding a new per-frame full-canvas fill is the one change most likely to
+  cost a third of the frame budget on a phone.
+- Meta upgrades form a tree (`META_UPGRADES[].requires`). Two invariants
+  keep the gating balance-neutral, both asserted in the unit tests: a
+  child never costs less than its parent, and every edge runs forward
+  through the bot harness's `META_ORDER`. Break either and a greedy keeper
+  starts missing purchases it used to make.
 - Round 1 must be fun in under five minutes, with a meta purchase affordable
   immediately after the first fall.

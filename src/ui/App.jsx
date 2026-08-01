@@ -4,7 +4,7 @@ import { abandonRound, getGlowRate, getRepairMax, placeStructure, repairStructur
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, getWardenTemper, moveWarden, HEART_SLOT, STILL_DEBT, WARDEN_TEMPER_TIERS } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
-import { drawEffects, drawTown, slotPixel, CANVAS } from './draw.js';
+import { drawEffects, drawTown, dreadOf, pruneEffects, slotPixel, CANVAS } from './draw.js';
 import { STRUCTURES } from '../engine/structures.js';
 import { StructureIcon } from './StructureIcon.jsx';
 import { describeSlot } from './describeSlot.js';
@@ -74,6 +74,10 @@ export function App() {
   const visualsRef = useRef({ wardens: new Map() });
   const hoverRef = useRef(null);
   const pendingSlotRef = useRef(null);
+  // Paint cost, measured rather than guessed: the draw loop already reads
+  // the clock for animTime, so this costs one extra read per frame and
+  // gives scripts/perf-probe.mjs a real number to compare against.
+  const paintRef = useRef({ frames: 0, total: 0, max: 0, worst: [] });
   useEffect(() => {
     const prev = prevRoundRef.current;
     const round = state.round;
@@ -296,6 +300,19 @@ export function App() {
         }
         return advanced;
       }),
+      // Render cost, for scripts/perf-probe.mjs. p95 comes from a rolling
+      // window of the last 240 frames; reset() starts a fresh sample.
+      paint: () => {
+        const paint = paintRef.current;
+        const window240 = paint.worst.filter(Number.isFinite).sort((a, b) => a - b);
+        return {
+          frames: paint.frames,
+          mean: paint.frames ? paint.total / paint.frames : 0,
+          p95: window240.length ? window240[Math.floor(window240.length * 0.95)] : 0,
+          max: paint.max,
+        };
+      },
+      resetPaint: () => { paintRef.current = { frames: 0, total: 0, max: 0, worst: [] }; },
     };
     return () => { delete window.__game; };
   }, []);
@@ -327,25 +344,45 @@ export function App() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    // Fixed 2x backing store: crisp on retina and on desktops where CSS
-    // scales the map above its logical 420px.
-    const dpr = 2;
-    canvas.width = CANVAS * dpr;
-    canvas.height = CANVAS * dpr;
     const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Backing store sized to what the screen can actually show: enough
+    // pixels for the map's real CSS width (desktops scale it past its
+    // logical 420), never more than 2x. A flat 2x meant 1x displays
+    // rasterized four times the pixels they could resolve.
+    const resize = () => {
+      const shown = canvas.getBoundingClientRect().width || CANVAS;
+      const scale = Math.max(1, Math.min(2, (shown * (window.devicePixelRatio || 1)) / CANVAS));
+      if (visualsRef.current.scale === scale) return;
+      visualsRef.current.scale = scale;
+      visualsRef.current.terrain = null;
+      canvas.width = Math.round(CANVAS * scale);
+      canvas.height = Math.round(CANVAS * scale);
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    };
+    resize();
+    window.addEventListener('resize', resize);
     let raf = null;
     const draw = () => {
-      const animTime = performance.now() / 1000;
+      const started = performance.now();
+      const animTime = started / 1000;
       if (stateRef.current.round) {
         drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current, visualsRef.current, hoverRef.current);
-        effectsRef.current = effectsRef.current.filter(effect => animTime - effect.start < 3);
+        pruneEffects(effectsRef.current, animTime);
         drawEffects(ctx, effectsRef.current, animTime);
+        const cost = performance.now() - started;
+        const paint = paintRef.current;
+        paint.frames += 1;
+        paint.total += cost;
+        if (cost > paint.max) paint.max = cost;
+        paint.worst[paint.frames % 240] = cost;
       }
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+    };
     // Remount the paint loop when a round starts or ends.
   }, [hasRound]);
 
@@ -611,6 +648,9 @@ export function App() {
             role="img"
             aria-label={isDay ? 'Town map — pick a card, then tap an empty slot' : 'Night — tap a slot to send the Warden'}
           />
+          {/* Below 30% the dark throbs. A compositor-driven overlay, not a
+              full-canvas gradient fill five times a second. */}
+          {dreadOf(round) > 0.7 && <i className="dread-pulse" aria-hidden="true" />}
           {state.totalRounds === 1 && round.day === 1 && isDay && !round.placedToday && (
             <div className="coach">{selectedCard ? 'now tap a stone pad on the map' : 'pick a card below ↓'}</div>
           )}

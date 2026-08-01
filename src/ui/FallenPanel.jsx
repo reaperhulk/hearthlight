@@ -27,11 +27,15 @@ export function FallenPanel({ state, setState, clearSelection }) {
   const nights = round.day - 1;
   const breakdown = getEmberBreakdown(round, state.meta);
   const peak = Math.max(1, ...round.stats.nights.map(night => night.heartLost));
-  const affordable = (() => {
-    const bank = state.embers + breakdown.total;
-    return Object.values(META_UPGRADES).filter(upgrade =>
-      !state.meta[upgrade.id] && metaUnlocked(state, upgrade.id) && bank >= upgrade.cost).length;
-  })();
+  // What this fall bought on the tree: nodes now reachable, and whether
+  // the record just opened a path that Embers alone could not.
+  const bank = state.embers + breakdown.total;
+  const proven = { ...state, bestNights: Math.max(state.bestNights, nights) };
+  const affordable = Object.values(META_UPGRADES).filter(upgrade =>
+    !state.meta[upgrade.id] && metaUnlocked(proven, upgrade.id) && bank >= upgrade.cost).length;
+  const unsealed = Object.values(META_UPGRADES).filter(upgrade =>
+    !state.meta[upgrade.id] && upgrade.requiresBestNights &&
+    !metaUnlocked(state, upgrade.id) && metaUnlocked(proven, upgrade.id)).length;
   return (
     <div className="fallen-panel">
       <h2>The town is memory now.</h2>
@@ -73,7 +77,9 @@ export function FallenPanel({ state, setState, clearSelection }) {
         className="to-the-fire"
         onClick={() => { setState(current => collectEmbers(current)); clearSelection(); }}
       >
-        Return to the Fire{affordable > 0 ? ` — ${affordable} upgrade${affordable === 1 ? '' : 's'} affordable` : ''}
+        {unsealed > 0
+          ? `Return to the Fire — this vigil breaks ${unsealed} seal${unsealed === 1 ? '' : 's'}`
+          : `Return to the Fire${affordable > 0 ? ` — ${affordable} node${affordable === 1 ? '' : 's'} ready to kindle` : ''}`}
       </button>
     </div>
   );
