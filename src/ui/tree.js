@@ -1,6 +1,6 @@
 // The Ember tree's face: veins, medallions, and the flourishes that fire
 // when a node kindles. Pure drawing — reads state, never mutates it.
-import { LONG_DAWN_NIGHTS, LONG_DAWN_NODE, META_UPGRADES, metaStatus } from '../engine/meta.js';
+import { LONG_DAWN_NIGHTS, LONG_DAWN_NODE, META_UPGRADES, metaMaxRank, metaNextCost, metaRank, metaStatus } from '../engine/meta.js';
 
 export const TREE = 460;      // logical size; the canvas scales to fit
 export const NODE_R = 23;
@@ -216,9 +216,11 @@ function drawVein(ctx, from, to, color, status, animTime) {
 }
 
 // ── Medallions ──────────────────────────────────────────────────────────────
-function drawMedallion(ctx, node, status, color, animTime, focused) {
+function drawMedallion(ctx, node, state, status, color, animTime, focused) {
   const { x, y } = nodePoint(node);
-  const kept = status === 'kept';
+  const rank = metaRank(state, node.id);
+  const maxRank = metaMaxRank(node.id);
+  const kept = rank >= 1;
   const ready = status === 'ready';
 
   if (kept) {
@@ -241,7 +243,10 @@ function drawMedallion(ctx, node, status, color, animTime, focused) {
 
   // The rim says the status at a glance.
   const pulse = REDUCED_MOTION ? 0.85 : 0.7 + 0.3 * Math.sin(animTime * 3);
-  if (kept) {
+  if (status === 'maxed') {
+    ctx.strokeStyle = rgb(color, 1);
+    ctx.lineWidth = 2.6;
+  } else if (kept) {
     ctx.strokeStyle = rgb(color, 0.95);
     ctx.lineWidth = 2.2;
   } else if (ready) {
@@ -278,6 +283,21 @@ function drawMedallion(ctx, node, status, color, animTime, focused) {
     ctx.setLineDash([]);
   }
 
+  // Ranked nodes wear a gauge: one arc segment per rank, lit as poured.
+  // At a glance the tree shows not just what is kept but how deep it runs.
+  if (maxRank > 1) {
+    const gap = 0.16;
+    const span = (Math.PI * 2) / maxRank;
+    for (let seat = 0; seat < maxRank; seat++) {
+      const from = -Math.PI / 2 + seat * span + gap / 2;
+      ctx.strokeStyle = seat < rank ? rgb(color, 0.95) : 'rgba(96, 106, 128, 0.5)';
+      ctx.lineWidth = seat < rank ? 3 : 1.6;
+      ctx.beginPath();
+      ctx.arc(x, y, NODE_R + 6, from, from + span - gap);
+      ctx.stroke();
+    }
+  }
+
   const ink = kept ? rgb(color, 1)
     : ready ? rgb(color, 0.9)
     : status === 'costly' ? 'rgba(150, 160, 180, 0.75)'
@@ -288,10 +308,11 @@ function drawMedallion(ctx, node, status, color, animTime, focused) {
   // A sealed node wears the vigil it waits for; a priced one, its price.
   if (status === 'sealed') {
     label(ctx, `${node.requiresBestNights}n vigil`, x, y, 'rgba(190, 168, 115, 0.95)');
+  } else if (status === 'maxed') {
+    label(ctx, maxRank > 1 ? 'full' : 'kept', x, y, rgb(color, 0.8));
   } else if (status === 'ready' || status === 'costly') {
-    label(ctx, `${node.cost} ✦`, x, y, status === 'ready' ? rgb(color, 0.95) : 'rgba(130, 142, 164, 0.9)');
-  } else if (kept) {
-    label(ctx, 'kept', x, y, rgb(color, 0.75));
+    label(ctx, `${metaNextCost(state, node.id)} ✦`, x, y,
+      status === 'ready' ? rgb(color, 0.95) : 'rgba(130, 142, 164, 0.9)');
   }
 }
 
@@ -308,9 +329,8 @@ function label(ctx, text, x, y, color) {
 }
 
 function drawCrown(ctx, state, animTime, focused) {
-  const complete = state.bestNights >= LONG_DAWN_NIGHTS &&
-    Object.keys(META_UPGRADES).every(id => state.meta[id]);
-  const open = Object.keys(META_UPGRADES).every(id => state.meta[id]);
+  const open = Object.keys(META_UPGRADES).every(id => metaRank(state, id) >= 1);
+  const complete = open && state.bestNights >= LONG_DAWN_NIGHTS;
   const color = [255, 232, 176];
   const { x, y } = nodePoint(LONG_DAWN_NODE);
   if (complete || open) {
@@ -353,20 +373,21 @@ function drawCrown(ctx, state, animTime, focused) {
 // ── The frame ───────────────────────────────────────────────────────────────
 export function drawTree(ctx, state, animTime, effects, focusedId) {
   ctx.clearRect(0, 0, TREE, TREE);
-  const allKept = Object.keys(META_UPGRADES).every(id => state.meta[id]);
+  const allKept = Object.keys(META_UPGRADES).every(id => metaRank(state, id) >= 1);
 
   for (const edge of crownEdges()) {
     drawVein(ctx, edge.from, edge.to, [255, 232, 176],
-      allKept ? 'flowing' : state.meta[edge.from.id] ? 'open' : 'dormant', animTime);
+      allKept ? 'flowing' : metaRank(state, edge.from.id) >= 1 ? 'open' : 'dormant', animTime);
   }
   for (const edge of treeEdges()) {
     const color = BRANCH_COLORS[edge.branch];
-    const status = state.meta[edge.to.id] ? 'flowing' : state.meta[edge.from.id] ? 'open' : 'dormant';
+    const status = metaRank(state, edge.to.id) >= 1 ? 'flowing'
+      : metaRank(state, edge.from.id) >= 1 ? 'open' : 'dormant';
     drawVein(ctx, edge.from, edge.to, color, status, animTime);
   }
   drawCrown(ctx, state, animTime, focusedId === 'longDawn');
   for (const node of treeNodes()) {
-    drawMedallion(ctx, node, metaStatus(state, node.id), BRANCH_COLORS[node.branch],
+    drawMedallion(ctx, node, state, metaStatus(state, node.id), BRANCH_COLORS[node.branch],
       animTime, focusedId === node.id);
   }
   drawTreeEffects(ctx, effects, animTime);

@@ -1,11 +1,12 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
+import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, getStructureHp, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
 import { getHoldTime, getNightForecast, getShadeCount, getWardenCooldown, getWardenTemper, moveWarden, rollOmen, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, VEILED_HUSH, WARDEN_COOLDOWN, WARDEN_TEMPER_TIERS, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
-import { allUpgradesKept, branchKept, buyMetaUpgrade, isVigilComplete, metaChildren, metaStatus, LONG_DAWN_NIGHTS, META_BRANCHES, META_UPGRADES } from '../meta.js';
+import { allUpgradesKept, branchKept, buyMetaUpgrade, getFoundationBonus, getHeartMax, isVigilComplete, metaChildren, metaMaxRank, metaNextCost, metaRank, metaStatus, LONG_DAWN_NIGHTS, META_BRANCHES, META_UPGRADES } from '../meta.js';
 
 function makeRng(sequence = [0.5]) {
   let index = 0;
@@ -703,7 +704,8 @@ describe('hearthlight', () => {
     expect(metaStatus(state, 'morningStockpile')).toBe('rooted'); // path unopened
     expect(metaStatus(state, 'ruinsRemember')).toBe('rooted');
     state = buyMetaUpgrade(state, 'stoneFoundations');
-    expect(metaStatus(state, 'stoneFoundations')).toBe('kept');
+    // Kindled, but it has ranks left — so it is 'costly', not finished.
+    expect(metaStatus(state, 'stoneFoundations')).toBe('costly');
     expect(metaStatus(state, 'morningStockpile')).toBe('costly');
     // A sealed pinnacle reads as sealed only once its path is open.
     state = { ...state, embers: 99, meta: { ...state.meta, morningStockpile: true, deeperDrafts: true } };
@@ -714,6 +716,68 @@ describe('hearthlight', () => {
     state = buyMetaUpgrade(state, 'ruinsRemember');
     expect(branchKept(state, 'stone')).toBe(true);
     expect(branchKept(state, 'watch')).toBe(false);
+  });
+
+  it('ranks are the tail: the tree never finishes paying out', () => {
+    // Toughness, light and income carry ranks — the three axes an
+    // incremental actually runs on. Everything else is one-and-done.
+    expect(metaMaxRank('stoneFoundations')).toBe(3);
+    expect(metaMaxRank('heartstone')).toBe(3);
+    expect(metaMaxRank('emberChoir')).toBe(3);
+    expect(metaMaxRank('secondWarden')).toBe(1);
+
+    let state = { ...createInitialState(), embers: 200 };
+    expect(getFoundationBonus(state)).toBe(0);
+    state = buyMetaUpgrade(state, 'stoneFoundations');
+    expect(metaRank(state, 'stoneFoundations')).toBe(1);
+    expect(getFoundationBonus(state)).toBe(1);
+    expect(state.embers).toBe(195);          // rank 1 costs 5
+    state = buyMetaUpgrade(state, 'stoneFoundations');
+    expect(state.embers).toBe(177);          // rank 2 costs 18 — sharply more
+    expect(getFoundationBonus(state)).toBe(2);
+    state = buyMetaUpgrade(state, 'stoneFoundations');
+    expect(getFoundationBonus(state)).toBe(3);
+    expect(metaStatus(state, 'stoneFoundations')).toBe('maxed');
+    expect(metaNextCost(state, 'stoneFoundations')).toBeNull();
+    expect(buyMetaUpgrade(state, 'stoneFoundations')).toBeNull(); // nothing left to pour
+
+    // Every rank costs more than the one before it — an incremental ladder,
+    // not a flat re-buy.
+    for (const upgrade of Object.values(META_UPGRADES).filter(node => node.rankCosts)) {
+      for (let rank = 1; rank < upgrade.rankCosts.length; rank++) {
+        expect(upgrade.rankCosts[rank]).toBeGreaterThan(upgrade.rankCosts[rank - 1]);
+      }
+      expect(upgrade.rankCosts[0]).toBe(upgrade.cost);
+    }
+
+    // Ranks reach the round: toughness, light, and the Ember payout.
+    const ranked = { ...createInitialState(), meta: { heartstone: 3, emberChoir: 3, stoneFoundations: 2 } };
+    expect(getHeartMax(ranked)).toBe(80 + 25 * 3);
+    expect(getStructureHp(ranked, 'palisade')).toBe(STRUCTURES.palisade.hp + 2);
+    expect(getEmbersEarned({ day: 9, glow: 0, slots: [] }, ranked.meta))
+      .toBe(8 + 3 * Math.floor(8 / 2));   // 8 nights + three choir voices
+
+    // The story does not ask for the tail: the Long Dawn wants every node
+    // kindled, not every rank poured.
+    const kindled = { ...createInitialState(), bestNights: 15, meta:
+      Object.fromEntries(Object.keys(META_UPGRADES).map(id => [id, 1])) };
+    expect(allUpgradesKept(kindled)).toBe(true);
+    expect(isVigilComplete(kindled)).toBe(true);
+  });
+
+  it('the bot harness buys the tree in an order the tree allows', async () => {
+    // The keeper spends greedily down META_ORDER in a single pass, so every
+    // prerequisite must appear before what it feeds. Break this and the
+    // keeper silently starts buying a fall late — a balance change nobody
+    // asked for and no other test would catch.
+    const source = await readFile(new URL('../../../scripts/bot-playtest.js', import.meta.url), 'utf8');
+    const order = JSON.parse(source.match(/const META_ORDER = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
+    expect([...order].sort()).toEqual(Object.keys(META_UPGRADES).sort());
+    for (const [id, upgrade] of Object.entries(META_UPGRADES)) {
+      for (const parent of upgrade.requires) {
+        expect(order.indexOf(parent)).toBeLessThan(order.indexOf(id));
+      }
+    }
   });
 
   it('milestone upgrades are sealed until the vigil is proven', () => {
@@ -841,7 +905,13 @@ describe('hearthlight', () => {
     expect(migrateState({ embers: -5, round: 'garbage' }).embers).toBe(0);
     expect(migrateState({ embers: 12 }).round).toBeNull();
     expect(migrateState(null).totalRounds).toBe(0);
-    expect(migrateState({ meta: { swiftWarden: true } }).meta.swiftWarden).toBe(true);
+    // Meta holdings are ranks now; a pre-tail save stored `true`, which is
+    // rank 1. Nonsense ranks are dropped rather than trusted.
+    expect(migrateState({ meta: { swiftWarden: true } }).meta.swiftWarden).toBe(1);
+    expect(migrateState({ meta: { heartstone: 3 } }).meta.heartstone).toBe(3);
+    expect(migrateState({ meta: { heartstone: 0 } }).meta.heartstone).toBeUndefined();
+    expect(migrateState({ meta: { heartstone: 'lots' } }).meta.heartstone).toBeUndefined();
+    expect(metaRank(migrateState({ meta: { swiftWarden: true } }), 'swiftWarden')).toBe(1);
   });
 
   it('new structures hook the engine: granary dawns, bell delays, kiln pays', () => {

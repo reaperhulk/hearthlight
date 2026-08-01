@@ -2,7 +2,7 @@
 // Days are for one draft decision and Glow; nights belong to the dark.
 import { createSlots, getAdjacentSlots } from './map.js';
 import { STRUCTURES, STRUCTURE_IDS } from './structures.js';
-import { getDraftSize, getHeartMax, getUnlockedRings, getWardenCount } from './meta.js';
+import { getChoirVoices, getDraftSize, getFoundationBonus, getHeartMax, getUnlockedRings, getWardenCount } from './meta.js';
 import { STRUCTURE_HIT } from './night.js';
 
 export const DAY_LENGTH = 15;
@@ -100,7 +100,7 @@ export function beginRound(state, rng = Math.random) {
 }
 
 export function getStructureHp(state, structureId) {
-  return STRUCTURES[structureId].hp + (state.meta.stoneFoundations ? 1 : 0);
+  return STRUCTURES[structureId].hp + getFoundationBonus(state);
 }
 
 // Glow production per second, split so adjacency's real contribution is
@@ -237,7 +237,7 @@ export function getEmberBreakdown(round, meta = {}) {
     // Cap 6, not 3: with mend the only Glow sink, a kiln town banking
     // its surplus is a deliberate harvest line, not an accident.
     kiln: kilns * Math.min(6, Math.floor(round.glow / 20)),
-    choir: meta.emberChoir ? Math.floor(nights / 2) : 0,
+    choir: getChoirVoices(meta) * Math.floor(nights / 2),
     emberheart: meta.emberheart ? Math.max(0, nights - 4) : 0,
     ruins: meta.ruinsRemember
       ? Math.round((round.stats?.heartLoss.falls || 0) / STRUCTURE_HIT)

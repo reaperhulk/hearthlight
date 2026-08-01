@@ -153,17 +153,50 @@ try {
     return {
       before,
       after: document.querySelectorAll('.tree-node.rooted').length,
-      kept: document.querySelectorAll('.tree-node.kept').length,
+      ranks: Object.values(window.__game.getState().meta).filter(Boolean).length,
       spent: window.__game.getState().embers,
       banner: document.querySelector('.kindled-banner')?.textContent ?? null,
     };
   });
   if (kindling.error) failures.push(kindling.error);
-  else if (kindling.kept !== 1) failures.push(`kindling left ${kindling.kept} kept nodes, expected 1`);
+  else if (kindling.ranks !== 1) failures.push(`kindling lit ${kindling.ranks} nodes, expected 1`);
   else if (kindling.after >= kindling.before) failures.push('kindling a root opened no path (rooted count did not fall)');
   else if (kindling.spent !== 35) failures.push(`kindling spent ${40 - kindling.spent} embers, expected 5`);
   else if (!kindling.banner) failures.push('kindling announced nothing');
   else note(`node kindled: ${kindling.before - kindling.after} path(s) opened, banner shown`);
+
+  // The tail: a kindled node with ranks left can take another course, and
+  // the Embers keep having somewhere to go.
+  const ranking = await page.evaluate(async () => {
+    window.__game.setState(state => ({ ...state, embers: 300 }));
+    await new Promise(resolve => setTimeout(resolve, 60));
+    const node = [...document.querySelectorAll('.tree-node')]
+      .find(candidate => candidate.getAttribute('aria-label')?.startsWith('Stone Foundations'));
+    // Clicking a node toggles it, and the kindling step above may have
+    // left this one already open — select it, don't flip it shut.
+    node.click();
+    await new Promise(resolve => setTimeout(resolve, 60));
+    if (!document.querySelector('.tree-detail')) {
+      node.click();
+      await new Promise(resolve => setTimeout(resolve, 60));
+    }
+    const poured = [];
+    for (let rank = 0; rank < 4; rank++) {
+      const button = document.querySelector('.tree-detail .kindle');
+      if (!button) break;
+      button.click();
+      await new Promise(resolve => setTimeout(resolve, 90));
+      poured.push(window.__game.getState().meta.stoneFoundations);
+    }
+    return {
+      poured,
+      maxed: document.querySelectorAll('.tree-node.maxed').length > 0,
+      label: document.querySelector('.rank-gauge span')?.textContent ?? null,
+    };
+  });
+  if (ranking.poured.at(-1) !== 3) failures.push(`ranks stopped at ${ranking.poured.at(-1)}, expected 3 (poured ${ranking.poured.join(',')})`);
+  else if (!ranking.maxed) failures.push('a fully-poured node never read as maxed');
+  else note(`ranks pour: ${ranking.label}, node maxed and closed`);
 
   // A vigil can be abandoned: double-tap walks away, the chronicle pays.
   await page.click('.begin');

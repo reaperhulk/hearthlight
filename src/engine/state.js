@@ -30,6 +30,13 @@ export function migrateState(saved) {
     lifetime: { ...fresh.lifetime, ...(saved.lifetime || {}) },
     saveVersion: SAVE_VERSION,
   };
+  // Meta holdings are ranks now. Saves from before the tail stored `true`,
+  // which is rank 1; anything unreadable is dropped rather than trusted.
+  for (const [id, held] of Object.entries(migrated.meta)) {
+    if (held === true) migrated.meta[id] = 1;
+    else if (!Number.isFinite(held) || held < 1) delete migrated.meta[id];
+    else migrated.meta[id] = Math.floor(held);
+  }
   for (const key of Object.keys(fresh.lifetime)) {
     if (!Number.isFinite(migrated.lifetime[key]) || migrated.lifetime[key] < 0) migrated.lifetime[key] = 0;
   }

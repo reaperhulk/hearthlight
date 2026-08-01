@@ -190,12 +190,15 @@ await page.evaluate(() => {
     ...state,
     embers: 24,
     bestNights: 9,
-    meta: { stoneFoundations: true, morningStockpile: true, swiftWarden: true, emberChoir: true },
+    // A part-grown tree with the tail started: a maxed rank gauge, a
+    // half-poured one, a ready node, a sealed pinnacle, an unopened path.
+    meta: { stoneFoundations: 3, morningStockpile: 1, swiftWarden: 1, emberChoir: 2 },
   }));
 });
+// Select a half-poured ranked node: the gauge and the next rank's price.
 await page.evaluate(() => {
   const nodes = [...document.querySelectorAll('.tree-node')];
-  (nodes.find(node => node.className.includes('ready')) || nodes[0]).click();
+  (nodes.find(node => node.getAttribute('aria-label')?.startsWith('Ember Choir')) || nodes[0]).click();
 });
 await shot('tree');
 

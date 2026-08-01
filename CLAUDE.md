@@ -70,5 +70,16 @@ the Long Dawn (15 nights, everything kept) closes the story.
   child never costs less than its parent, and every edge runs forward
   through the bot harness's `META_ORDER`. Break either and a greedy keeper
   starts missing purchases it used to make.
+- The tree has a TAIL: `rankCosts` makes a node re-buyable at rising
+  prices (toughness / income / light). This is what keeps it an
+  incremental — Embers must never run out of somewhere to go. Ranks are
+  not part of the story: the Long Dawn asks only that every node be
+  kindled (rank 1), so cycle 5's capstone calibration is independent of
+  them. Two guards ride on this — a maxed town must still fall, and ranks
+  must measure better than merely kindled.
+- Do not "tidy" meta prices. They are a measured artifact, not a design
+  sketch: a round of cosmetic ladder-smoothing in cycle 22 cost 1.4 arc
+  nights before the harness caught it. Change one price at a time and
+  read `balance:compare`.
 - Round 1 must be fun in under five minutes, with a meta purchase affordable
   immediately after the first fall.

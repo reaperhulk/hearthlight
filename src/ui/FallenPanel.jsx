@@ -1,7 +1,7 @@
 // The fall screen: epitaph, the night-by-night sparkline, the Ember
 // chronicle, and two ways forward (straight back in, or via the fire).
 import { beginRound, collectEmbers, getEmberBreakdown } from '../engine/round.js';
-import { allUpgradesKept, metaUnlocked, LONG_DAWN_NIGHTS, META_UPGRADES } from '../engine/meta.js';
+import { allUpgradesKept, metaNextCost, metaRank, metaUnlocked, LONG_DAWN_NIGHTS, META_UPGRADES } from '../engine/meta.js';
 import { unlockAudio } from './sound.js';
 
 const EPITAPHS = [
@@ -31,10 +31,15 @@ export function FallenPanel({ state, setState, clearSelection }) {
   // the record just opened a path that Embers alone could not.
   const bank = state.embers + breakdown.total;
   const proven = { ...state, bestNights: Math.max(state.bestNights, nights) };
-  const affordable = Object.values(META_UPGRADES).filter(upgrade =>
-    !state.meta[upgrade.id] && metaUnlocked(proven, upgrade.id) && bank >= upgrade.cost).length;
+  // Ranks count too: a node you can pour another course into is just as
+  // much a reason to walk back to the fire as one you have never lit.
+  const affordable = Object.values(META_UPGRADES).filter(upgrade => {
+    const price = metaNextCost(state, upgrade.id);
+    if (price == null || bank < price) return false;
+    return metaRank(state, upgrade.id) >= 1 || metaUnlocked(proven, upgrade.id);
+  }).length;
   const unsealed = Object.values(META_UPGRADES).filter(upgrade =>
-    !state.meta[upgrade.id] && upgrade.requiresBestNights &&
+    metaRank(state, upgrade.id) === 0 && upgrade.requiresBestNights &&
     !metaUnlocked(state, upgrade.id) && metaUnlocked(proven, upgrade.id)).length;
   return (
     <div className="fallen-panel">

@@ -13,7 +13,7 @@ import { STRUCTURES, STRUCTURE_IDS } from '../src/engine/structures.js';
 import { getAdjacentSlots } from '../src/engine/map.js';
 import { endDay, tick } from '../src/engine/tick.js';
 import { moveWarden, getWardenCooldown, HEART_SLOT } from '../src/engine/night.js';
-import { buyMetaUpgrade, META_UPGRADES } from '../src/engine/meta.js';
+import { buyMetaUpgrade, metaMaxRank, metaNextCost, metaRank, metaUnlocked, META_UPGRADES } from '../src/engine/meta.js';
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -25,6 +25,10 @@ function mulberry32(seed) {
   };
 }
 
+// Tree-valid by construction: every prerequisite appears before what it
+// feeds, so a greedy pass can always buy a parent in the same fall as its
+// child. Asserted in the unit tests — break it and the keeper silently
+// starts missing purchases a fall late.
 const META_ORDER = ['stoneFoundations', 'swiftWarden', 'morningStockpile', 'emberChoir', 'beaconHeart', 'heartstone', 'deeperDrafts', 'emberheart', 'ruinsRemember', 'secondWarden', 'outerRing'];
 
 // ── Profiles ────────────────────────────────────────────────────────────────
@@ -290,11 +294,40 @@ function playRound(state, profile, rng, collector = emptyCollector(), maxSeconds
   return { state, nights, embers, seconds, fell, stats, leveled, log };
 }
 
+// Breadth first, then depth: kindle every node the tree will allow in
+// priority order, then pour whatever is left into the cheapest rank
+// available. Modelling the reverse (ranking up before opening new nodes)
+// starves the tree, and is not how anyone actually spends in one of
+// these games.
 function spendEmbers(state) {
   let current = state;
-  for (const id of META_ORDER) {
-    const bought = buyMetaUpgrade(current, id);
-    if (bought) current = bought;
+  for (let pass = 0; pass < META_ORDER.length; pass++) {
+    let opened = false;
+    for (const id of META_ORDER) {
+      if (metaRank(current, id) !== 0) continue;
+      const bought = buyMetaUpgrade(current, id);
+      if (bought) { current = bought; opened = true; }
+    }
+    if (!opened) break;
+  }
+  // Ranks take the SURPLUS, never the savings. A node always beats a rank
+  // per Ember, so the keeper holds back whatever the cheapest node it can
+  // still open costs, and only pours what is left over. Spending that
+  // reserve on a cheap rank instead measured a full arc-night worse — the
+  // trap a real player falls into too.
+  for (;;) {
+    const reserve = META_ORDER
+      .filter(id => metaRank(current, id) === 0 && metaUnlocked(current, id))
+      .reduce((cheapest, id) => Math.min(cheapest, metaNextCost(current, id)), Infinity);
+    const keepBack = Number.isFinite(reserve) ? reserve : 0;
+    const bought = META_ORDER
+      .filter(id => metaRank(current, id) >= 1 && metaNextCost(current, id) != null)
+      .sort((a, b) => metaNextCost(current, a) - metaNextCost(current, b))
+      .filter(id => current.embers - metaNextCost(current, id) >= keepBack)
+      .map(id => buyMetaUpgrade(current, id))
+      .find(Boolean);
+    if (!bought) break;
+    current = bought;
   }
   return current;
 }
@@ -512,13 +545,24 @@ if (!quick) {
 
   // The kitted ceiling: a keeper who owns EVERYTHING. Calibrates the
   // Long Dawn capstone — the goal must be provably reachable.
-  const allMeta = Object.fromEntries(Object.keys(META_UPGRADES).map(id => [id, true]));
+  const allMeta = Object.fromEntries(Object.keys(META_UPGRADES).map(id => [id, 1]));
   const kittedRuns = DEPTH_SEEDS.map(seed =>
     playRound({ ...createInitialState(), meta: allMeta }, 'keeper', mulberry32(seed)));
   depth.kittedNights = mean(kittedRuns.map(run => run.nights));
   depth.kittedBest = Math.max(...kittedRuns.map(run => run.nights));
   depth.kittedFell = kittedRuns.every(run => run.fell);
-  say(`  kitted ceiling (all upgrades): mean ${depth.kittedNights.toFixed(1)}n, best ${depth.kittedBest}n`);
+  say(`  kitted ceiling (every node kindled): mean ${depth.kittedNights.toFixed(1)}n, best ${depth.kittedBest}n`);
+
+  // The tail's ceiling: every node at its LAST rank. This is the real
+  // immortality guard now — the kitted panel above only calibrates the
+  // Long Dawn, which asks for the story, not the tail.
+  const maxedMeta = Object.fromEntries(Object.keys(META_UPGRADES).map(id => [id, metaMaxRank(id)]));
+  const maxedRuns = DEPTH_SEEDS.map(seed =>
+    playRound({ ...createInitialState(), meta: maxedMeta }, 'keeper', mulberry32(seed)));
+  depth.maxedNights = mean(maxedRuns.map(run => run.nights));
+  depth.maxedBest = Math.max(...maxedRuns.map(run => run.nights));
+  depth.maxedFell = maxedRuns.every(run => run.fell);
+  say(`  maxed ceiling (every rank poured): mean ${depth.maxedNights.toFixed(1)}n, best ${depth.maxedBest}n`);
 
   say(`  picks: ${STRUCTURE_IDS.map(id => `${id} ${collector.picks[id] || 0}`).join(' | ')}`);
   depth.picks = { ...collector.picks };
@@ -534,6 +578,15 @@ const snapshot = {
     ablations: round2(depth.ablations),
     metaValue: round2(depth.metaValue),
     cardValue: round2(depth.cardValue),
+    // The two ceilings: the story's (every node kindled — what calibrates
+    // the Long Dawn) and the tail's (every rank poured). Neither was
+    // snapshotted before, so both could drift in silence.
+    ceilings: round2({
+      kittedNights: depth.kittedNights,
+      kittedBest: depth.kittedBest,
+      maxedNights: depth.maxedNights,
+      maxedBest: depth.maxedBest,
+    }),
     picks: depth.picks,
   },
 };
@@ -571,6 +624,7 @@ if (compareFile) {
     diff('ablations.', baseline.depth.ablations, snapshot.depth.ablations);
     diff('metaValue.', baseline.depth.metaValue, snapshot.depth.metaValue);
     diff('cardValue.', baseline.depth.cardValue, snapshot.depth.cardValue);
+    if (baseline.depth.ceilings) diff('ceilings.', baseline.depth.ceilings, snapshot.depth.ceilings);
     for (const id of Object.keys(baseline.depth.picks || {})) {
       if ((baseline.depth.picks[id] || 0) > 0 && !(snapshot.depth.picks?.[id] > 0)) {
         drifts.push(`picks.${id}: was picked in the baseline, never picked now`);
@@ -641,6 +695,15 @@ if (assertMode) {
     }
     if (!depth.kittedFell) {
       issues.push('IMMORTAL KIT: a fully-upgraded town never falls');
+    }
+    // The tail must not buy immortality either: every rank poured in, and
+    // the dark still wins. This is the guard that keeps ranks honest.
+    if (!depth.maxedFell) {
+      issues.push('IMMORTAL TAIL: a town at every maximum rank never falls');
+    }
+    // Ranks have to be worth pouring into, or the tail is a fake sink.
+    if (depth.maxedNights <= depth.kittedNights) {
+      issues.push(`ranks pay nothing: maxed ${depth.maxedNights.toFixed(1)}n vs kindled ${depth.kittedNights.toFixed(1)}n`);
     }
     // The juggle guard: breaking grapples on rotation must never stall a
     // town alive, and must never beat committed holds.

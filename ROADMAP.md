@@ -413,6 +413,38 @@ commit pushed to main. Update checkboxes as work lands.
       of a flat 2x. **Day 15 → 58fps, late night 13 → 58fps**; worst frame
       21.2ms → 6.7ms. Renders verified pixel-faithful against before-shots.
 
+- [x] **The tree grows a tail (cycle 22)** — the rebalance, from the fun
+      queue. Two problems, both structural.
+      (1) The Ember root fanned three ways off one node: a shelf, not a
+      path. Chaining it (choir → frontier → light) was the obvious fix
+      and measured *terribly* — outerRing is a -1.0n drag in a young town
+      that only pays across an arc, so making it a toll on the way to the
+      Heartstone collapsed its arc value from +14.2 to +1.2 and flattened
+      the whole meta climb (7.4 -> 7.6n, and the "later rounds are longer"
+      assertion failed outright). It is now a fork: the frontier hangs off
+      the choir as its own prong, and the Heartstone chains to the
+      Emberheart. A branch you take when you are ready for it, never a
+      toll. Also learned the hard way: the old prices were ALREADY a
+      per-branch ladder, and a round of unmeasured "ladder polish" cost
+      1.4 arc nights on its own. Only one price moved in the end —
+      emberheart 16 -> 20, which the chain requires.
+      (2) The real incremental problem: eleven one-time booleans meant the
+      upgrade screen could be FINISHED, and every fall after about the
+      sixth paid a currency with nothing to buy. The three axes an
+      incremental actually runs on now carry RANKS — toughness
+      (stoneFoundations 5/18/48), income (emberChoir 10/30/78), light
+      (heartstone 20/52/120) — so late Embers always have somewhere to go.
+      Ranks are deliberately NOT part of the story: the Long Dawn still
+      asks only that every node be kindled, so cycle 5's calibration
+      stands untouched. Two new guards: a maxed town must still fall
+      (IMMORTAL TAIL) and ranks must actually pay (maxed 25.6n vs kindled
+      23.4n). The keeper bot learned to hold back the price of the
+      cheapest node it can still open and pour only the surplus — spending
+      savings on a cheap rank measured a full arc-night worse, which is
+      the same trap a real player falls into. Net: arc 7.4 -> 9.8n,
+      identical to cycle 21, with every per-upgrade value unchanged.
+      Both ceilings are now in the committed snapshot; neither was before.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
@@ -420,19 +452,21 @@ commit pushed to main. Update checkboxes as work lands.
 
 ### Fun queue (measured gaps, most promising first)
 
-- **The tree has flat roots.** The Ember root fans three ways off one
-  node because cost order forbids chaining (heartstone 20 gates nothing;
-  emberheart 16 and outerRing 12 are cheaper). Re-pricing that root — or
-  adding one cheap Ember node between the choir and the rest — would make
-  it a real path like Stone's. Requires a deliberate balance change and a
-  re-baseline; measure `outerRing`'s -1.0n round-1 / +14.2 arc split first,
-  since it is the upgrade most likely to be mispriced.
+- **The tail is only three nodes deep.** Ranks stop at 3 and only on
+  toughness/income/light. If the late game still runs dry, the next step
+  is either a fourth rank tier or ranks on a fourth axis — but measure
+  the maxed ceiling each time: it is 25.6n against a kindled 23.4n, and
+  the IMMORTAL TAIL guard is the wall it must not cross.
 - **Nothing is ever spent twice.** Every node is a permanent yes; there is
   no branch you must give up. A respec ("scatter the embers") or a
   root-exclusive capstone would make the tree a decision rather than a
   checklist — the doctrine's "decisions, not busywork" applied to the meta
   layer. Guard with the arc panels: an exclusive choice must not measure
   as one correct answer.
+- **outerRing is still the mispriced one.** -1.0n on round 1, +14.2 across
+  an arc — the widest early/late split in the tree, and the reason it
+  cannot sit in a main line. Worth a real look at whether the frontier
+  should cost Glow rather than Embers.
 - **The dead cards are still dead.** The ban-one panel has well, granary,
   emberKiln and shrine at +0.0n/+0.0e after a whole identity cycle. Their
   identities read well and measure as nothing; the next honest step is to
@@ -466,12 +500,16 @@ commit pushed to main. Update checkboxes as work lands.
   heart strikes / 22% vents (vents now howl visibly); ~4.6 leveled
   structures by arc end; the Warden tempers within a run
   (seasoned/grim/lightless).
-- Meta: 11 upgrades on a three-root tree, all earning a measured axis,
+- Meta: 11 upgrades on a three-root tree (stone chains, watch forks,
+  ember forks-then-chains), with ranks on toughness, income and light so
+  the tree never finishes paying out; all earning a measured axis,
   condemnations double-checked on a 15-seed butterfly panel. Three
   pinnacles crown their roots, sealed behind proven vigils (8/10/12
   nights); the Long Dawn is the tree's crown and closes the story. The
   tree's prerequisites are balance-neutral by construction (child cost
-  >= parent cost; edges run forward through META_ORDER).
+  >= parent cost; edges run forward through META_ORDER, both unit-
+  asserted). Ceilings: every node kindled 23.4n mean / 30 best; every
+  rank poured 25.6n / 33 — and both still fall.
 - Render: 58fps on a 4x-throttled core in both the cheapest and the
   heaviest scene (was 15 and 13), 1.14ms / 2.14ms mean paint. Guarded
   by `npm run perf:probe`.

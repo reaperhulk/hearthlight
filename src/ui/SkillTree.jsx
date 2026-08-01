@@ -4,14 +4,14 @@
 // keyboard-reachable and speaks to a screen reader.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  branchKept, buyMetaUpgrade, metaStatus,
+  branchKept, buyMetaUpgrade, metaMaxRank, metaNextCost, metaRank, metaStatus,
   LONG_DAWN_NIGHTS, LONG_DAWN_NODE, META_BRANCHES, META_UPGRADES,
 } from '../engine/meta.js';
 import { sfx, unlockAudio } from './sound.js';
 import { branchWashEffect, drawTree, kindleEffects, pruneTreeEffects, treeNodes, TREE } from './tree.js';
 
 const STATUS_WORD = {
-  kept: 'kept',
+  maxed: 'every rank poured',
   ready: 'ready to kindle',
   costly: 'not enough Embers yet',
   sealed: 'sealed until the vigil is deep enough',
@@ -35,8 +35,10 @@ function nextStep(state) {
   if (ready.length > 0) {
     return `${ready.length} node${ready.length === 1 ? '' : 's'} ready to kindle. Tap one.`;
   }
-  const cheapest = open.reduce((best, node) => (node.cost < best.cost ? node : best));
-  return `${cheapest.cost - state.embers} more Ember${cheapest.cost - state.embers === 1 ? '' : 's'} opens ${cheapest.name}.`;
+  const cheapest = open.reduce((best, node) =>
+    (metaNextCost(state, node.id) < metaNextCost(state, best.id) ? node : best));
+  const short = metaNextCost(state, cheapest.id) - state.embers;
+  return `${short} more Ember${short === 1 ? '' : 's'} ${metaRank(state, cheapest.id) >= 1 ? 'deepens' : 'opens'} ${cheapest.name}.`;
 }
 
 export function SkillTree({ state, setState }) {
@@ -88,12 +90,18 @@ export function SkillTree({ state, setState }) {
       const now = performance.now() / 1000;
       effectsRef.current.push(...kindleEffects(META_UPGRADES[upgradeId], now));
       const branch = META_UPGRADES[upgradeId].branch;
-      const finishedRoot = branchKept(bought, branch);
+      // A root only "completes" the first time every node in it is lit —
+      // ranking one up later must not re-fire the celebration.
+      const finishedRoot = branchKept(bought, branch) && !branchKept(current, branch);
       if (finishedRoot) effectsRef.current.push(branchWashEffect(branch, now + 0.5));
       sfx.kindle();
       if (finishedRoot) sfx.rootKept();
       navigator.vibrate?.(finishedRoot ? [10, 50, 18] : 10);
-      setKindled({ id: upgradeId, root: finishedRoot ? META_BRANCHES[branch].name : null });
+      setKindled({
+        id: upgradeId,
+        rank: metaRank(bought, upgradeId),
+        root: finishedRoot ? META_BRANCHES[branch].name : null,
+      });
       return bought;
     });
   }, [setState]);
@@ -123,7 +131,8 @@ export function SkillTree({ state, setState }) {
           const upgrade = META_UPGRADES[node.id];
           const nodeStatus = upgrade ? metaStatus(state, node.id) : 'crown';
           const label = upgrade
-            ? `${upgrade.name}, ${upgrade.cost} Embers — ${STATUS_WORD[nodeStatus]}`
+            ? `${upgrade.name}${metaMaxRank(node.id) > 1 ? `, rank ${metaRank(state, node.id)} of ${metaMaxRank(node.id)}` : ''}` +
+              `${metaNextCost(state, node.id) == null ? '' : `, ${metaNextCost(state, node.id)} Embers`} — ${STATUS_WORD[nodeStatus]}`
             : `The Long Dawn — hold the light for ${LONG_DAWN_NIGHTS} nights. Best so far: ${state.bestNights}.`;
           return (
             <button
@@ -142,7 +151,9 @@ export function SkillTree({ state, setState }) {
         <p className="kindled-banner">
           {kindled.root
             ? `${kindled.root} is whole — the light runs the length of it.`
-            : `${META_UPGRADES[kindled.id].name} kindles.`}
+            : kindled.rank > 1
+              ? `${META_UPGRADES[kindled.id].name} deepens — rank ${kindled.rank}.`
+              : `${META_UPGRADES[kindled.id].name} kindles.`}
         </p>
       )}
       {chosen === 'longDawn' ? (
@@ -158,7 +169,24 @@ export function SkillTree({ state, setState }) {
           <strong>{detail.name}</strong>
           <em>{META_BRANCHES[detail.branch].name}</em>
           <p>{detail.description}</p>
-          {status === 'kept' && <span className="verdict kept">Kept. It burns in every vigil from here on.</span>}
+          {metaMaxRank(detail.id) > 1 && (
+            <span className="rank-gauge" aria-label={`Rank ${metaRank(state, detail.id)} of ${metaMaxRank(detail.id)}`}>
+              {Array.from({ length: metaMaxRank(detail.id) }, (unused, seat) => (
+                <i key={seat} className={seat < metaRank(state, detail.id) ? 'lit' : ''} />
+              ))}
+              <span>rank {metaRank(state, detail.id)} / {metaMaxRank(detail.id)}</span>
+            </span>
+          )}
+          {metaMaxRank(detail.id) > 1 && metaRank(state, detail.id) >= 1 && status !== 'maxed' && (
+            <span className="verdict">{detail.rankNote}</span>
+          )}
+          {status === 'maxed' && (
+            <span className="verdict kept">
+              {metaMaxRank(detail.id) > 1
+                ? 'Every rank poured. It runs as deep as it goes.'
+                : 'Kept. It burns in every vigil from here on.'}
+            </span>
+          )}
           {status === 'rooted' && (
             <span className="verdict">
               Grows from {detail.requires.map(id => META_UPGRADES[id].name).join(' and ')} — kindle that first.
@@ -171,12 +199,15 @@ export function SkillTree({ state, setState }) {
           )}
           {status === 'costly' && (
             <span className="verdict">
-              {detail.cost} Embers. You hold {state.embers} — {detail.cost - state.embers} more.
+              {metaNextCost(state, detail.id)} Embers. You hold {state.embers} —{' '}
+              {metaNextCost(state, detail.id) - state.embers} more.
             </span>
           )}
           {status === 'ready' && (
             <button className="kindle" onClick={() => kindle(detail.id)}>
-              Kindle it — {detail.cost} ✦
+              {metaRank(state, detail.id) >= 1
+                ? `Pour another rank — ${metaNextCost(state, detail.id)} ✦`
+                : `Kindle it — ${metaNextCost(state, detail.id)} ✦`}
             </button>
           )}
         </div>
