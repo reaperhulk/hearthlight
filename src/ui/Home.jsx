@@ -144,6 +144,9 @@ export function Home({ state, setState, confirming, setConfirming }) {
         />
         {carryNote && <p className="carry-note">{carryNote}</p>}
       </details>
+      <p className="build-stamp" title="The commit this page was built from">
+        built from <code>{__COMMIT__}</code>
+      </p>
       <details className="danger">
         <summary>Begin anew</summary>
         <p>Burn the ledger, the Embers, every upgrade, every record. There is no undo.</p>

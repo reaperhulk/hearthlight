@@ -252,6 +252,27 @@ try {
     else note('save round-trips through the ember-script');
   }
 
+  // The deploy stamps itself: a page that cannot say which commit it is
+  // makes every bug report a guess.
+  const stamp = await page.evaluate(() => {
+    const node = document.querySelector('.build-stamp code');
+    if (!node) return null;
+    const box = node.getBoundingClientRect();
+    return {
+      text: node.textContent,
+      // Present is not the same as legible: a stamp nobody can read is
+      // no better than no stamp.
+      shown: box.width > 0 && box.height > 0 &&
+        getComputedStyle(node).visibility === 'visible' &&
+        box.right <= document.documentElement.clientWidth + 1,
+    };
+  });
+  if (!stamp || !/^[0-9a-f]{7}(-dirty)?$/.test(stamp.text)) {
+    failures.push(`build stamp missing or malformed (${stamp?.text})`);
+  } else if (!stamp.shown) {
+    failures.push(`build stamp ${stamp.text} is present but not visible`);
+  } else note(`build stamps itself: ${stamp.text}`);
+
   // No raw escape sequences leaking into visible text (\uXXXX in JSX
   // text renders literally — it has happened).
   const rawEscapes = await page.evaluate(() => /\\u[0-9a-fA-F]{4}/.test(document.body.innerText));

@@ -40,6 +40,13 @@ the Long Dawn (15 nights, everything kept) closes the story.
 - `node scripts/bot-playtest.js --assert` — local run: fixed seeds plus one
   random lane that prints its repro seed
 
+## Build stamp
+- `vite.config.js` injects `__COMMIT__` at build time: `GITHUB_SHA` in
+  Actions, otherwise the local short hash with `-dirty` appended when the
+  tree is not clean. The home screen prints it, so a deployed page can
+  always say which commit it is and a hand-built one never passes for a
+  shipped one. The smoke test asserts it renders and is visible.
+
 ## Repo policy
 - Commit directly to `main` and push after every coherent, gate-passing
   change. No long-lived branches.

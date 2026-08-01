@@ -401,6 +401,14 @@ button:focus-visible, canvas:focus-visible {
 .abandon:hover { color: #8793a2; }
 .abandon.confirming { border-color: #5e2a2a; color: #e05a5a; background: #170f12; }
 
+/* Which commit this page is. Dim enough to ignore, selectable enough to
+   paste into a bug report. */
+.build-stamp {
+  margin-top: 16px; text-align: center;
+  font-size: 0.66em; color: #3f4756; letter-spacing: 0.08em;
+}
+.build-stamp code { font-family: inherit; color: #5f6b7d; user-select: all; }
+
 .danger { margin-top: 14px; font-size: 0.78em; }
 .danger summary { color: #5f6b7d; cursor: pointer; }
 .danger p { color: #8793a2; margin: 6px 0; }
