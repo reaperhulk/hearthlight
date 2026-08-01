@@ -4,7 +4,7 @@ import { abandonRound, getGlowRate, getRepairMax, placeStructure, repairStructur
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, getWardenTemper, moveWarden, HEART_SLOT, STILL_DEBT, WARDEN_TEMPER_TIERS } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
-import { drawEffects, drawTown, dreadOf, pruneEffects, slotPixel, CANVAS } from './draw.js';
+import { drawEffects, drawTown, dreadOf, paintTerrain, pruneEffects, slotPixel, CANVAS } from './draw.js';
 import { STRUCTURES } from '../engine/structures.js';
 import { StructureIcon } from './StructureIcon.jsx';
 import { describeSlot } from './describeSlot.js';
@@ -12,6 +12,19 @@ import { Home } from './Home.jsx';
 import { FallenPanel } from './FallenPanel.jsx';
 
 const HIT_RADIUS = 40;
+
+// The terrain only depends on the map's shape and the backing scale —
+// never on the clock, which is what lets it sit on the compositor.
+const terrainKey = (round, scale) => `${round.slots.length}|${scale}`;
+
+// Dusk and dawn ease over 2.5s. The engine is the source of truth; the
+// stacked dark layer just follows it with its opacity.
+const darknessOf = round => {
+  if (round.phase === 'fallen') return 1;
+  const t = Math.min(1, (round.time - round.phaseStart) / 2.5);
+  const eased = t * t * (3 - 2 * t);
+  return round.phase === 'night' ? eased : 1 - eased;
+};
 
 // The night rail's triage order — also what the number keys answer.
 function topThreats(round) {
@@ -38,6 +51,11 @@ export function App() {
   const selectedRef = useRef(selectedCard);
   const inspectedRef = useRef(inspectedId);
   const canvasRef = useRef(null);
+  // The terrain lives on two stacked canvases the compositor cross-fades:
+  // painting it costs nothing per frame, and the dusk ease is a CSS
+  // opacity animation rather than a full-canvas blend sixty times a second.
+  const litRef = useRef(null);
+  const darkRef = useRef(null);
   useEffect(() => {
     stateRef.current = state;
     selectedRef.current = selectedCard;
@@ -359,12 +377,34 @@ export function App() {
       canvas.height = Math.round(CANVAS * scale);
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
     };
+    // Repaint the terrain layers whenever the map's shape or the backing
+    // scale changes — once a round, not once a frame.
+    const paintLayers = () => {
+      const scale = visualsRef.current.scale || 2;
+      for (const [ref, darkness] of [[litRef, 0], [darkRef, 1]]) {
+        const layer = ref.current;
+        if (!layer) continue;
+        layer.width = Math.round(CANVAS * scale);
+        layer.height = Math.round(CANVAS * scale);
+        const layerCtx = layer.getContext('2d');
+        layerCtx.setTransform(scale, 0, 0, scale, 0, 0);
+        paintTerrain(layerCtx, stateRef.current.round, darkness);
+      }
+      visualsRef.current.terrainKey = terrainKey(stateRef.current.round, scale);
+    };
     resize();
-    window.addEventListener('resize', resize);
+    paintLayers();
+    const onResize = () => { resize(); paintLayers(); };
+    window.removeEventListener('resize', resize);
+    window.addEventListener('resize', onResize);
     let raf = null;
     const draw = () => {
       const started = performance.now();
       const animTime = started / 1000;
+      const live = stateRef.current.round;
+      if (live && visualsRef.current.terrainKey !== terrainKey(live, visualsRef.current.scale || 2)) {
+        paintLayers();
+      }
       if (stateRef.current.round) {
         drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current, visualsRef.current, hoverRef.current);
         pruneEffects(effectsRef.current, animTime);
@@ -381,7 +421,7 @@ export function App() {
     raf = requestAnimationFrame(draw);
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', onResize);
     };
     // Remount the paint loop when a round starts or ends.
   }, [hasRound]);
@@ -637,6 +677,13 @@ export function App() {
       ) : (
         <div className="playfield">
           <div className="canvas-wrap">
+          <canvas className="town-map terrain" ref={litRef} aria-hidden="true" />
+          <canvas
+            className="town-map terrain dark"
+            ref={darkRef}
+            aria-hidden="true"
+            style={{ opacity: darknessOf(round) }}
+          />
           <canvas
             className="town-map"
             ref={canvasRef}

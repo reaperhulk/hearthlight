@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState, loadState, migrateState, saveState } from '../state.js';
 import { createSlots, getAdjacentSlots } from '../map.js';
 import { STRUCTURES } from '../structures.js';
-import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getGlowRate, getStructureHp, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
+import { abandonRound, beginRound, collectEmbers, drawDraft, getDayLength, DAY_LENGTH, getEmbersEarned, getGlowBreakdown, getEmberBreakdown, getGlowRate, getStructureHp, levelGlowMult, placeStructure, repairStructure, rerollDraft, REPAIR_COST, REROLL_COST, FRONTIER_YIELD, HEART_MAX } from '../round.js';
 import { getHoldTime, getNightForecast, getShadeCount, getWardenCooldown, getWardenTemper, moveWarden, rollOmen, FRONTIER_APPROACH, HEART_SLOT, HUNGRY_EXTRA, RELEASED_FEED_TIME, SHADE_FEED_TIME, SHADE_HOLD_TIME, STILL_DEBT, STRUCTURE_HIT, VEILED_HUSH, WARDEN_COOLDOWN, WARDEN_TEMPER_TIERS, HEART_HIT } from '../night.js';
 import { endDay, tick } from '../tick.js';
-import { allUpgradesKept, branchKept, buyMetaUpgrade, getFoundationBonus, getHeartMax, isVigilComplete, metaChildren, metaMaxRank, metaNextCost, metaRank, metaStatus, LONG_DAWN_NIGHTS, META_BRANCHES, META_UPGRADES } from '../meta.js';
+import { allUpgradesKept, branchKept, buyMetaUpgrade, cheapestRootCost, getFoundationBonus, getHeartMax, isVigilComplete, metaChildren, metaMaxRank, metaNextCost, metaRank, metaStatus, LONG_DAWN_NIGHTS, META_BRANCHES, META_UPGRADES } from '../meta.js';
 
 function makeRng(sequence = [0.5]) {
   let index = 0;
@@ -545,12 +545,23 @@ describe('hearthlight', () => {
     state = runSeconds(state, 3, makeRng());
     expect(state.round.phase).toBe('fallen');
     expect(state.round.heart).toBe(0);
-    const earned = getEmbersEarned(state.round);
+    const earned = getEmbersEarned(state.round, {}, state.totalRounds);
     expect(earned).toBeGreaterThanOrEqual(1);
     const collected = collectEmbers(state);
     expect(collected.embers).toBe(earned);
     expect(collected.round).toBeNull();
     expect(collected.lastRound.embers).toBe(earned);
+
+    // THE FIRST FIRE. A first vigil always banks enough to kindle a root,
+    // however badly it went — otherwise an incremental's very first
+    // purchase is two or three runs away and there is no hook at all.
+    // startedRound() is vigil one, so this fall is topped up.
+    expect(collected.embers).toBeGreaterThanOrEqual(cheapestRootCost());
+    expect(getEmberBreakdown(state.round, {}, state.totalRounds).firstFire).toBeGreaterThan(0);
+    // Every later fall pays only what it earned.
+    const later = getEmberBreakdown(state.round, {}, 4);
+    expect(later.firstFire).toBe(0);
+    expect(later.total).toBeLessThan(collected.embers);
   });
 
   it('meta upgrades are bought with Embers and shape the next round', () => {

@@ -180,13 +180,19 @@ h1 { text-shadow: 0 0 18px rgba(255, 208, 130, 0.35); }
   background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), rgba(10, 10, 16, 0.55) calc(25% - 1px) 25%);
 }
 
-canvas.town-map {
-  display: block; width: 100%; height: auto; aspect-ratio: 1 / 1;
-  border: 1px solid transparent; border-radius: 10px; cursor: pointer; touch-action: manipulation;
+/* The frame belongs to the wrapper now, not the canvas: three stacked
+   canvases share one border, and none of them carries a background the
+   compositor would have to blend. */
+.canvas-wrap {
+  border: 1px solid transparent; border-radius: 10px; overflow: hidden;
   background:
     linear-gradient(#07080f, #07080f) padding-box,
     linear-gradient(160deg, #3a3450, #1c1f2e 40%, #4a3a22 100%) border-box;
   box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.55), 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+canvas.town-map {
+  display: block; width: 100%; height: auto; aspect-ratio: 1 / 1;
+  cursor: pointer; touch-action: manipulation; background: none;
 }
 
 .playfield { display: grid; gap: 10px; }
@@ -446,6 +452,12 @@ button:focus-visible, canvas:focus-visible {
 }
 @keyframes coachIn { from { opacity: 0; transform: translateX(-50%) translateY(6px); } }
 .canvas-wrap { position: relative; }
+/* Terrain on the compositor: two stacked layers cross-faded by the hour,
+   with the live canvas transparent on top. Nothing here is repainted by
+   the frame loop. */
+canvas.town-map.terrain { position: absolute; inset: 0; pointer-events: none; }
+canvas.town-map.terrain.dark { will-change: opacity; }
+.canvas-wrap > canvas.town-map:not(.terrain) { position: relative; }
 /* The last of the light: the dark presses in from the edges as the Heart
    fails, and throbs below 30%. Opacity on its own layer — the compositor
    animates it for free, where the canvas charged a full-screen fill. */

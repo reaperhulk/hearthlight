@@ -474,6 +474,40 @@ commit pushed to main. Update checkboxes as work lands.
       late night 58 -> 60fps and its mean paint nearly halved. CLAUDE.md
       now says to read the fps column, not the milliseconds.
 
+- [x] **The first fire, the taunt, and the compositor (cycle 24)** — three
+      playtest reports, three different kinds of answer.
+      (1) "How do you unlock the first node? It should be possible after
+      the first death." It wasn't. A median first-time player banks 3-4
+      Embers and the cheapest root costs 5 — the tree simply did not open
+      until the second or third vigil, and nothing measured it because the
+      harness reported the KEEPER's Embers, never the villager's. It does
+      now, and asserts on the worst seed rather than the mean. A first
+      vigil is topped up to exactly the price of kindling something (the
+      FIRST FIRE, itemized on the fall screen); every later fall pays only
+      what it earned.
+      (2) "All the shades went to a single palisade and then I died." The
+      measured answer was that the card is fine and the TEXT was not: one
+      wall beats none (6.4n vs 5.8n) and several beat one (7.4n), so a
+      palisade is doing its job as a taunt and the failure of relying on a
+      lone wall is the intended one. But nothing said so — "shields its
+      neighbors" reads purely protective. It now says it draws the dark to
+      itself and that one wall alone gets swarmed, the inspector counts
+      the walls standing, and two permanent profiles assert the card can
+      never quietly become a trap. A first attempt to "fix" it by limiting
+      the shield to a wall that can still stand was reverted: it moved
+      concentration by 1% and cost 1.6 arc nights.
+      (3) "Should easily hold 60-120fps." The static scene left the frame
+      loop entirely: the terrain is now two stacked canvases cross-faded
+      by the dark one's CSS opacity, so no frame blits the whole map any
+      more (late night 44 -> 59fps measured against a same-session
+      control). Two other things were tried and REJECTED on measurement —
+      sprite-ing the large radial gradients (worse at every size: a big
+      alpha blit costs more than the gradient here) and skipping the
+      redundant terrain blit (superseded by the stacked layers).
+      The harness also grew teeth it badly needed: best-of-N sampling,
+      after an unchanged build measured 58fps and then 33fps an hour
+      apart and silently invalidated an afternoon of comparisons.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
@@ -506,11 +540,16 @@ commit pushed to main. Update checkboxes as work lands.
 
 ### Perf queue
 
+- Dusk is still the floor (~45fps throttled against a ~59fps control) and
+  it is seventeen shades: three ghost arcs, two lobes, a core blit and a
+  dashed stub each. Cutting ghosts from three to two is the obvious next
+  lever, but it is a look change and wants a screenshot review.
 - `drawSlots` recreates a radial gradient per structure per frame for the
-  seat disc — the same mistake the shade cores made, and a full outer ring
-  is sixteen of them. `coreSprite` is the pattern to copy.
-- The remaining per-frame full-canvas work is the star field and three fog
-  gradients. Cheap today, but they are what a new effect would stack on.
+  seat disc. Sprite-ing it measured WORSE (see cycle 24) — the fix here is
+  probably a smaller disc or no gradient at all, not a sprite.
+- THIS BOX CANNOT BE TRUSTED for fine-grained render A/B. Re-measure the
+  control in the same session, every time, and prefer provable reductions
+  over measured ones.
 - The React tree still re-renders wholesale at 10Hz. Measured as noise
   next to raster, but it is the next floor if the canvas gets cheaper.
 

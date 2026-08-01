@@ -239,6 +239,15 @@ export function spawnShades(state, rng) {
 
   const slowedCount = shades.filter(shade =>
     shade.targetSlotId && lanternSlow(round, shade.targetSlotId) > 1).length;
+  // How much of the night lands on its single most-hunted position. The
+  // dark is supposed to SPREAD; this is the number that says whether it
+  // does.
+  const perTarget = new Map();
+  for (const shade of shades) {
+    const key = shade.targetSlotId ?? HEART_SLOT;
+    perTarget.set(key, (perTarget.get(key) || 0) + 1);
+  }
+  const worstSlot = perTarget.size > 0 ? Math.max(...perTarget.values()) : 0;
   const stats = round.stats || { heartLoss: { falls: 0, heartHits: 0, vents: 0 }, nights: [] };
 
   return {
@@ -259,6 +268,7 @@ export function spawnShades(state, rng) {
           night: round.day,
           spawned: shades.length,
           slowed: slowedCount,
+          worstSlot,
           banished: 0,
           towerKills: 0,
           fed: 0,

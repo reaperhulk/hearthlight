@@ -18,6 +18,12 @@ const arg = (flag, fallback) => {
 // phone — the device this game is actually played on.
 const THROTTLE = arg('--throttle', 4);
 const SECONDS = arg('--seconds', 6);
+// Best-of-N, not mean-of-N. A shared machine only ever makes a scene
+// slower, never faster, so the best sample is the one least polluted by
+// whatever else was running. Learned the hard way: an unchanged build
+// measured 58fps and then 33fps an hour apart, which silently invalidated
+// every A/B comparison taken in between.
+const REPEATS = arg('--repeat', 3);
 const jsonMode = process.argv.includes('--json');
 const say = (...args) => { if (!jsonMode) console.log(...args); };
 
@@ -192,14 +198,21 @@ await client.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
 
 const onlyIndex = process.argv.indexOf('--scene');
 const only = onlyIndex >= 0 ? process.argv[onlyIndex + 1] : null;
+const best = (a, b) => (!a || b.fps > a.fps ? b : a);
 const results = [];
 for (const [name, setup] of Object.entries(hydrate)) {
   if (only && only !== name) continue;
-  results.push(await measure(name, setup));
+  let winner = null;
+  for (let run = 0; run < REPEATS; run++) winner = best(winner, await measure(name, setup));
+  results.push(winner);
 }
 // Sampled over 3s: the banner holds for 2.6 and the sweep for 0.9, so a
 // longer window would average the complaint away.
-if (!only || only === 'dusk') results.push(await measure('dusk', duskScene, 3));
+if (!only || only === 'dusk') {
+  let winner = null;
+  for (let run = 0; run < REPEATS; run++) winner = best(winner, await measure('dusk', duskScene, 3));
+  results.push(winner);
+}
 
 await browser.close();
 cleanup();
@@ -207,7 +220,7 @@ cleanup();
 if (jsonMode) {
   console.log(JSON.stringify({ throttle: THROTTLE, seconds: SECONDS, results }, null, 2));
 } else {
-  say(`\nHearthlight paint cost | ${THROTTLE}x CPU throttle | ${SECONDS}s per scene\n`);
+  say(`\nHearthlight paint cost | ${THROTTLE}x CPU throttle | ${SECONDS}s per scene | best of ${REPEATS}\n`);
   for (const result of results) {
     say(`  ${result.scene.padEnd(11)} ${result.fps.toFixed(0).padStart(3)} fps` +
       ` | frame ${result.mean.toFixed(2)}ms mean, ${result.p95.toFixed(2)}ms p95, ${result.max.toFixed(2)}ms worst` +

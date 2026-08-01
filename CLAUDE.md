@@ -65,6 +65,14 @@ the Long Dawn (15 nights, everything kept) closes the story.
   static scene lives on cached day/dark layers that are cross-faded, so
   adding a new per-frame full-canvas fill is the one change most likely to
   cost a third of the frame budget on a phone.
+- The probe is BEST-OF-N, and it has to be: a shared box only ever makes a
+  scene slower. An unchanged build measured 58fps and 33fps an hour apart,
+  which silently invalidated a whole afternoon of A/B comparisons. Before
+  trusting any render delta, re-measure the CONTROL in the same session —
+  if the control has moved, the comparison is worthless, and no amount of
+  repeating will fix a drifting machine. Prefer changes that are provably
+  less work (a blit that cannot be seen, a layer the compositor can own)
+  over changes that merely measure faster once.
 - READ THE FPS COLUMN, not the frame-ms column. Canvas2D commands are
   recorded and rasterized later, so `window.__game.paint()` measures
   command recording and UNDERCOUNTS the real cost — a change has twice
@@ -80,6 +88,17 @@ the Long Dawn (15 nights, everything kept) closes the story.
   the canvas: on the cached terrain they force a full rebuild on every
   Heart wound, and on their own canvas layer they cost a full-canvas blit
   per frame. A positioned element with an animated `opacity` costs neither.
+  The same is true of the STATIC SCENE: the terrain is two stacked
+  `<canvas class="town-map terrain">` elements cross-faded by the dark
+  one's CSS opacity, painted only when the map's shape changes. The frame
+  loop must never blit the whole map again — if you find yourself adding a
+  full-canvas `drawImage`, it belongs on a stacked layer instead.
+- Sprites are not a free win. Replacing large radial gradients with
+  pre-rendered `drawImage` blits measured WORSE at every sprite size
+  tried: in this rasterizer a large alpha-blended blit costs more than
+  the gradient it replaces. Sprites paid off only where the target is
+  small and repeated (shade cores, ~15px, seventeen a frame). Measure
+  before assuming.
 - Meta upgrades form a tree (`META_UPGRADES[].requires`). Two invariants
   keep the gating balance-neutral, both asserted in the unit tests: a
   child never costs less than its parent, and every edge runs forward
@@ -97,4 +116,12 @@ the Long Dawn (15 nights, everything kept) closes the story.
   nights before the harness caught it. Change one price at a time and
   read `balance:compare`.
 - Round 1 must be fun in under five minutes, with a meta purchase affordable
-  immediately after the first fall.
+  immediately after the first fall. This is load-bearing and was broken for
+  a whole cycle: a median first fall banks 3-4 Embers against a 5-Ember
+  root, so the FIRST FIRE tops a first vigil up to the cheapest root's
+  price (see round.js). The harness asserts it on the villager's WORST
+  seed, not the mean.
+- A palisade is a taunt: it is meant to draw the night onto itself, so
+  "everything hit my wall and I died" is the intended failure of relying
+  on ONE. That stays fair only while a single wall beats no wall and
+  several beat one — both asserted (`lonePalisade` / `noPalisade`).

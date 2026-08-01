@@ -79,24 +79,12 @@ const STARS = Array.from({ length: 46 }, (_, i) => ({
 // alpha blit instead of three gradient rasters. It also means the 2.5s
 // dusk ease costs nothing extra: nothing is rebuilt while the light
 // changes, only while the town or the Heart does.
-function terrainLayers(round, visuals, scale) {
-  const key = `${round.slots.length}|${scale}`;
-  const cached = visuals.terrain;
-  if (cached && cached.key === key) return cached;
-  const surface = () => Object.assign(document.createElement('canvas'), {
-    width: Math.round(CANVAS * scale), height: Math.round(CANVAS * scale),
-  });
-  const lit = cached?.scale === scale ? cached.lit : surface();
-  const dark = cached?.scale === scale ? cached.dark : surface();
-  for (const [canvas, darkness] of [[lit, 0], [dark, 1]]) {
-    const layer = canvas.getContext('2d');
-    layer.setTransform(scale, 0, 0, scale, 0, 0);
-    layer.clearRect(0, 0, CANVAS, CANVAS);
-    drawSkyBase(layer, darkness);
-    drawGround(layer, round, darkness);
-  }
-  visuals.terrain = { key, lit, dark, scale };
-  return visuals.terrain;
+// Paint one terrain layer straight into a real canvas context. Called
+// when the map's shape changes, not when the clock moves.
+export function paintTerrain(ctx, round, darkness) {
+  ctx.clearRect(0, 0, CANVAS, CANVAS);
+  drawSkyBase(ctx, darkness);
+  drawGround(ctx, round, darkness);
 }
 
 function drawSkyBase(ctx, darkness) {
@@ -929,12 +917,10 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   const darkness = getDarkness(round);
   ctx.save();
   // A structure falling rattles the world, briefly.
-  const shaking = !REDUCED_MOTION && visuals.shakeUntil && animTime < visuals.shakeUntil;
-  if (shaking) {
+  ctx.clearRect(0, 0, CANVAS, CANVAS);
+  if (!REDUCED_MOTION && visuals.shakeUntil && animTime < visuals.shakeUntil) {
     const power = (visuals.shakeUntil - animTime) * 8;
     ctx.translate(Math.sin(animTime * 70) * power, Math.cos(animTime * 61) * power);
-    // Only a shake can leave ground uncovered; the layer is opaque.
-    ctx.clearRect(-20, -20, CANVAS + 40, CANVAS + 40);
   }
   // One slot index per frame, instead of a linear scan per lookup in
   // every layer that needs to find a slot by id.
@@ -942,13 +928,11 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   byId.clear();
   for (const slot of round.slots) byId.set(slot.id, slot);
 
-  const terrain = terrainLayers(round, visuals, visuals.scale || 2);
-  ctx.drawImage(terrain.lit, 0, 0, CANVAS, CANVAS);
-  if (darkness > 0.002) {
-    ctx.globalAlpha = Math.min(1, darkness);
-    ctx.drawImage(terrain.dark, 0, 0, CANVAS, CANVAS);
-    ctx.globalAlpha = 1;
-  }
+  // The terrain is not painted here at all. It lives on two stacked
+  // canvases below this one, and the compositor cross-fades them by the
+  // hour — see paintTerrain / the dark layer's opacity in App. A frame
+  // that blits the whole map is a frame that has already spent its
+  // budget; this one only clears and draws what actually moves.
   drawSkyMotion(ctx, darkness, animTime);
   drawRim(ctx, round, darkness, animTime);
   drawHeart(ctx, round, animTime);

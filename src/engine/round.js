@@ -2,7 +2,7 @@
 // Days are for one draft decision and Glow; nights belong to the dark.
 import { createSlots, getAdjacentSlots } from './map.js';
 import { STRUCTURES, STRUCTURE_IDS } from './structures.js';
-import { getChoirVoices, getDraftSize, getFoundationBonus, getHeartMax, getUnlockedRings, getWardenCount } from './meta.js';
+import { cheapestRootCost, getChoirVoices, getDraftSize, getFoundationBonus, getHeartMax, getUnlockedRings, getWardenCount } from './meta.js';
 import { STRUCTURE_HIT } from './night.js';
 
 export const DAY_LENGTH = 15;
@@ -220,7 +220,19 @@ export function countStructures(round, predicate = () => true) {
 }
 
 // Where the Embers came from — the fall screen tells the story.
-export function getEmberBreakdown(round, meta = {}) {
+// THE FIRST FIRE. A median first-time player survives under four nights
+// and banks three or four Embers — against a five-Ember root, which meant
+// the tree did not open at all until the second or third vigil. An
+// incremental whose first purchase is out of reach after the first death
+// has no hook. So a first vigil is topped up to exactly the price of
+// kindling something: never a handout after that, and it costs the
+// measured arc nothing because it only ever fires once.
+// beginRound increments totalRounds before the round is played, so the
+// FIRST vigil is number 1 — not 0. Naming it stops the off-by-one from
+// being reintroduced by anyone reading `totalRounds` at face value.
+export const isFirstVigil = totalRounds => totalRounds <= 1;
+
+export function getEmberBreakdown(round, meta = {}, totalRounds = Infinity) {
   const nights = round.day - 1;
   const alive = countStructures(round);
   const kilns = countStructures(round, slot => slot.structure.type === 'emberKiln');
@@ -244,11 +256,13 @@ export function getEmberBreakdown(round, meta = {}) {
       : 0,
   };
   const sum = Object.values(parts).reduce((total, value) => total + value, 0);
-  return { ...parts, total: Math.max(1, sum) };
+  const earned = Math.max(1, sum);
+  const firstFire = isFirstVigil(totalRounds) ? Math.max(0, cheapestRootCost() - earned) : 0;
+  return { ...parts, firstFire, total: earned + firstFire };
 }
 
-export function getEmbersEarned(round, meta = {}) {
-  return getEmberBreakdown(round, meta).total;
+export function getEmbersEarned(round, meta = {}, totalRounds = Infinity) {
+  return getEmberBreakdown(round, meta, totalRounds).total;
 }
 
 // Walking away is allowed: the vigil ends now, the dark takes the town,
@@ -274,7 +288,7 @@ export function abandonRound(state) {
 export function collectEmbers(state) {
   const round = state.round;
   if (!round || round.phase !== 'fallen') return state;
-  const earned = getEmbersEarned(round, state.meta);
+  const earned = getEmbersEarned(round, state.meta, state.totalRounds);
   const nightsStats = round.stats?.nights || [];
   const sum = key => nightsStats.reduce((total, night) => total + (night[key] || 0), 0);
   const lifetime = { nights: 0, embers: 0, banished: 0, towerKills: 0, structuresLost: 0, ...state.lifetime };

@@ -20,12 +20,13 @@ const LEDGER_LABELS = [
   ['choir', () => 'the choir sang'],
   ['emberheart', () => 'the Emberheart burned'],
   ['ruins', () => 'the ruins remember'],
+  ['firstFire', () => 'the first fire catches'],
 ];
 
 export function FallenPanel({ state, setState, clearSelection }) {
   const round = state.round;
   const nights = round.day - 1;
-  const breakdown = getEmberBreakdown(round, state.meta);
+  const breakdown = getEmberBreakdown(round, state.meta, state.totalRounds);
   const peak = Math.max(1, ...round.stats.nights.map(night => night.heartLost));
   // What this fall bought on the tree: nodes now reachable, and whether
   // the record just opened a path that Embers alone could not.

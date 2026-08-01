@@ -190,6 +190,14 @@ export const LONG_DAWN_NODE = { id: 'longDawn', at: { x: 0.5, y: 0.86 } };
 // A node's rank is how many times it has been kindled. Saves from before
 // the tail stored booleans, and `true` is rank 1 by construction — so an
 // old save reads correctly with no migration beyond coercion.
+// What it costs to kindle anything at all. The first fall is guaranteed
+// to cover this — see FIRST FIRE in round.js.
+export function cheapestRootCost() {
+  return Math.min(...Object.values(META_UPGRADES)
+    .filter(upgrade => upgrade.requires.length === 0)
+    .map(upgrade => upgrade.cost));
+}
+
 export function metaMaxRank(upgradeId) {
   return META_UPGRADES[upgradeId]?.rankCosts?.length ?? 1;
 }

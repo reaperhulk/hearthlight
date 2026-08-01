@@ -1,6 +1,7 @@
 // What one occupied slot is worth right now — the tap-to-inspect readout.
 import { getAdjacentSlots } from '../engine/map.js';
 import { STRUCTURES } from '../engine/structures.js';
+import { PALISADE_SHIELD_PER_NIGHT } from '../engine/night.js';
 import { levelGlowMult, DAWN_GLOW_PER_STRUCTURE, FRONTIER_YIELD, LEVEL_UP_NIGHTS, LEVEL_UP_NIGHTS_VETERAN } from '../engine/round.js';
 
 export function describeSlot(round, slot) {
@@ -32,6 +33,14 @@ export function describeSlot(round, slot) {
     rows.push(['Banishes', `${def.nightCharges + (structure.level >= 3 ? 1 : 0)} shades/night on neighbors`]);
     rows.push(['Blind spot', 'cannot save itself']);
     if (structure.level >= 3) rows.push(['In the mist', 'a veteran lamp keeps one bolt on Veiled Nights']);
+  }
+  if (structure.type === 'palisade') {
+    const walls = round.slots.filter(candidate => candidate.structure?.type === 'palisade').length;
+    rows.push(['Taunt', 'the dark hunts this first — that is the point']);
+    rows.push(['Shields', `up to ${PALISADE_SHIELD_PER_NIGHT} neighbors' strikes a night`]);
+    rows.push(['Walls standing', walls === 1
+      ? '1 — alone it gets swarmed; a second shares the teeth'
+      : `${walls} — the teeth are shared`]);
   }
   if (def.nightDelay) rows.push(['Toll', `every shade +${def.nightDelay}s approach; Warden repositions 1s sooner`]);
   if (def.tauntWeight) rows.push(['Taunt', 'draws shades to itself']);

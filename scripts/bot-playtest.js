@@ -53,6 +53,12 @@ const PROFILES = {
   // every break a near-instant bite; rotation-stalling must always lose
   // to committed holds, and a juggled town must always fall.
   juggler: { day: 'smart', night: 'juggle' },
+  // Playtest report: "all the shades went to a single palisade and then I
+  // died". A palisade is a deliberate taunt, so the question is whether
+  // ONE of them is a trap — a magnet with no second wall to share the
+  // teeth — while several are the intended play. These two answer it.
+  lonePalisade: { day: 'smart', night: 'sharp', typeCap: { palisade: 1 } },
+  noPalisade: { day: 'smart', night: 'sharp', typeCap: { palisade: 0 } },
 };
 
 const ECONOMY_FIRST = ['farm', 'granary', 'well', 'shrine', 'emberKiln', 'watchtower', 'belltower', 'lantern', 'palisade'];
@@ -163,6 +169,9 @@ function botDay(state, profile, t, rng, collector, ban) {
     return state;
   }
   const atCap = config.cap && round.slots.filter(slot => slot.structure).length >= config.cap;
+  // Per-type caps let a profile hold a card count fixed without banning it.
+  const overType = id => config.typeCap?.[id] !== undefined &&
+    round.slots.filter(slot => slot.structure?.type === id).length >= config.typeCap[id];
   let passing = false;
   // A villager knows the verbs too, just imperfectly: sometimes rerolls
   // a draft with nothing affordable, and sometimes mends a full town
@@ -185,8 +194,11 @@ function botDay(state, profile, t, rng, collector, ban) {
     }
   }
   if (!state.round.placedToday && !atCap && t % cadence === 0) {
-    const card = chooseCard(state, config.day, rng, ban);
-    if (card) {
+    let card = chooseCard(state, config.day, rng, ban);
+    // A per-type cap behaves like a ban only once the cap is reached, so
+    // the profile still plays the card normally up to that point.
+    if (card && overType(card)) card = chooseCard(state, config.day, rng, card);
+    if (card && !overType(card)) {
       const slot = chooseSlot(state, card, config.day, rng);
       if (slot && smartSkips(config, slot, card, state.round)) {
         passing = true;
@@ -285,7 +297,7 @@ function playRound(state, profile, rng, collector = emptyCollector(), maxSeconds
   }
   const round = state.round;
   const nights = round ? round.day - 1 : 0;
-  const embers = round ? getEmbersEarned(round, state.meta) : 0;
+  const embers = round ? getEmbersEarned(round, state.meta, state.totalRounds) : 0;
   const fell = round?.phase === 'fallen';
   const stats = round?.stats || { heartLoss: { falls: 0, heartHits: 0, vents: 0 }, nights: [] };
   const leveled = round ? round.slots.filter(slot => slot.structure?.level >= 2).length : 0;
@@ -438,6 +450,16 @@ const agg = {
   builderNights: mean(fixed.map(result => result.builder.nights)),
   villagerNights: mean(fixed.map(result => result.villager.nights)),
   villagerSeconds: mean(fixed.map(result => result.villager.seconds)),
+  // The first fall a real person sees. CLAUDE.md promises a meta purchase
+  // is affordable right after it, and nothing measured that until now.
+  villagerEmbers: mean(fixed.map(result => result.villager.embers)),
+  // Concentration: the share of a night that lands on its most-hunted
+  // position. A wall that eats the whole night is the failure players
+  // describe as "everything went to one palisade and then I died".
+  worstSlotShare: mean(fixed.flatMap(result => (result.keeper.stats.nights || [])
+    .filter(night => night.spawned > 2)
+    .map(night => night.worstSlot / night.spawned))),
+  villagerEmbersWorst: Math.min(...fixed.map(result => result.villager.embers)),
   arcFirst: mean(fixed.map(result => result.arc[0].nights)),
   arcLast: mean(fixed.map(result => result.arc[result.arc.length - 1].nights)),
   arcFirstSeconds: mean(fixed.map(result => result.arc[0].seconds)),
@@ -455,19 +477,20 @@ const agg = {
   agg.lossVents = losses.reduce((sum, loss) => sum + loss.vents, 0) / total;
 }
 
-say(`\n  means: passive ${agg.passiveNights.toFixed(1)}n | villager ${agg.villagerNights.toFixed(1)}n/${Math.round(agg.villagerSeconds)}s | keeper r1 ${agg.keeperNights.toFixed(1)}n/${Math.round(agg.keeperSeconds)}s/${agg.keeperEmbers.toFixed(1)} embers | arc ${agg.arcFirst.toFixed(1)} -> ${agg.arcLast.toFixed(1)}n (${Math.round(agg.arcFirstSeconds)}s -> ${Math.round(agg.arcLastSeconds)}s)`);
-say(`  fun: final-third loss share ${(agg.tension * 100).toFixed(0)}% | warden banishes/night ${agg.banishesPerNight.toFixed(1)} | deaths from falls ${(agg.lossFalls * 100).toFixed(0)}% / heart ${(agg.lossHeartHits * 100).toFixed(0)}% / vents ${(agg.lossVents * 100).toFixed(0)}% | leveled structures per arc-best ${agg.arcLeveled.toFixed(1)}`);
+say(`\n  means: passive ${agg.passiveNights.toFixed(1)}n | villager ${agg.villagerNights.toFixed(1)}n/${Math.round(agg.villagerSeconds)}s/${agg.villagerEmbers.toFixed(1)}e (worst ${agg.villagerEmbersWorst}e) | keeper r1 ${agg.keeperNights.toFixed(1)}n/${Math.round(agg.keeperSeconds)}s/${agg.keeperEmbers.toFixed(1)} embers | arc ${agg.arcFirst.toFixed(1)} -> ${agg.arcLast.toFixed(1)}n (${Math.round(agg.arcFirstSeconds)}s -> ${Math.round(agg.arcLastSeconds)}s)`);
+say(`  fun: worst-slot share ${(agg.worstSlotShare * 100).toFixed(0)}% | final-third loss share ${(agg.tension * 100).toFixed(0)}% | warden banishes/night ${agg.banishesPerNight.toFixed(1)} | deaths from falls ${(agg.lossFalls * 100).toFixed(0)}% / heart ${(agg.lossHeartHits * 100).toFixed(0)}% / vents ${(agg.lossVents * 100).toFixed(0)}% | leveled structures per arc-best ${agg.arcLeveled.toFixed(1)}`);
 
 // ── Depth panels (skipped with --quick) ─────────────────────────────────────
 let depth = null;
 if (!quick) {
   depth = { ablations: {}, ablationRuns: {}, metaValue: {} };
-  for (const profile of ['randomPlace', 'economyGreedy', 'defenseGreedy', 'bunker', 'juggler']) {
+  for (const profile of ['randomPlace', 'economyGreedy', 'defenseGreedy', 'bunker', 'juggler', 'lonePalisade', 'noPalisade']) {
     depth.ablationRuns[profile] = DEPTH_SEEDS.map(seed =>
       playRound(createInitialState(), profile, mulberry32(seed), collector));
     depth.ablations[profile] = mean(depth.ablationRuns[profile].map(run => run.nights));
   }
   say(`\n  depth: keeper ${agg.keeperNights.toFixed(1)}n vs randomPlace ${depth.ablations.randomPlace.toFixed(1)}n | economyGreedy ${depth.ablations.economyGreedy.toFixed(1)}n | defenseGreedy ${depth.ablations.defenseGreedy.toFixed(1)}n | bunker ${depth.ablations.bunker.toFixed(1)}n | juggler ${depth.ablations.juggler.toFixed(1)}n`);
+  say(`  walls: keeper ${agg.keeperNights.toFixed(1)}n vs one palisade ${depth.ablations.lonePalisade.toFixed(1)}n vs none ${depth.ablations.noPalisade.toFixed(1)}n`);
 
   // Each upgrade's marginal value on BOTH axes: nights (defense/tempo
   // upgrades) and embers (economy upgrades pay the meta loop directly).
@@ -675,6 +698,14 @@ if (assertMode) {
   if (agg.villagerSeconds < 45 || agg.villagerSeconds > 150) issues.push(`villager first play ${Math.round(agg.villagerSeconds)}s outside the 45-150s (one-to-two minute) band`);
   if (agg.villagerNights < 2) issues.push(`villager dies before night 2 (${agg.villagerNights.toFixed(1)})`);
   if (agg.keeperNights <= agg.villagerNights) issues.push('skill ceiling invisible: keeper does not beat villager');
+  // The first node must be reachable off the FIRST fall, for a median
+  // human, on every seed — not on average. An incremental whose first
+  // purchase needs two runs has no hook at all.
+  const firstNode = Math.min(...Object.values(META_UPGRADES)
+    .filter(upgrade => upgrade.requires.length === 0).map(upgrade => upgrade.cost));
+  if (agg.villagerEmbersWorst < firstNode) {
+    issues.push(`the tree is out of reach after the first fall: a villager banks ${agg.villagerEmbersWorst} Embers on its worst seed, the cheapest root costs ${firstNode}`);
+  }
 
   if (depth) {
     if (agg.keeperNights - depth.ablations.randomPlace < 1) {
@@ -709,6 +740,16 @@ if (assertMode) {
     // town alive, and must never beat committed holds.
     for (const run of depth.ablationRuns.juggler) {
       if (!run.fell) issues.push('IMMORTAL JUGGLER: rotation-stalling the warden never falls');
+    }
+    // A palisade is a taunt, which makes "it drew everything and I died"
+    // the intended failure of relying on ONE. That only stays fair while a
+    // single wall still beats no wall, and several still beat one — if
+    // either flips, the card has quietly become a trap.
+    if (depth.ablations.lonePalisade <= depth.ablations.noPalisade) {
+      issues.push(`the palisade is a trap: one wall ${depth.ablations.lonePalisade.toFixed(1)}n vs none ${depth.ablations.noPalisade.toFixed(1)}n`);
+    }
+    if (agg.keeperNights <= depth.ablations.lonePalisade) {
+      issues.push(`walls do not compound: keeper ${agg.keeperNights.toFixed(1)}n vs a single wall ${depth.ablations.lonePalisade.toFixed(1)}n`);
     }
     if (depth.ablations.juggler > agg.keeperNights) {
       issues.push(`juggling beats holding: juggler ${depth.ablations.juggler.toFixed(1)}n vs keeper ${agg.keeperNights.toFixed(1)}n`);
