@@ -445,6 +445,35 @@ commit pushed to main. Update checkboxes as work lands.
       identical to cycle 21, with every per-upgrade value unchanged.
       Both ceilings are now in the committed snapshot; neither was before.
 
+- [x] **The wave comes in smoothly (cycle 23)** — playtest verdict: the
+      framerate is still bad when the shades come in. It was, and the
+      harness could not see it: `perf:probe` only sampled STATIC hydrated
+      scenes, so the dusk transition and a full wave in approach — the
+      exact moment being complained about — had never been measured, and
+      had no screenshot either. Both are now permanent scenes. Measured at
+      4x throttle it was the worst frame in the game by a wide margin
+      (44fps, 6.1ms mean, an 89ms hitch). Three causes, each found by
+      ablation rather than guesswork:
+      (1) seventeen shades meant seventeen `createRadialGradient` calls a
+      frame for their glowing cores — half the scene's cost. Each body
+      colour is now drawn once into a sprite and blitted.
+      (2) each shade dragged a dashed trail all the way back to the rim,
+      and dash tessellation is charged by path length every frame (freezing
+      the animation offset changed nothing — it is the dashes, not the
+      motion). The trail is now a short comet tail; it only ever showed
+      where a shade came FROM, which the head and a stub say just as well.
+      (3) the 89ms hitch was self-inflicted in cycle 21: the dread vignette
+      was baked into the cached terrain layers, so every Heart wound
+      rebuilt twelve full-canvas gradients. Moving it to its own canvas
+      layer fixed the hitch and cost a full-canvas blit per frame instead
+      (day 59 -> 41fps), which is the same deferred-raster trap as before —
+      the paint-ms metric read 1.2ms throughout while a third of the frame
+      rate quietly went missing. It now lives on the compositor beside the
+      throb it already shared a job with, and costs nothing at all.
+      Dusk 44 -> ~52fps with the hitch gone (89ms -> ~9ms worst frame);
+      late night 58 -> 60fps and its mean paint nearly halved. CLAUDE.md
+      now says to read the fps column, not the milliseconds.
+
 ## Later / ideas
 
 - Lore: the shades are the Forgetting; this town becomes the ruins that
@@ -477,10 +506,11 @@ commit pushed to main. Update checkboxes as work lands.
 
 ### Perf queue
 
+- `drawSlots` recreates a radial gradient per structure per frame for the
+  seat disc — the same mistake the shade cores made, and a full outer ring
+  is sixteen of them. `coreSprite` is the pattern to copy.
 - The remaining per-frame full-canvas work is the star field and three fog
   gradients. Cheap today, but they are what a new effect would stack on.
-- `drawSlots` recreates a radial gradient per structure per frame for the
-  seat disc; a per-colour cache would pay off on a full outer ring.
 - The React tree still re-renders wholesale at 10Hz. Measured as noise
   next to raster, but it is the next floor if the canvas gets cheaper.
 
@@ -510,9 +540,11 @@ commit pushed to main. Update checkboxes as work lands.
   >= parent cost; edges run forward through META_ORDER, both unit-
   asserted). Ceilings: every node kindled 23.4n mean / 30 best; every
   rank poured 25.6n / 33 — and both still fall.
-- Render: 58fps on a 4x-throttled core in both the cheapest and the
-  heaviest scene (was 15 and 13), 1.14ms / 2.14ms mean paint. Guarded
-  by `npm run perf:probe`.
+- Render: on a 4x-throttled core — day 58fps, late night 60fps, and the
+  heaviest frame the game draws (dusk, seventeen shades inbound behind
+  the night banner) ~52fps with no hitch. Guarded by `npm run perf:probe`,
+  whose scenes now include that transition; reviewed by the screenshot
+  harness, whose scenes now include it too.
 - 9 structures with measured identities, one-pair-of-hands days
   (build OR mend), three omens (hungry / still / veiled — veteran
   lamps pierce the mist), heartseekers, veteran tier, the frontier,

@@ -7,6 +7,12 @@ import { STRUCTURES } from '../engine/structures.js';
 
 export const CANVAS = 420;
 
+// How much of the path back to the rim a shade trails behind it. The full
+// line cost a third of the dusk frame in dash tessellation and only said
+// where the shade came FROM — the head and a short tail carry the vector
+// just as well, and the destination is on the countdown arc anyway.
+const TRAIL_LENGTH = 0.3;
+
 export const STRUCTURE_COLORS = {
   farm: '#8fc97a',
   well: '#7ab8c9',
@@ -74,7 +80,7 @@ const STARS = Array.from({ length: 46 }, (_, i) => ({
 // dusk ease costs nothing extra: nothing is rebuilt while the light
 // changes, only while the town or the Heart does.
 function terrainLayers(round, visuals, scale) {
-  const key = `${Math.round(dreadOf(round) * 20)}|${round.slots.length}|${scale}`;
+  const key = `${round.slots.length}|${scale}`;
   const cached = visuals.terrain;
   if (cached && cached.key === key) return cached;
   const surface = () => Object.assign(document.createElement('canvas'), {
@@ -88,7 +94,6 @@ function terrainLayers(round, visuals, scale) {
     layer.clearRect(0, 0, CANVAS, CANVAS);
     drawSkyBase(layer, darkness);
     drawGround(layer, round, darkness);
-    drawVignette(layer, round);
   }
   visuals.terrain = { key, lit, dark, scale };
   return visuals.terrain;
@@ -227,23 +232,14 @@ function drawRim(ctx, round, darkness, animTime) {
   }
 }
 
-// How close the town is to the end, 0..1. Drives the vignette and the
-// CSS dread-pulse over the map.
+// How close the town is to the end, 0..1. Drives the dread overlay: a
+// compositor-owned wash, not a canvas fill. It is pure screen space and
+// never interacts with scene content, and every version that lived on the
+// canvas cost frames — baked into the cached terrain it forced a ~90ms
+// rebuild on every Heart wound, and on its own layer it cost a
+// full-canvas blit every frame (day measured 59 -> 41fps).
 export function dreadOf(round) {
   return 1 - round.heart / (round.heartMax || HEART_MAX);
-}
-
-function drawVignette(ctx, round) {
-  // Low light: the dark presses in from the edges. Steady here — the
-  // throb below 30% is a compositor-cheap CSS overlay, not a full-canvas
-  // gradient fill five times a second.
-  const dread = dreadOf(round);
-  if (dread <= 0.3) return;
-  const vignette = ctx.createRadialGradient(CANVAS / 2, CANVAS / 2, CANVAS * 0.22, CANVAS / 2, CANVAS / 2, CANVAS * 0.62);
-  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  vignette.addColorStop(1, `rgba(20, 4, 24, ${Math.min(0.75, (dread - 0.3) * 1.1)})`);
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, CANVAS, CANVAS);
 }
 
 // A living flame: hearth coals, additive glow, layered lobes that sway —
@@ -316,6 +312,30 @@ function drawHeart(ctx, round, animTime) {
   }
 }
 
+// A shade's bright core is a radial gradient, and a late night puts
+// seventeen of them on the wing at once. Rasterizing seventeen gradients
+// a frame measured as half the cost of the entire dusk scene, so each
+// body colour is drawn once into a sprite and blitted from then on.
+const CORE_SPRITES = new Map();
+
+function coreSprite(body) {
+  const key = `${body[0]},${body[1]},${body[2]}`;
+  const cached = CORE_SPRITES.get(key);
+  if (cached) return cached;
+  const size = 64;   // drawn large, blitted small — crisp at any radius
+  const sprite = Object.assign(document.createElement('canvas'), { width: size, height: size });
+  const paint = sprite.getContext('2d');
+  const mid = size / 2;
+  const core = paint.createRadialGradient(mid - size * 0.11, mid - size * 0.11, size * 0.04, mid, mid, mid);
+  core.addColorStop(0, rgb(mix(body, [255, 255, 255], 0.55), 0.95));
+  core.addColorStop(0.55, rgb(body, 0.8));
+  core.addColorStop(1, rgb(body, 0));
+  paint.fillStyle = core;
+  paint.fillRect(0, 0, size, size);
+  CORE_SPRITES.set(key, sprite);
+  return sprite;
+}
+
 function drawShades(ctx, round, animTime, byId) {
   for (const shade of round.shades) {
     const from = {
@@ -338,7 +358,7 @@ function drawShades(ctx, round, animTime, byId) {
     ctx.setLineDash([4, 3]);
     ctx.lineDashOffset = -animTime * 14;
     ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
+    ctx.moveTo(headX + (from.x - headX) * TRAIL_LENGTH, headY + (from.y - headY) * TRAIL_LENGTH);
     ctx.lineTo(headX, headY);
     ctx.stroke();
     ctx.setLineDash([]);
@@ -378,16 +398,13 @@ function drawShades(ctx, round, animTime, byId) {
       const ly = drawY + backY * drift - backX * wave * lobe * 2;
       const lr = radius * (1 - lobe * 0.28);
       if (lobe === 0) {
-        const core = ctx.createRadialGradient(lx - 1, ly - 1, 0.5, lx, ly, lr + 1.5);
-        core.addColorStop(0, rgb(mix(body, [255, 255, 255], 0.55), 0.95));
-        core.addColorStop(0.55, rgb(body, 0.8));
-        core.addColorStop(1, rgb(body, 0));
-        ctx.fillStyle = core;
-      } else {
-        ctx.fillStyle = rgb(body, 0.6 - lobe * 0.18);
+        const reach = lr + 1.5;
+        ctx.drawImage(coreSprite(body), lx - reach, ly - reach, reach * 2, reach * 2);
+        continue;
       }
+      ctx.fillStyle = rgb(body, 0.6 - lobe * 0.18);
       ctx.beginPath();
-      ctx.arc(lx, ly, lr + (lobe === 0 ? 1.5 : 0), 0, Math.PI * 2);
+      ctx.arc(lx, ly, lr, 0, Math.PI * 2);
       ctx.fill();
     }
     // Eyes of the dark: two glowing pinpricks facing the prize.

@@ -166,6 +166,34 @@ await page.evaluate(() => {
 });
 await shot('late-night');
 
+// Dusk with the whole wave inbound: the heaviest frame the game draws,
+// and the one players feel first. Kept as a permanent scene because it
+// had no coverage when its framerate was the complaint.
+await page.evaluate(() => {
+  window.__game.setState(state => {
+    const round = { ...state.round };
+    const time = round.time;
+    const targets = round.slots.filter(slot => slot.structure);
+    round.phase = 'night';
+    round.phaseStart = time - 0.3;
+    round.day = 13;
+    round.stats = { ...round.stats, nights: [...round.stats.nights,
+      { night: 13, spawned: 17, slowed: 3, banished: 0, towerKills: 0, fed: 0, heartLost: 0, minHeart: round.heart, omen: null }] };
+    round.shades = Array.from({ length: 17 }, (unused, index) => ({
+      id: 60 + index,
+      targetSlotId: index % 5 === 4 ? null : targets[index % targets.length].id,
+      spawnAngle: index * 0.37,
+      spawnedAt: time - 2.5,
+      arrivesAt: time + 3 + (index % 5),
+      phase: 'approach',
+      heldSince: null,
+      feedsAt: null,
+    }));
+    return { ...state, round };
+  });
+});
+await shot('dusk');
+
 // The fall.
 await page.evaluate(() => {
   window.__game.setState(state => ({

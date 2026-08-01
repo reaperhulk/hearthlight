@@ -65,6 +65,21 @@ the Long Dawn (15 nights, everything kept) closes the story.
   static scene lives on cached day/dark layers that are cross-faded, so
   adding a new per-frame full-canvas fill is the one change most likely to
   cost a third of the frame budget on a phone.
+- READ THE FPS COLUMN, not the frame-ms column. Canvas2D commands are
+  recorded and rasterized later, so `window.__game.paint()` measures
+  command recording and UNDERCOUNTS the real cost — a change has twice
+  measured as ~1ms of paint while costing a third of the frame rate. The
+  ms figures are useful for comparing two versions of the same scene;
+  only fps says whether frames land.
+- Per-frame gradients scale with the number of things on screen: seventeen
+  shades meant seventeen `createRadialGradient` calls a frame. Anything
+  drawn once per entity wants a cached sprite (`coreSprite`), and any
+  dashed stroke wants to be SHORT — dash tessellation is charged by path
+  length, every frame, and a trail across the map is expensive.
+- Screen-space washes (the dread vignette) belong to the compositor, not
+  the canvas: on the cached terrain they force a full rebuild on every
+  Heart wound, and on their own canvas layer they cost a full-canvas blit
+  per frame. A positioned element with an animated `opacity` costs neither.
 - Meta upgrades form a tree (`META_UPGRADES[].requires`). Two invariants
   keep the gating balance-neutral, both asserted in the unit tests: a
   child never costs less than its parent, and every edge runs forward

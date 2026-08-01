@@ -103,21 +103,84 @@ const hydrate = {
   }),
 };
 
-async function measure(name, setup) {
+// Dusk with the wave inbound — the moment players actually complain
+// about, and the one the static scenes above miss entirely. Everything
+// lands at once here: the night title card (a BLURRED shadow), the dusk
+// sweep ring, and a full wave of shades in APPROACH, each drawing a
+// dashed trail from the rim, three ghosts of itself, and a gradient core.
+// It has to run through a real day -> night state transition, because
+// that is what makes App's telemetry diff fire the banner and the sweep.
+async function duskScene() {
+  await page.evaluate(() => window.__game.setState(state => {
+    const round = { ...state.round };
+    const ringSlots = [];
+    for (let ring = 0; ring < 2; ring++) {
+      const count = ring === 0 ? 6 : 10;
+      for (let index = 0; index < count; index++) {
+        const angle = (index / count) * Math.PI * 2 - Math.PI / 2;
+        const radius = ring === 0 ? 0.26 : 0.4;
+        ringSlots.push({
+          id: `r${ring}s${index}`, ring,
+          x: 0.5 + Math.cos(angle) * radius, y: 0.5 + Math.sin(angle) * radius,
+          structure: null, ruin: false,
+        });
+      }
+    }
+    const types = ['watchtower', 'lantern', 'palisade', 'farm', 'belltower', 'watchtower',
+      'palisade', 'lantern', 'farm', 'granary', 'well', 'shrine', 'emberKiln', 'palisade'];
+    round.slots = ringSlots.map((slot, index) => index < types.length
+      ? { ...slot, structure: { type: types[index], hp: 3, level: 2, nightsSurvived: 6 } }
+      : slot);
+    round.day = 13; round.phase = 'day'; round.heart = 70; round.heartMax = 105;
+    return { ...state, meta: { ...state.meta, outerRing: 1, secondWarden: 1, heartstone: 1 }, round };
+  }));
+  await new Promise(resolve => setTimeout(resolve, 400));
+  // The transition itself: a full wave spawns and streams in from the rim.
+  await page.evaluate(() => window.__game.setState(state => {
+    const round = { ...state.round };
+    const time = round.time;
+    const targets = round.slots.filter(slot => slot.structure);
+    round.phase = 'night';
+    round.phaseStart = time;
+    round.towerCharges = { r0s0: 2, r0s5: 2 };
+    round.stats = { ...round.stats, nights: [...round.stats.nights,
+      { night: 13, spawned: 17, slowed: 3, banished: 0, towerKills: 0, fed: 0, heartLost: 0, minHeart: 70, omen: null }] };
+    // Every shade still on the wing: the approach is the expensive phase.
+    round.shades = Array.from({ length: 17 }, (unused, index) => ({
+      id: 40 + index,
+      targetSlotId: index % 5 === 4 ? null : targets[index % targets.length].id,
+      spawnAngle: index * 0.37,
+      spawnedAt: time,
+      arrivesAt: time + 6 + (index % 5),
+      phase: 'approach',
+      heldSince: null,
+      feedsAt: null,
+    }));
+    round.wardens = [{ id: 1, slotId: null, movedAt: time }, { id: 2, slotId: null, movedAt: time }];
+    return { ...state, round };
+  }));
+}
+
+async function measure(name, setup, seconds = SECONDS) {
   await page.click('.begin');
   await page.waitForFunction(() => window.__game?.getState().round?.phase === 'day');
-  await page.evaluate(setup);
-  // Let the scene settle, then sample a clean window.
-  await new Promise(resolve => setTimeout(resolve, 800));
-  await page.evaluate(() => window.__game.resetPaint());
-  await new Promise(resolve => setTimeout(resolve, SECONDS * 1000));
+  if (typeof setup === 'function' && setup.constructor.name === 'AsyncFunction') {
+    await page.evaluate(() => window.__game.resetPaint());
+    await setup();
+  } else {
+    await page.evaluate(setup);
+    // Let the scene settle, then sample a clean window.
+    await new Promise(resolve => setTimeout(resolve, 800));
+    await page.evaluate(() => window.__game.resetPaint());
+  }
+  await new Promise(resolve => setTimeout(resolve, seconds * 1000));
   const paint = await page.evaluate(() => window.__game.paint());
   // Back to the fire for the next scene.
   await page.evaluate(() => window.__game.setState(state => ({ ...state, round: null })));
   await page.waitForSelector('.begin');
   return {
     scene: name,
-    fps: paint.frames / SECONDS,
+    fps: paint.frames / seconds,
     mean: paint.mean,
     p95: paint.p95,
     max: paint.max,
@@ -127,10 +190,16 @@ async function measure(name, setup) {
 const client = await page.createCDPSession();
 await client.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
 
+const onlyIndex = process.argv.indexOf('--scene');
+const only = onlyIndex >= 0 ? process.argv[onlyIndex + 1] : null;
 const results = [];
 for (const [name, setup] of Object.entries(hydrate)) {
+  if (only && only !== name) continue;
   results.push(await measure(name, setup));
 }
+// Sampled over 3s: the banner holds for 2.6 and the sweep for 0.9, so a
+// longer window would average the complaint away.
+if (!only || only === 'dusk') results.push(await measure('dusk', duskScene, 3));
 
 await browser.close();
 cleanup();

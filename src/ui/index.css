@@ -446,15 +446,20 @@ button:focus-visible, canvas:focus-visible {
 }
 @keyframes coachIn { from { opacity: 0; transform: translateX(-50%) translateY(6px); } }
 .canvas-wrap { position: relative; }
-/* The last of the light: below 30% Heart the dark throbs over the map.
-   Opacity on its own layer — the compositor animates it for free. */
-.dread-pulse {
+/* The last of the light: the dark presses in from the edges as the Heart
+   fails, and throbs below 30%. Opacity on its own layer — the compositor
+   animates it for free, where the canvas charged a full-screen fill. */
+.dread {
   position: absolute; inset: 0; pointer-events: none; border-radius: 10px;
-  background: radial-gradient(circle at 50% 50%, transparent 42%, rgba(20, 4, 24, 0.55) 100%);
-  animation: dreadThrob 1.25s ease-in-out infinite; will-change: opacity;
+  background: radial-gradient(circle at 50% 50%, transparent 38%, rgba(20, 4, 24, 1) 82%);
+  opacity: var(--dread, 0); transition: opacity 0.6s linear; will-change: opacity;
 }
-@keyframes dreadThrob { 0%, 100% { opacity: 0.12; } 50% { opacity: 0.4; } }
-@media (prefers-reduced-motion: reduce) { .dread-pulse { animation: none; opacity: 0.22; } }
+.dread.throb { animation: dreadThrob 1.25s ease-in-out infinite; }
+@keyframes dreadThrob {
+  0%, 100% { opacity: var(--dread); }
+  50% { opacity: calc(var(--dread) + 0.16); }
+}
+@media (prefers-reduced-motion: reduce) { .dread.throb { animation: none; } }
 .final-moments { color: #6d788a; font-size: 0.75em; margin-bottom: 8px; font-style: italic; }
 .crash-panel { max-width: 420px; margin: 15vh auto; padding: 24px; text-align: center; color: #cdd6e4; font-family: 'Courier New', monospace; }
 .crash-panel button { margin: 12px 6px 0; padding: 10px 16px; background: #12141f; border: 1px solid #3a4152; border-radius: 6px; color: #ffd082; font-family: inherit; cursor: pointer; }

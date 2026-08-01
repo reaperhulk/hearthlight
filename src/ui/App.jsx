@@ -648,9 +648,16 @@ export function App() {
             role="img"
             aria-label={isDay ? 'Town map — pick a card, then tap an empty slot' : 'Night — tap a slot to send the Warden'}
           />
-          {/* Below 30% the dark throbs. A compositor-driven overlay, not a
-              full-canvas gradient fill five times a second. */}
-          {dreadOf(round) > 0.7 && <i className="dread-pulse" aria-hidden="true" />}
+          {/* The dark pressing in, and its throb below 30%. Both live on
+              the compositor: on the canvas this was either a rebuild
+              hitch on every wound or a full-canvas blit every frame. */}
+          {dreadOf(round) > 0.3 && (
+            <i
+              className={`dread${dreadOf(round) > 0.7 ? ' throb' : ''}`}
+              style={{ '--dread': Math.min(0.75, (dreadOf(round) - 0.3) * 1.1).toFixed(3) }}
+              aria-hidden="true"
+            />
+          )}
           {state.totalRounds === 1 && round.day === 1 && isDay && !round.placedToday && (
             <div className="coach">{selectedCard ? 'now tap a stone pad on the map' : 'pick a card below ↓'}</div>
           )}
