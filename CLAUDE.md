@@ -72,6 +72,21 @@ the Long Dawn (15 nights, everything kept) closes the story.
   static scene lives on cached day/dark layers that are cross-faded, so
   adding a new per-frame full-canvas fill is the one change most likely to
   cost a third of the frame budget on a phone.
+- `rAF` IS VSYNC-LOCKED: without `--disable-gpu-vsync --disable-frame-rate-limit`
+  no browser reports past ~60fps, so every "60fps" in this repo's history
+  was really "hit the display's ceiling". The probe passes those flags and
+  waits on `domcontentloaded`, never `networkidle0` (an uncapped rAF loop
+  never goes idle).
+- CHECK WHAT THE SCENE ACTUALLY DREW. The probe prints shades/built/phase
+  per scene and flags SCENE DRIFTED, because the `lateNight` scene spent a
+  whole cycle silently measuring a FALLEN town — 0 shades, no canvas
+  mounted — and reporting it as the game's heaviest frame. A perf number
+  without a description of what was on screen is not evidence.
+- Draw CALLS, not pixels, are what this renderer is bound by. Halving the
+  backing store of the per-frame layer changed nothing; no-oping the same
+  calls tripled the frame rate. Batch or bake anything drawn per-entity
+  (the star field was 46 one-pixel fillRects a frame; a shade was eight
+  paths and is now one blit).
 - The probe is BEST-OF-N, and it has to be: a shared box only ever makes a
   scene slower. An unchanged build measured 58fps and 33fps an hour apart,
   which silently invalidated a whole afternoon of A/B comparisons. Before
@@ -91,6 +106,15 @@ the Long Dawn (15 nights, everything kept) closes the story.
   drawn once per entity wants a cached sprite (`coreSprite`), and any
   dashed stroke wants to be SHORT — dash tessellation is charged by path
   length, every frame, and a trail across the map is expensive.
+- Render by CHANGE FREQUENCY, in three tiers: terrain (two stacked
+  canvases cross-faded by CSS opacity, painted when the map's shape
+  changes), the town (`paintTown`, repainted when `townKey` changes — a
+  few times a round), and entities (the only canvas the frame loop
+  touches). The town layer sits UNDER the shades, so `drawHuntedGlyphs`
+  re-stamps the glyph of anything being eaten to keep it readable.
+- Headless Chromium here rasterizes canvas2d on the CPU, so `--throttle N`
+  slows FILL as well as JS. A real phone gives that fill to its GPU. Treat
+  throttled night scenes as a pessimistic floor, not a prediction.
 - Screen-space washes (the dread vignette) belong to the compositor, not
   the canvas: on the cached terrain they force a full rebuild on every
   Heart wound, and on their own canvas layer they cost a full-canvas blit

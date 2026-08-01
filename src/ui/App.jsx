@@ -4,7 +4,7 @@ import { abandonRound, getGlowRate, getRepairMax, placeStructure, repairStructur
 import { endDay, tick } from '../engine/tick.js';
 import { getNightForecast, getWardenCooldown, getWardenTemper, moveWarden, HEART_SLOT, STILL_DEBT, WARDEN_TEMPER_TIERS } from '../engine/night.js';
 import { setMuted, sfx, unlockAudio } from './sound.js';
-import { drawEffects, drawTown, dreadOf, paintTerrain, pruneEffects, slotPixel, CANVAS } from './draw.js';
+import { drawEffects, drawTown, dreadOf, paintTerrain, paintTown, pruneEffects, slotPixel, townKey, CANVAS } from './draw.js';
 import { STRUCTURES } from '../engine/structures.js';
 import { StructureIcon } from './StructureIcon.jsx';
 import { describeSlot } from './describeSlot.js';
@@ -56,6 +56,9 @@ export function App() {
   // opacity animation rather than a full-canvas blend sixty times a second.
   const litRef = useRef(null);
   const darkRef = useRef(null);
+  // And a third tier between them and the entities: the buildings, which
+  // change a few times a round rather than a hundred times a second.
+  const townRef = useRef(null);
   useEffect(() => {
     stateRef.current = state;
     selectedRef.current = selectedCard;
@@ -392,9 +395,23 @@ export function App() {
       }
       visualsRef.current.terrainKey = terrainKey(stateRef.current.round, scale);
     };
+    const paintTownLayer = () => {
+      const scale = visualsRef.current.scale || 2;
+      const layer = townRef.current;
+      if (!layer) return;
+      if (layer.width !== Math.round(CANVAS * scale)) {
+        layer.width = Math.round(CANVAS * scale);
+        layer.height = Math.round(CANVAS * scale);
+      }
+      const layerCtx = layer.getContext('2d');
+      layerCtx.setTransform(scale, 0, 0, scale, 0, 0);
+      paintTown(layerCtx, stateRef.current.round);
+      visualsRef.current.townKey = townKey(stateRef.current.round);
+    };
     resize();
     paintLayers();
-    const onResize = () => { resize(); paintLayers(); };
+    paintTownLayer();
+    const onResize = () => { resize(); paintLayers(); paintTownLayer(); };
     window.removeEventListener('resize', resize);
     window.addEventListener('resize', onResize);
     let raf = null;
@@ -404,6 +421,9 @@ export function App() {
       const live = stateRef.current.round;
       if (live && visualsRef.current.terrainKey !== terrainKey(live, visualsRef.current.scale || 2)) {
         paintLayers();
+        paintTownLayer();
+      } else if (live && visualsRef.current.townKey !== townKey(live)) {
+        paintTownLayer();
       }
       if (stateRef.current.round) {
         drawTown(ctx, stateRef.current, selectedRef.current, animTime, inspectedRef.current, visualsRef.current, hoverRef.current);
@@ -684,6 +704,7 @@ export function App() {
             aria-hidden="true"
             style={{ opacity: darknessOf(round) }}
           />
+          <canvas className="town-map terrain town" ref={townRef} aria-hidden="true" />
           <canvas
             className="town-map"
             ref={canvasRef}

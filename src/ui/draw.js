@@ -98,40 +98,61 @@ function drawSkyBase(ctx, darkness) {
 }
 
 // What the sky does that the layer cannot: twinkle and drift.
+//
+// The star field used to be forty-six one-pixel fillRects plus nine more
+// for the bright ones — a third of every draw call in the game, for a few
+// hundred pixels. The frame is bound by the NUMBER of canvas calls, not
+// the pixels they cover (halving the backing store changed nothing;
+// no-oping the calls tripled the frame rate), so the whole sky is baked
+// once and blitted, and the twinkle rides on globalAlpha.
+let STARFIELD = null;
+
+function starfield() {
+  if (STARFIELD) return STARFIELD;
+  STARFIELD = Object.assign(document.createElement('canvas'), { width: CANVAS, height: CANVAS });
+  const sky = STARFIELD.getContext('2d');
+  for (let i = 0; i < STARS.length; i++) {
+    const star = STARS[i];
+    sky.fillStyle = `rgba(205, 214, 228, ${0.55 + 0.45 * hash(i + 701)})`;
+    sky.fillRect(star.x, star.y, star.w, star.h);
+  }
+  // A few named stars burn brighter, with a cross of light.
+  sky.strokeStyle = 'rgba(220, 228, 244, 0.6)';
+  sky.lineWidth = 0.8;
+  sky.beginPath();
+  for (let i = 0; i < 3; i++) {
+    const x = hash(i + 501) * CANVAS;
+    const y = hash(i + 601) * CANVAS * 0.5;
+    sky.moveTo(x - 4, y); sky.lineTo(x + 4, y);
+    sky.moveTo(x, y - 4); sky.lineTo(x, y + 4);
+  }
+  sky.stroke();
+  sky.fillStyle = 'rgba(235, 240, 250, 1)';
+  for (let i = 0; i < 3; i++) {
+    const x = hash(i + 501) * CANVAS;
+    const y = hash(i + 601) * CANVAS * 0.5;
+    sky.fillRect(x - 1, y - 1, 2, 2);
+  }
+  return STARFIELD;
+}
+
 function drawSkyMotion(ctx, darkness, animTime) {
-  // Stars wake as the light dies.
-  if (darkness > 0.15) {
-    const wake = darkness - 0.15;
-    for (let i = 0; i < STARS.length; i++) {
-      const star = STARS[i];
-      const twinkle = REDUCED_MOTION ? 0.7 : 0.5 + 0.5 * Math.sin(animTime * star.rate + i);
-      ctx.fillStyle = `rgba(205, 214, 228, ${wake * 0.5 * twinkle})`;
-      ctx.fillRect(star.x, star.y, star.w, star.h);
-    }
-    // A few named stars burn brighter, with a cross of light.
-    for (let i = 0; i < 3; i++) {
-      const x = hash(i + 501) * CANVAS;
-      const y = hash(i + 601) * CANVAS * 0.5;
-      const shine = wake * (0.5 + 0.4 * Math.sin(animTime * 1.3 + i * 2));
-      ctx.strokeStyle = `rgba(220, 228, 244, ${shine * 0.6})`;
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y);
-      ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4);
-      ctx.stroke();
-      ctx.fillStyle = `rgba(235, 240, 250, ${shine})`;
-      ctx.fillRect(x - 1, y - 1, 2, 2);
-    }
-    // Fog drifts once the dark settles.
-    for (let i = 0; i < (REDUCED_MOTION ? 0 : 3); i++) {
-      const fx = CANVAS / 2 + Math.cos(animTime * 0.07 + i * 2.1) * CANVAS * 0.3;
-      const fy = CANVAS / 2 + Math.sin(animTime * 0.05 + i * 1.7) * CANVAS * 0.3;
-      const fog = ctx.createRadialGradient(fx, fy, 8, fx, fy, 85);
-      fog.addColorStop(0, `rgba(150, 120, 190, ${wake * 0.05})`);
-      fog.addColorStop(1, 'rgba(150, 120, 190, 0)');
-      ctx.fillStyle = fog;
-      ctx.fillRect(fx - 85, fy - 85, 170, 170);
-    }
+  if (darkness <= 0.15) return;
+  const wake = darkness - 0.15;
+  // One blit for the whole sky. The field breathes as a whole rather than
+  // star by star — at this size nobody was reading individual twinkles.
+  ctx.globalAlpha = wake * 0.5 * (REDUCED_MOTION ? 0.7 : 0.72 + 0.28 * Math.sin(animTime * 0.9));
+  ctx.drawImage(starfield(), 0, 0, CANVAS, CANVAS);
+  ctx.globalAlpha = 1;
+  // Fog drifts once the dark settles.
+  for (let i = 0; i < (REDUCED_MOTION ? 0 : 3); i++) {
+    const fx = CANVAS / 2 + Math.cos(animTime * 0.07 + i * 2.1) * CANVAS * 0.3;
+    const fy = CANVAS / 2 + Math.sin(animTime * 0.05 + i * 1.7) * CANVAS * 0.3;
+    const fog = ctx.createRadialGradient(fx, fy, 8, fx, fy, 85);
+    fog.addColorStop(0, `rgba(150, 120, 190, ${wake * 0.05})`);
+    fog.addColorStop(1, 'rgba(150, 120, 190, 0)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(fx - 85, fy - 85, 170, 170);
   }
 }
 
@@ -304,23 +325,71 @@ function drawHeart(ctx, round, animTime) {
 // seventeen of them on the wing at once. Rasterizing seventeen gradients
 // a frame measured as half the cost of the entire dusk scene, so each
 // body colour is drawn once into a sprite and blitted from then on.
-const CORE_SPRITES = new Map();
+// A shade is eight draw calls: three ghosts of itself, two smoky lobes, a
+// bright core, and two eyes. Seventeen of them on the wing is ~140 path
+// operations a frame, and in a software rasterizer the per-call setup is
+// what hurts, not the handful of pixels each one covers. The whole wisp is
+// pre-rendered once per body colour, pointing along +X, and then blitted
+// ONCE per shade, rotated to its heading.
+const WISP = { size: 160, head: 0.86, span: 74 };
+const WISP_SPRITES = new Map();
 
-function coreSprite(body) {
+const eyeColour = body =>
+  (body[0] === 230 ? '#fff6e0' : body[0] === 226 ? '#ffd6dc' : '#f2e6fb');
+
+function wispSprite(body) {
   const key = `${body[0]},${body[1]},${body[2]}`;
-  const cached = CORE_SPRITES.get(key);
+  const cached = WISP_SPRITES.get(key);
   if (cached) return cached;
-  const size = 64;   // drawn large, blitted small — crisp at any radius
-  const sprite = Object.assign(document.createElement('canvas'), { width: size, height: size });
+  const sprite = Object.assign(document.createElement('canvas'), { width: WISP.size, height: WISP.size });
   const paint = sprite.getContext('2d');
-  const mid = size / 2;
-  const core = paint.createRadialGradient(mid - size * 0.11, mid - size * 0.11, size * 0.04, mid, mid, mid);
+  const cx = WISP.size * WISP.head;
+  const cy = WISP.size / 2;
+  const unit = WISP.size / WISP.span;   // logical px -> sprite px
+  // The tail it drags, baked in: a fading streak instead of a separate
+  // dashed stroke. One call per shade is the whole point.
+  const tail = paint.createLinearGradient(cx - 34 * unit, cy, cx, cy);
+  tail.addColorStop(0, rgb(body, 0));
+  tail.addColorStop(1, rgb(body, 0.5));
+  paint.strokeStyle = tail;
+  paint.lineWidth = 1.7 * unit;
+  paint.lineCap = 'round';
+  paint.beginPath();
+  paint.moveTo(cx - 34 * unit, cy);
+  paint.lineTo(cx, cy);
+  paint.stroke();
+  // Ghosts of its own passage, strung back along the path.
+  for (let ghost = 3; ghost >= 1; ghost--) {
+    paint.fillStyle = rgb(body, 0.28 - ghost * 0.07);
+    paint.beginPath();
+    paint.arc(cx - ghost * 7 * unit, cy, 6 * (1 - ghost * 0.2) * unit, 0, Math.PI * 2);
+    paint.fill();
+  }
+  // Two smoky lobes trailing the core.
+  for (let lobe = 2; lobe >= 1; lobe--) {
+    paint.fillStyle = rgb(body, 0.6 - lobe * 0.18);
+    paint.beginPath();
+    paint.arc(cx - lobe * 5 * unit, cy, 6 * (1 - lobe * 0.28) * unit, 0, Math.PI * 2);
+    paint.fill();
+  }
+  // The bright core.
+  const reach = 7.5 * unit;
+  const core = paint.createRadialGradient(cx - reach * 0.14, cy - reach * 0.14, reach * 0.04, cx, cy, reach);
   core.addColorStop(0, rgb(mix(body, [255, 255, 255], 0.55), 0.95));
   core.addColorStop(0.55, rgb(body, 0.8));
   core.addColorStop(1, rgb(body, 0));
   paint.fillStyle = core;
-  paint.fillRect(0, 0, size, size);
-  CORE_SPRITES.set(key, sprite);
+  paint.beginPath();
+  paint.arc(cx, cy, reach, 0, Math.PI * 2);
+  paint.fill();
+  // Eyes of the dark, baked in too — they always face the prize, which in
+  // sprite space is straight ahead.
+  paint.fillStyle = eyeColour(body);
+  paint.beginPath();
+  paint.arc(cx + 1.8 * unit, cy - 2.4 * unit, 1.15 * unit, 0, Math.PI * 2);
+  paint.arc(cx + 1.8 * unit, cy + 2.4 * unit, 1.15 * unit, 0, Math.PI * 2);
+  paint.fill();
+  WISP_SPRITES.set(key, sprite);
   return sprite;
 }
 
@@ -341,15 +410,6 @@ function drawShades(ctx, round, animTime, byId) {
     const headY = from.y + (to.y - from.y) * progress;
     // Shades condense out of the rim rather than popping into being.
     ctx.globalAlpha = Math.min(1, Math.max(0.1, (round.time - shade.spawnedAt) / 0.8));
-    ctx.strokeStyle = 'rgba(176, 106, 208, 0.55)';
-    ctx.lineWidth = 1.6;
-    ctx.setLineDash([4, 3]);
-    ctx.lineDashOffset = -animTime * 14;
-    ctx.beginPath();
-    ctx.moveTo(headX + (from.x - headX) * TRAIL_LENGTH, headY + (from.y - headY) * TRAIL_LENGTH);
-    ctx.lineTo(headX, headY);
-    ctx.stroke();
-    ctx.setLineDash([]);
     // Feeding shades visibly gnaw: they jitter against the structure and
     // pulse — damage is never silent.
     let radius = shade.phase === 'approach' ? 4.5 : 6;
@@ -361,7 +421,8 @@ function drawShades(ctx, round, animTime, byId) {
       radius = 6 + Math.sin(animTime * 8 + shade.id) * 1.5;
     }
     // A wisp, not a dot: a bright-cored smoky body trailing ghosts of
-    // itself. Heartseekers burn crimson; held shades burn gold.
+    // itself. Heartseekers burn crimson; held shades burn gold. One
+    // rotated blit of a pre-rendered body, not eight paths.
     const span = Math.hypot(to.x - from.x, to.y - from.y) || 1;
     const backX = (from.x - to.x) / span;
     const backY = (from.y - to.y) / span;
@@ -369,38 +430,14 @@ function drawShades(ctx, round, animTime, byId) {
     const held = shade.phase === 'held';
     const seeker = shade.targetSlotId === null;
     const body = held ? [230, 199, 102] : seeker ? [226, 96, 118] : [176, 106, 208];
-    // Ghosts of its own passage, strung back along the path.
-    if (shade.phase === 'approach') {
-      for (let ghost = 3; ghost >= 1; ghost--) {
-        const gx = drawX + backX * ghost * 7 + backY * wave * ghost * 1.5;
-        const gy = drawY + backY * ghost * 7 - backX * wave * ghost * 1.5;
-        ctx.fillStyle = rgb(body, 0.28 - ghost * 0.07);
-        ctx.beginPath();
-        ctx.arc(gx, gy, radius * (1 - ghost * 0.2), 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    for (let lobe = 2; lobe >= 0; lobe--) {
-      const drift = lobe * (5 + wave);
-      const lx = drawX + backX * drift + backY * wave * lobe * 2;
-      const ly = drawY + backY * drift - backX * wave * lobe * 2;
-      const lr = radius * (1 - lobe * 0.28);
-      if (lobe === 0) {
-        const reach = lr + 1.5;
-        ctx.drawImage(coreSprite(body), lx - reach, ly - reach, reach * 2, reach * 2);
-        continue;
-      }
-      ctx.fillStyle = rgb(body, 0.6 - lobe * 0.18);
-      ctx.beginPath();
-      ctx.arc(lx, ly, lr, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    // Eyes of the dark: two glowing pinpricks facing the prize.
-    ctx.fillStyle = held ? '#fff6e0' : seeker ? '#ffd6dc' : '#f2e6fb';
-    ctx.beginPath();
-    ctx.arc(drawX - backY * 2.4 - backX * 1.8, drawY + backX * 2.4 - backY * 1.8, 1.15, 0, Math.PI * 2);
-    ctx.arc(drawX + backY * 2.4 - backX * 1.8, drawY - backX * 2.4 - backY * 1.8, 1.15, 0, Math.PI * 2);
-    ctx.fill();
+    const sprite = wispSprite(body);
+    const size = WISP.span * (radius / 6);
+    ctx.save();
+    ctx.translate(drawX, drawY);
+    // The wobble survives as a lean, which costs nothing.
+    ctx.rotate(Math.atan2(-backY, -backX) + wave * 0.06);
+    ctx.drawImage(sprite, -size * WISP.head, -size / 2, size, size);
+    ctx.restore();
     ctx.globalAlpha = 1;
   }
 }
@@ -488,47 +525,26 @@ export function drawStructureGlyph(ctx, type, x, y, r, color) {
   ctx.restore();
 }
 
-function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
+// The town changes when you build, when the dark bites, and when a
+// structure grows into its ground — a few times a round. Painting it in
+// the frame loop meant redrawing fourteen buildings a hundred times a
+// second to produce the same picture, and it is the second-largest block
+// of blended pixels in the game. It lives on its own layer now, repainted
+// only when this signature changes.
+export function townKey(round) {
+  let key = '';
   for (const slot of round.slots) {
+    const built = slot.structure;
+    if (built) key += `${slot.id}${built.type}${built.hp}${built.level};`;
+  }
+  return key;
+}
+
+export function paintTown(ctx, round) {
+  ctx.clearRect(0, 0, CANVAS, CANVAS);
+  for (const slot of round.slots) {
+    if (!slot.structure) continue;
     const { x, y } = slotPixel(slot);
-    if (!slot.structure) {
-      if (slot.ruin) {
-        // Ash where a building stood — a charred patch, embers, a spark.
-        const char = ctx.createRadialGradient(x, y, 1, x, y, 12);
-        char.addColorStop(0, 'rgba(30, 18, 16, 0.55)');
-        char.addColorStop(1, 'rgba(30, 18, 16, 0)');
-        ctx.fillStyle = char;
-        ctx.fillRect(x - 12, y - 12, 24, 24);
-        ctx.fillStyle = 'rgba(224, 138, 90, 0.4)';
-        for (let ash = 0; ash < 3; ash++) {
-          ctx.beginPath();
-          ctx.arc(x + (ash - 1) * 4.5, y + 3 - (ash % 2) * 4, 1.7, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        const rise = (animTime * 0.35 + slot.x * 3) % 1;
-        ctx.fillStyle = `rgba(255, 150, 90, ${(1 - rise) * 0.5})`;
-        ctx.beginPath();
-        ctx.arc(x + Math.sin(animTime * 2 + slot.y * 9) * 3, y - rise * 14, 1.1, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // With a card in hand, open ground beckons — with a place marker.
-      const pulse = selectedCard ? 0.6 + 0.3 * Math.sin(animTime * 3.2 + slot.x * 7) : 0.45;
-      ctx.strokeStyle = selectedCard ? `rgba(230, 199, 102, ${pulse})` : `rgba(150, 156, 186, ${pulse})`;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.arc(x, y, 11, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      if (selectedCard) {
-        ctx.strokeStyle = `rgba(230, 199, 102, ${pulse * 0.9})`;
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y);
-        ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4);
-        ctx.stroke();
-      }
-      continue;
-    }
     const color = STRUCTURE_COLORS[slot.structure.type] || '#aeb8c5';
     // The lantern casts its pool of light beneath everything else.
     if (slot.structure.type === 'lantern') {
@@ -615,6 +631,53 @@ function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
       ctx.arc(x + (pip - (hpPips - 1) / 2) * 5, y + 18, 1.6, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+}
+
+// What is left in the frame loop: ground that reacts to the hour or the
+// hand — ruins smouldering, empty pads answering a drafted card, and the
+// ring around whatever is being inspected.
+function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
+  for (const slot of round.slots) {
+    const { x, y } = slotPixel(slot);
+    if (!slot.structure) {
+      if (slot.ruin) {
+        // Ash where a building stood — a charred patch, embers, a spark.
+        const char = ctx.createRadialGradient(x, y, 1, x, y, 12);
+        char.addColorStop(0, 'rgba(30, 18, 16, 0.55)');
+        char.addColorStop(1, 'rgba(30, 18, 16, 0)');
+        ctx.fillStyle = char;
+        ctx.fillRect(x - 12, y - 12, 24, 24);
+        ctx.fillStyle = 'rgba(224, 138, 90, 0.4)';
+        for (let ash = 0; ash < 3; ash++) {
+          ctx.beginPath();
+          ctx.arc(x + (ash - 1) * 4.5, y + 3 - (ash % 2) * 4, 1.7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        const rise = (animTime * 0.35 + slot.x * 3) % 1;
+        ctx.fillStyle = `rgba(255, 150, 90, ${(1 - rise) * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(x + Math.sin(animTime * 2 + slot.y * 9) * 3, y - rise * 14, 1.1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // With a card in hand, open ground beckons — with a place marker.
+      const pulse = selectedCard ? 0.6 + 0.3 * Math.sin(animTime * 3.2 + slot.x * 7) : 0.45;
+      ctx.strokeStyle = selectedCard ? `rgba(230, 199, 102, ${pulse})` : `rgba(150, 156, 186, ${pulse})`;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(x, y, 11, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (selectedCard) {
+        ctx.strokeStyle = `rgba(230, 199, 102, ${pulse * 0.9})`;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y);
+        ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4);
+        ctx.stroke();
+      }
+      continue;
+    }
     if (slot.id === inspectedId) {
       ctx.strokeStyle = '#ffd082';
       ctx.lineWidth = 1.5;
@@ -624,6 +687,26 @@ function drawSlots(ctx, round, selectedCard, inspectedId, animTime) {
       ctx.stroke();
       ctx.setLineDash([]);
     }
+  }
+}
+
+// The town layer sits UNDER the shades now, so a building being eaten
+// would disappear behind its attacker — you could not see what the dark
+// was chewing. Re-stamp just the glyph (thin strokes, not the seat or the
+// pips or the pool) for the handful of slots actually under attack. The
+// expensive part of a building stays on the layer that never repaints.
+function drawHuntedGlyphs(ctx, round, byId) {
+  let hunted = null;
+  for (const shade of round.shades) {
+    if (!shade.targetSlotId || shade.phase === 'approach') continue;
+    const slot = byId.get(shade.targetSlotId);
+    if (!slot?.structure) continue;
+    if (hunted === null) hunted = new Set();
+    if (hunted.has(slot.id)) continue;
+    hunted.add(slot.id);
+    const { x, y } = slotPixel(slot);
+    drawStructureGlyph(ctx, slot.structure.type, x, y, 8.5,
+      STRUCTURE_COLORS[slot.structure.type] || '#aeb8c5');
   }
 }
 
@@ -938,6 +1021,7 @@ export function drawTown(ctx, state, selectedCard, animTime, inspectedId, visual
   drawHeart(ctx, round, animTime);
   drawShades(ctx, round, animTime, byId);
   drawSlots(ctx, round, selectedCard, inspectedId, animTime);
+  drawHuntedGlyphs(ctx, round, byId);
   drawThreats(ctx, round, getHoldTime(state), byId);
   drawInspectLinks(ctx, round, inspectedId, animTime);
   if (round.phase === 'day') drawPlacementPreview(ctx, round, selectedCard, hover, animTime);

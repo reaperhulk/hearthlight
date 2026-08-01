@@ -540,13 +540,18 @@ commit pushed to main. Update checkboxes as work lands.
 
 ### Perf queue
 
-- Dusk is still the floor (~45fps throttled against a ~59fps control) and
-  it is seventeen shades: three ghost arcs, two lobes, a core blit and a
-  dashed stub each. Cutting ghosts from three to two is the obvious next
-  lever, but it is a look change and wants a screenshot review.
-- `drawSlots` recreates a radial gradient per structure per frame for the
-  seat disc. Sprite-ing it measured WORSE (see cycle 24) — the fix here is
-  probably a smaller disc or no gradient at all, not a sprite.
+- Night scenes sit at 62-78fps under a 4x CPU throttle where day is 138.
+  The remaining cost is DIFFUSE — heart glow, clearRect, threat arcs, the
+  veil and the fog each measure ~10% and nothing dominates. There is no
+  single fix left; the next real gain is either fewer simultaneous
+  effects or accepting that this environment charges the CPU for fill a
+  phone gives its GPU.
+- The veil costs ~12% on veiled nights (65 -> 73fps with it off). It is
+  already quarter-scale; the remaining cost is the full-canvas upscale
+  blit.
+- Batching candidates left, in call-count order: threat arcs (one path per
+  colour instead of one per target), the Warden figure (one path instead
+  of six strokes), the Heart's coals and sparks.
 - THIS BOX CANNOT BE TRUSTED for fine-grained render A/B. Re-measure the
   control in the same session, every time, and prefer provable reductions
   over measured ones.
