@@ -193,7 +193,15 @@ export function VillageMap({
       </div>
       {mapLanes(round.town).map((lane) => {
         const diagonal = round.town !== "ridge" && lane.id > 0;
-        const rawX = 0.5 + Math.cos(lane.angle) * 0.43;
+        // Keep entry labels off the road so they cannot hide approaching enemies.
+        const rawX =
+          0.5 +
+          Math.cos(lane.angle) * 0.43 +
+          (lane.id === 0
+            ? -0.18
+            : round.town === "ridge" && lane.id === 2
+              ? 0.2
+              : 0);
         const x = diagonal ? Math.max(0.15, Math.min(0.85, rawX)) : rawX,
           y = 0.5 + Math.sin(lane.angle) * 0.43 + (diagonal ? 0.12 : 0);
         return (

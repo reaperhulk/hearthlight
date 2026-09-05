@@ -46,6 +46,10 @@ acceptance criteria. The engine and interface now use the new loop.
       in addition to viewport bounds and control size.
 - [x] Reconcile all work packages in IMPROVEMENTS.md; continue toward the next
       unsaved town from the main play button and show the assigned Warden road.
+- [x] Final CI evidence: 43 tests, 120 profile cases, 60 distinct build cases,
+      offline reload, 32 viewport cases and all ten repeated performance scenes.
+      PLAYTEST.md records the results and transition stalls, without claiming
+      physical-device performance or a human fun assessment.
 - [ ] Listen and play on real devices; verify mobile layout and frame pacing.
 - [ ] Fresh human playtest: comprehension, meaningful choices and voluntary replay.
 

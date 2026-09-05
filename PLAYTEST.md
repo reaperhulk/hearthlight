@@ -85,3 +85,45 @@ with 4× CPU throttling, and frame p95 at or below 16.8ms. This reaches that
 browser's 60Hz cap; it is not a measured speedup over the old game or a
 claim about a real phone. Device listening, touch ergonomics, heat/battery,
 and independent human playtests remain outstanding.
+
+## Completed implementation verification
+
+Revision `954bfd3` passed the expanded CI and deployed browser checks:
+43 unit/DOM/offline/audio tests, 120 original scripted town/profile cases,
+60 distinct build cases, fresh-save progression, endless guards, 32
+scene/viewport combinations, all plot hit targets, and an actual offline
+reload. The three distinct builds complete every town with the free kit.
+This establishes reachability, not which strategy humans find enjoyable.
+
+The deployed cloud browser also verified the alternative inner-tower/
+lantern opening, Warden assignment, pause and half speed, high contrast,
+essential visual effects, local recording and export. Its exported Briar
+Hollow record (seed 1493368650, 15 commands) replayed to the same gameplay
+state. A separate 14-night heavy-scene record replayed 965 commands.
+
+The final expanded probe used Linux Chrome 152.0.7977.64, 4× CPU throttling,
+three four-second repetitions per scene. Results from CI run 33946814592:
+
+| Scene or transition                         | Median FPS across runs | Highest frame p95 | Estimated missed 60Hz frames, by run |
+| ------------------------------------------- | ---------------------: | ----------------: | ------------------------------------ |
+| First-day planning                          |                  60.00 |           16.8 ms | 0 / 0 / 0                            |
+| Final-day ridge                             |                  60.00 |           16.8 ms | 0 / 0 / 0                            |
+| Moving marsh battle                         |                  60.00 |           16.7 ms | 0 / 0 / 0                            |
+| Moving ridge battle                         |                  60.00 |           16.8 ms | 0 / 0 / 0                            |
+| All 16 upgraded buildings, mist and impacts |                  60.00 |           16.8 ms | 1 / 0 / 0                            |
+| Dusk                                        |                  59.06 |           16.8 ms | 7 / 4 / 3                            |
+| Opening Settings                            |                  59.06 |           16.8 ms | 4 / 4 / 3                            |
+| Resize                                      |                  58.52 |           16.8 ms | 7 / 6 / 6                            |
+| Background return                           |                  59.76 |           16.8 ms | 1 / 1 / 1                            |
+| Essential-effects combat                    |                  59.75 |           16.8 ms | 1 / 1 / 1                            |
+
+Resize and one Settings sample reached about 33.3 ms at p99. Transitions
+still have occasional missed frames; no claim of perfectly smooth or
+real-phone performance follows from these short samples. Artifacts retain
+all repetitions, scene populations, browser identity and paint diagnostics.
+The fully upgraded battle stayed active with 16 upgraded buildings and mist.
+The background test verified that another tab pauses combat before return.
+
+The physical-device and fresh-player gates above remain unmeasured. The
+implementation checklist is complete in IMPROVEMENTS.md; larger commissioned
+art/audio production remains contingent on the human gate in the original plan.
