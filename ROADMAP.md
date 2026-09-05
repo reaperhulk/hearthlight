@@ -26,7 +26,13 @@ acceptance criteria. The engine and interface now use the new loop.
 - [x] Viewport-sized battlefield and fixed planning dock; separate build,
       approach and chronicle panels. CI gates vertical fit and reachable controls
       at 360×800 through 1920×1080, including 1280×650 laptops, and saves screenshots.
-- [ ] Complete accessible effects, threat-based audio mixing and material cues.
+- [x] Warden destination flag, current target, attack clock and range;
+      travelling bolts, impacts, damage cracks, mist radius and victory effects.
+- [x] Independent low/essential effects presets, live system motion preference,
+      high-contrast paths/silhouettes and persistent visual equivalents to sound.
+- [x] Phrase/orchestration variations, wind/fire/village ambience, material cues,
+      distinct approach/breach/Heart sounds, threat-based danger music, alert
+      coalescing, bounded voices and critical-warning music ducking.
 - [ ] Expand distinct build fixtures and representative performance transitions.
 - [ ] Listen and play on real devices; verify mobile layout and frame pacing.
 - [ ] Fresh human playtest: comprehension, meaningful choices and voluntary replay.

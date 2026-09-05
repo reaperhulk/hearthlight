@@ -56,6 +56,7 @@ export function freshGame() {
       effects: 0.65,
       ambience: 0.35,
       motion: true,
+      intensity: 1,
       contrast: false,
       speed: 1,
       guide: true,
@@ -120,7 +121,7 @@ export function migrateGame(saved) {
           totalRounds: finite(saved.legacy.totalRounds),
         }
       : null;
-  for (const key of ["music", "effects", "ambience"])
+  for (const key of ["music", "effects", "ambience", "intensity"])
     state.settings[key] = clamp(
       finite(saved.settings?.[key], fresh.settings[key]),
       0,
@@ -461,7 +462,7 @@ export function command(state, action) {
       : state;
   if (action.type === "setting") {
     if (!known(state.settings, action.key)) return state;
-    const value = ["music", "ambience", "effects"].includes(action.key)
+    const value = ["music", "ambience", "effects", "intensity"].includes(action.key)
       ? clamp(finite(action.value), 0, 1)
       : action.key === "speed"
         ? [0.5, 1, 2].includes(action.value)
@@ -761,6 +762,7 @@ function simulate(r) {
   const threats = r.enemies
     .filter((e) => e.hp > 0 && distance(w, positions.get(e.id)) < 0.14)
     .sort((a, b) => b.progress - a.progress);
+  w.targetEnemy = w.deployed ? threats[0]?.id ?? null : null;
   if (w.deployed && w.cooldown < 1e-8 && threats.length) {
     const lamp = litBy(w);
     const damage =

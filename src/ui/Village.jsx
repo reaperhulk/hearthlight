@@ -25,6 +25,8 @@ import { introduction, defeatExplanation, pauseForLesson } from "./guidance.js";
 import { VillageMap } from "./VillageMap.jsx";
 import { drawBuilding } from "./village-draw.js";
 import {
+  scoreMood,
+  disposeScore,
   setMix,
   setMood,
   soundEvent,
@@ -72,7 +74,7 @@ function Settings({ state, act, onClose, onImport }) {
       if (e.key !== "Tab") return;
       const items = [
         ...panel.querySelectorAll(
-          "button:not(:disabled), input, textarea, summary",
+          "button:not(:disabled), input, select, textarea, summary",
         ),
       ].filter(
         (el) => !el.closest("details:not([open])") || el.tagName === "SUMMARY",
@@ -141,6 +143,11 @@ function Settings({ state, act, onClose, onImport }) {
             />
           </label>
         ))}
+        <label className="setting-row">Visual effects
+          <select aria-label="Visual effects intensity" value={state.settings.intensity} onChange={e => act({ type: "setting", key: "intensity", value: Number(e.target.value) })}>
+            <option value={1}>Full scenery</option><option value={0.3}>Low effects</option><option value={0}>Essential cues only</option>
+          </select>
+        </label>
         <details>
           <summary>Carry your fire · save and restore</summary>
           <p>
@@ -212,11 +219,19 @@ export function Village() {
     foreign = useRef(false),
     soundCursor = useRef({ seed: null, event: 0 }),
     metrics = useRef({ frames: [], paint: [] });
-  const [reduce] = useState(
+  const [reduce, setReduce] = useState(
     () =>
       typeof matchMedia === "function" &&
       matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return;
+    const query = matchMedia("(prefers-reduced-motion: reduce)");
+    const change = () => setReduce(query.matches);
+    query.addEventListener?.("change", change);
+    return () => query.removeEventListener?.("change", change);
+  }, []);
+  useEffect(() => () => disposeScore(), []);
   useEffect(() => {
     current.current = state;
   }, [state]);
@@ -329,7 +344,7 @@ export function Village() {
       setMood("day");
       return;
     }
-    setMood(r.phase === "night" ? (r.heart < 35 ? "danger" : "night") : "day");
+    setMood(scoreMood(r));
     if (
       soundCursor.current.seed !== r.seed ||
       soundCursor.current.event >= r.nextEvent
@@ -695,6 +710,7 @@ export function Village() {
                 onRoad={onRoad}
                 motion={state.settings.motion && !reduce}
                 contrast={state.settings.contrast}
+                intensity={state.settings.intensity}
                 metrics={metrics}
               />
               <div className="map-footer">
@@ -705,7 +721,7 @@ export function Village() {
                       : "Survive this night to restore the beacon."
                     : over
                       ? `${r.stats.kills} enemies banished · ${r.stats.lost} buildings lost`
-                      : `Night ${r.night} · ${r.enemies.length} ${r.enemies.length === 1 ? "enemy" : "enemies"} on the roads · ${r.wave.filter((e) => !e.spawned).length} still to come`}
+                      : `${r.paused ? "Paused · " : ""}Night ${r.night} · ${r.enemies.length} ${r.enemies.length === 1 ? "enemy" : "enemies"} on the roads · ${r.wave.filter((e) => !e.spawned).length} still to come`}
                 </span>
                 {r.phase === "night" && (
                   <div className="button-row">

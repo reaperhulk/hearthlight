@@ -16,13 +16,14 @@ export function VillageMap({
   onRoad,
   motion,
   contrast,
+  intensity = 1,
   metrics,
 }) {
   const groundRef = useRef(null),
     nightRef = useRef(null),
     townRef = useRef(null),
     liveRef = useRef(null);
-  const data = useRef({ round, previous: round, selected, motion, at: 0 });
+  const data = useRef({ round, previous: round, selected, motion, contrast, intensity, at: 0 });
   useEffect(() => {
     const old = data.current;
     data.current = {
@@ -30,9 +31,11 @@ export function VillageMap({
       previous: old.round,
       selected,
       motion,
+      contrast,
+      intensity,
       at: performance.now(),
     };
-  }, [round, selected, motion]);
+  }, [round, selected, motion, contrast, intensity]);
   useEffect(() => {
     const ground = groundRef.current,
       night = nightRef.current,
@@ -72,9 +75,9 @@ export function VillageMap({
               ? `${s.building.type}:${s.building.branch}:${s.building.hp}`
               : "",
           )
-          .join("|");
+          .join("|") + current.contrast;
         if (key !== townKey) {
-          paintBuildings(town.getContext("2d"), current.round);
+          paintBuildings(town.getContext("2d"), current.round, current.contrast);
           townKey = key;
         }
         const interpolation =
@@ -99,6 +102,8 @@ export function VillageMap({
           current.motion,
           now / 1000,
           effectTimes,
+          current.intensity,
+          current.contrast,
         );
         if (last && metrics) {
           metrics.current.frames.push(now - last);
@@ -108,7 +113,7 @@ export function VillageMap({
           if (metrics.current.paint.length > 600) metrics.current.paint.shift();
         }
       }
-      last = now;
+      last = document.visibilityState === "visible" ? now : 0;
       frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
@@ -177,6 +182,7 @@ export function VillageMap({
             onClick={() => onRoad(lane.id)}
           >
             {lane.name}
+            {round.phase === "day" && <span className="road-count">{round.wave.filter(e => e.lane === lane.id).length || "No"} approaching</span>}
           </button>
         );
       })}

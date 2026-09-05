@@ -1217,3 +1217,8 @@ textarea {
   .command-scroll { max-height: 300px; }
   .planning-actions { position: sticky; bottom: 0; background: #101c1c; padding: 4px 0; }
 }
+
+/* Pause status stays beside Resume instead of covering the southern approach. */
+.in-game .pause-note { display: none; }
+.road-count { display: block; font-size: 10px; letter-spacing: 0; text-transform: none; }
+.setting-row select { background: #20392e; color: #e5dfc0; border: 1px solid #85916f; border-radius: 6px; min-height: 44px; max-width: 55%; }
