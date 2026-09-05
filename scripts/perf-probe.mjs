@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { browserSession, hydrate } from "./browser-session.mjs";
+import { browserSession, clickText, hydrate } from "./browser-session.mjs";
 import { scene, describeScene } from "./scenes.mjs";
 
 const arg = (flag, fallback) => {
@@ -24,7 +24,7 @@ const percentile = (values, p) =>
 const session = await browserSession({
   uncapped: process.argv.includes("--uncapped"),
 });
-const { page, errors } = session;
+const { page, errors, browser } = session;
 try {
   const cdp = await page.createCDPSession();
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
@@ -34,17 +34,46 @@ try {
     "ridge-day",
     "marsh-battle",
     "ridge-battle",
+    "full-battle",
+    "dusk",
+    "open-settings",
+    "resize",
+    "background-return",
+    "essential-effects",
   ]) {
-    const fixture = scene(name),
+    const fixtureName = ["dusk"].includes(name) ? "full-day" : ["open-settings", "resize", "background-return", "essential-effects"].includes(name) ? "full-battle" : name;
+    const fixture = scene(fixtureName),
       runs = [];
     for (let repeat = 0; repeat < repeats; repeat++) {
+      await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
       await hydrate(page, fixture);
       await page.evaluate(() => {
         if (window.__game.getState().round.phase === "night")
           window.__game.command({ type: "pause" });
         window.__game.resetMetrics();
       });
+      if (name === "background-return") {
+        const cover = await browser.newPage();
+        await cover.bringToFront();
+        await page.waitForFunction(() => document.visibilityState === "hidden");
+        await page.waitForFunction(() => window.__game.getState().round.paused);
+        const stopped = await page.evaluate(() => window.__game.getState().round.time);
+        await new Promise(resolve => setTimeout(resolve, 250));
+        assert.equal(await page.evaluate(() => window.__game.getState().round.time), stopped, "Background game kept advancing");
+        await page.bringToFront();
+        await cover.close();
+        await page.waitForFunction(() => document.visibilityState === "visible");
+        await clickText(page, "Resume night");
+        await page.evaluate(() => window.__game.resetMetrics());
+      }
+      if (name === "essential-effects") await page.evaluate(() => {
+        window.__game.command({ type: "setting", key: "intensity", value: 0 });
+        window.__game.command({ type: "setting", key: "motion", value: false });
+      });
       const before = await page.evaluate(() => window.__game.getState());
+      if (name === "dusk") await clickText(page, "Start Night");
+      if (name === "open-settings") await page.click('[aria-label="Open settings"]');
+      if (name === "resize") await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
       await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
       const { metrics, state } = await page.evaluate(() => ({
         metrics: window.__game.metrics(),
@@ -52,15 +81,23 @@ try {
       }));
       assert.equal(
         state.round.phase,
-        before.round.phase,
+        name === "dusk" ? "night" : before.round.phase,
         `${name}: SCENE DRIFTED phase`,
       );
-      if (name.endsWith("battle"))
+      if (fixtureName.endsWith("battle") && name !== "open-settings")
         assert.ok(
           state.round.enemies.length > 0 &&
             state.round.time > before.round.time,
           `${name}: SCENE DRIFTED / no active battle`,
         );
+      if (name === "open-settings") {
+        assert.equal(state.round.paused, true, "Settings did not pause combat");
+        assert.ok(await page.$('[role="dialog"]'), "Settings scene drifted");
+      }
+      if (fixtureName === "full-battle") {
+        assert.equal(before.round.slots.filter(s => s.building?.branch).length, 16, "Incomplete upgraded-town fixture");
+        assert.ok(before.round.enemies.some(e => e.type === "mist"), "Missing mist-support fixture");
+      }
       assert.ok(metrics.frames.length > 10, `${name}: No frame samples`);
       const mean =
         metrics.frames.reduce((a, b) => a + b, 0) / metrics.frames.length;
@@ -70,12 +107,16 @@ try {
         frameP95: percentile(metrics.frames, 0.95),
         frameP99: percentile(metrics.frames, 0.99),
         paintP95: percentile(metrics.paint, 0.95),
+        framesOver60HzBudget: metrics.frames.filter(ms => ms > 1000 / 60 + 1).length,
+        estimatedMissed60HzFrames: metrics.frames.reduce((sum, ms) => sum + Math.max(0, Math.round(ms / (1000 / 60)) - 1), 0),
+        sampleCount: metrics.frames.length,
         before: describeScene(before),
         after: describeScene(state),
       });
     }
     reports.push({
       name,
+      fixture: fixtureName,
       medianFps: percentile(
         runs.map((r) => r.fps),
         0.5,
@@ -87,11 +128,15 @@ try {
   console.log(
     JSON.stringify(
       {
+        browser: await browser.version(),
+        platform: process.platform,
+        architecture: process.arch,
+        frameBudgetMs: 1000 / 60,
         throttle,
         seconds,
         repeats,
         uncapped: process.argv.includes("--uncapped"),
-        note: "Frame intervals include scheduling; paint measures command recording only. CPU throttling is not a phone benchmark. Use matching real devices before claiming a speedup.",
+        note: "requestAnimationFrame intervals include browser scheduling, not physical display presentation. Missed frames are estimates against a 60 Hz budget; paint measures command recording only. CPU throttling is not a phone benchmark. Use matching real devices before claiming a speedup.",
         reports,
       },
       null,

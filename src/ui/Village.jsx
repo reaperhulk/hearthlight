@@ -131,6 +131,7 @@ function Settings({ state, act, onClose, onImport }) {
           ["motion", "Animated scenery and effects"],
           ["contrast", "High-contrast battlefield"],
           ["guide", "Show the introductory guide"],
+          ["recording", "Record a local playtest · nothing is sent"],
         ].map(([id, label]) => (
           <label className="setting-row" key={id}>
             {label}
@@ -170,6 +171,10 @@ function Settings({ state, act, onClose, onImport }) {
             >
               Export save
             </button>
+            <button disabled={!state.round && !state.lastPlaytestRound} onClick={() => {
+              setText(JSON.stringify({ format: "hearthlight-playtest-v1", build: __COMMIT__, viewport: [window.innerWidth, window.innerHeight], browser: navigator.userAgent, round: state.round || state.lastPlaytestRound, attempts: state.playtestLog }));
+              setNote("Playtest record ready. It includes the seed, commands, outcomes and, if recording was enabled, accepted and rejected inputs. Nothing is uploaded; copy it only if you choose to share it.");
+            }}>Export playtest record</button>
             <button
               disabled={!text.trim()}
               onClick={() => {
@@ -240,11 +245,12 @@ export function Village() {
   }, [elsewhere]);
   const act = useCallback((action) => {
     unlockScore();
+    const wallTime = Date.now();
     setState((s) => {
       const resumeLesson = s.round?.paused && s.settings.guide && s.round.town === "first" &&
         ((action.type === "rally" && !s.round.warden.deployed && s.round.lessons?.includes("wall")) ||
          (action.type === "burst" && s.round.stats.bursts === 0 && s.round.lessons?.includes("burst")));
-      const next = command(s, action);
+      const next = command(s, action, wallTime);
       return resumeLesson && next !== s ? command(next, { type: "pause" }) : next;
     });
   }, []);
@@ -381,7 +387,10 @@ export function Village() {
         setCard(null);
       }
       if (r.phase === "day" && ["1", "2", "3", "4"].includes(e.key)) {
-        setCard(Object.keys(BUILDINGS)[Number(e.key) - 1]);
+        const id = Object.keys(BUILDINGS)[Number(e.key) - 1];
+        if (current.current.settings.guide && r.town === "first" && r.night === 1 && ["tower", "lantern"].includes(id)) return;
+        setView("build");
+        setCard(id);
         setSelected(null);
       }
     };

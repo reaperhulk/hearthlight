@@ -51,6 +51,8 @@ export function freshGame() {
     history: [],
     legacy: null,
     round: null,
+    playtestLog: [],
+    lastPlaytestRound: null,
     settings: {
       music: 0.35,
       effects: 0.65,
@@ -60,6 +62,7 @@ export function freshGame() {
       contrast: false,
       speed: 1,
       guide: true,
+      recording: false,
     },
   };
 }
@@ -127,18 +130,20 @@ export function migrateGame(saved) {
       0,
       1,
     );
-  for (const key of ["motion", "contrast", "guide"])
+  for (const key of ["motion", "contrast", "guide", "recording"])
     if (typeof saved.settings?.[key] === "boolean")
       state.settings[key] = saved.settings[key];
   state.settings.speed = [0.5, 1, 2].includes(saved.settings?.speed)
     ? saved.settings.speed
     : 1;
+  state.playtestLog = Array.isArray(saved.playtestLog) ? saved.playtestLog.filter(e => e && typeof e.type === "string" && Number.isFinite(e.time) && typeof e.accepted === "boolean").slice(-1000) : [];
+  state.lastPlaytestRound = validRound(saved.lastPlaytestRound) ? copy(saved.lastPlaytestRound) : null;
   if (validRound(saved.round)) {
     state.round = copy(saved.round);
     state.round.undo = null;
     state.round.lessons = Array.isArray(saved.round.lessons) ? saved.round.lessons.filter(x => ["wall", "burst"].includes(x)) : [];
     state.round.incidents = Array.isArray(saved.round.incidents) ? saved.round.incidents.filter(x => x && ["fall", "heart"].includes(x.type) && Number.isInteger(x.lane) && mapLanes(state.round.town)[x.lane] && Number.isFinite(x.night) && typeof x.text === "string").slice(-24) : [];
-    state.round.dawnReport = null;
+    state.round.dawnReport = saved.round.dawnReport && ["night", "income", "farms", "kills", "lost", "damage", "standing"].every(key => Number.isFinite(saved.round.dawnReport[key])) ? { ...saved.round.dawnReport } : null;
     state.round.challenge = saved.round.challenge === "no-bursts" ? "no-bursts" : "standard";
     if (state.round.phase === "day" && state.round.offers.length)
       state.round.offers = blessingOffers(state.round);
@@ -438,7 +443,13 @@ export function forecast(r) {
   }));
 }
 
-export function command(state, action) {
+export function command(state, action, wallTime = null) {
+  const next = applyCommand(state, action);
+  if (!state.settings.recording || !action || typeof action.type !== "string") return next;
+  return { ...next, playtestLog: [...(state.playtestLog || []), { type: action.type, time: state.round?.time || 0, wallTime, phase: state.round?.phase || "home", accepted: next !== state, ...Object.fromEntries(["slot", "lane", "building", "branch", "id"].filter(key => ["string", "number"].includes(typeof action[key])).map(key => [key, action[key]])) }].slice(-1000) };
+}
+
+function applyCommand(state, action) {
   if (!action || typeof action.type !== "string") return state;
   if (action.type === "unlock") {
     const kit = known(KITS, action.id) ? KITS[action.id] : null;
@@ -482,6 +493,7 @@ export function command(state, action) {
     return {
       ...state,
       embers: state.embers + earned,
+      lastPlaytestRound: state.settings.recording ? previous : state.lastPlaytestRound,
       wins,
       records: {
         ...state.records,
@@ -814,7 +826,7 @@ function simulate(r) {
       target.building.hp -= def.damage;
       event(r, "bite", { x: target.x, y: target.y, damage: def.damage, material: target.building.type });
       if (target.building.branch === "thorns") {
-        enemy.hp -= 4;
+        hurt(enemy, 4, "thorns", { x: target.x, y: target.y });
         enemy.stun = 0.6;
       }
       if (target.building.hp <= 0) {

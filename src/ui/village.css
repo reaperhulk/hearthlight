@@ -1222,3 +1222,5 @@ textarea {
 .in-game .pause-note { display: none; }
 .road-count { display: block; font-size: 10px; letter-spacing: 0; text-transform: none; }
 .setting-row select { background: #20392e; color: #e5dfc0; border: 1px solid #85916f; border-radius: 6px; min-height: 44px; max-width: 55%; }
+
+.road-count { position: absolute; top: -8px; right: -8px; min-width: 21px; height: 21px; border-radius: 50%; background: #efd395; color: #1a3025; font: 600 12px/21px ui-sans-serif, system-ui; pointer-events: none; }

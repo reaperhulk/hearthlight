@@ -649,6 +649,9 @@ export function paintLiving(
       if (e.type === "fall") path(ctx, [[p.x - 12, p.y - 10], [p.x + 12, p.y + 10], [p.x, p.y], [p.x + 12, p.y - 10], [p.x - 12, p.y + 10]], null, "#ffc0a4", 3);
     }
     if (e.type === "burst") {
+      ctx.strokeStyle = "#ffecb077"; ctx.lineWidth = decorative ? 10 : 3; ctx.beginPath();
+      for (let i = 0; i <= 20; i++) { const at = pt(routePoint(lanes[e.lane], i / 20, r.town)); if (i) ctx.lineTo(at.x, at.y); else ctx.moveTo(at.x, at.y); }
+      ctx.stroke();
       const p = pt(routePoint(lanes[e.lane], 0.55, r.town));
       ctx.strokeStyle = "#ffecb0";
       ctx.lineWidth = decorative ? 5 : 2;

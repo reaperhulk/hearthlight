@@ -43,6 +43,7 @@ export function VillageMap({
       live = liveRef.current;
     const canvases = [ground, night, town, live];
     let townKey = "",
+      painted = null,
       frame,
       running = true;
     const size = () => {
@@ -59,6 +60,7 @@ export function VillageMap({
       paintGround(ground.getContext("2d"), data.current.round.town);
       paintGround(night.getContext("2d"), data.current.round.town, true);
       townKey = "";
+      painted = null;
     };
     const observer = new ResizeObserver(size);
     observer.observe(live);
@@ -86,14 +88,16 @@ export function VillageMap({
             : Math.min(1, (now - current.at) / 100);
         const start = performance.now();
         for (const e of current.round.events)
-          if (!effectTimes.has(e.id)) effectTimes.set(e.id, now / 1000);
+          if (!effectTimes.has(e.id)) effectTimes.set(e.id, now / 1000 - Math.max(0, current.round.time - e.time));
         for (const [id, time] of effectTimes)
           if (
             now / 1000 - time > 2 &&
             !current.round.events.some((e) => e.id === id)
           )
             effectTimes.delete(id);
-        paintLiving(
+        const animate = (current.motion && current.intensity > 0) || (current.round.phase === "night" && !current.round.paused);
+        const effects = [...effectTimes.values()].some(t => now / 1000 - t <= 0.75);
+        if (animate || effects || painted !== current) paintLiving(
           live.getContext("2d"),
           current.round,
           current.previous,
@@ -105,6 +109,7 @@ export function VillageMap({
           current.intensity,
           current.contrast,
         );
+        painted = current;
         if (last && metrics) {
           metrics.current.frames.push(now - last);
           if (metrics.current.frames.length > 600)
@@ -132,7 +137,7 @@ export function VillageMap({
       <canvas
         ref={nightRef}
         className="map-layer night-ground"
-        style={{ opacity: round.phase === "night" ? 1 : 0 }}
+        style={{ opacity: ["night", "lost"].includes(round.phase) ? 1 : 0 }}
         aria-hidden="true"
       />
       <canvas ref={townRef} className="map-layer" aria-hidden="true" />
@@ -163,8 +168,10 @@ export function VillageMap({
         ))}
       </div>
       {mapLanes(round.town).map((lane) => {
-        const x = 0.5 + Math.cos(lane.angle) * 0.43,
-          y = 0.5 + Math.sin(lane.angle) * 0.43;
+        const diagonal = round.town !== "ridge" && lane.id > 0;
+        const rawX = 0.5 + Math.cos(lane.angle) * 0.43;
+        const x = diagonal ? Math.max(0.15, Math.min(0.85, rawX)) : rawX,
+          y = 0.5 + Math.sin(lane.angle) * 0.43 + (diagonal ? 0.12 : 0);
         return (
           <button
             key={lane.id}
@@ -182,7 +189,7 @@ export function VillageMap({
             onClick={() => onRoad(lane.id)}
           >
             {lane.name}
-            {round.phase === "day" && <span className="road-count">{round.wave.filter(e => e.lane === lane.id).length || "No"} approaching</span>}
+            {round.phase === "day" && <span className="road-count" aria-label={`${round.wave.filter(e => e.lane === lane.id).length} approaching`}>{round.wave.filter(e => e.lane === lane.id).length}</span>}
           </button>
         );
       })}

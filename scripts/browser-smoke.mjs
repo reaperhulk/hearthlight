@@ -120,9 +120,10 @@ try {
           const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
           return { label: el.getAttribute("aria-label") || el.textContent.trim(), fits: r.top >= 0 && r.bottom <= innerHeight + 1 && r.left >= 0 && r.right <= innerWidth + 1, hit: el.contains(hit), height: r.height };
         });
-        return { overflow: document.documentElement.scrollHeight > innerHeight + 1, map: visible(".village-map"), controls: visible('.planning-actions .primary, .map-footer button, .map-footer select, .night-controls button') };
+        return { overflow: document.documentElement.scrollHeight > innerHeight + 1, map: visible(".village-map"), plots: visible(".plot"), controls: visible('.planning-actions .primary, .map-footer button, .map-footer select, .night-controls button') };
       });
       assert.equal(fit.overflow, false, `${name} ${width}×${height}: vertical page overflow`);
+      assert.ok(fit.plots.every(x => x.fits && x.hit), `${name} ${width}×${height}: plot obscured ${JSON.stringify(fit.plots.filter(x => !x.fits || !x.hit))}`);
       assert.ok(fit.map.every(x => x.fits), `${name}: battlefield clipped`);
       assert.ok(fit.controls.every(x => x.fits && x.hit && x.height >= 43), `${name} ${width}×${height}: unreachable controls ${JSON.stringify(fit.controls)}`);
       if (width >= 1280 && name === "first-day") {
@@ -141,6 +142,17 @@ try {
     JSON.parse(el.value),
   );
   assert.equal(saved.round.town, "ridge");
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("hearthlight-save") || "null")?.round?.town === "ridge");
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true }));
+  });
+  await page.setOfflineMode(true);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => Boolean(window.__game?.getState().round));
+  assert.equal((await page.evaluate(() => window.__game.getState())).round.town, "ridge", "Offline reload lost the saved village");
+  await page.setOfflineMode(false);
   assert.deepEqual(errors, [], "Browser console/page errors");
   console.log(
     "Browser smoke passed: build, defend, win, reward, kit, save, settings and responsive layouts.",

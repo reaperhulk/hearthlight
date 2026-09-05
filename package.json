@@ -14,10 +14,11 @@
     "balance:story": "node scripts/campaign-balance.js --story",
     "balance:baseline": "node scripts/campaign-balance.js --json > scripts/balance-baseline.json",
     "balance:compare": "node scripts/campaign-balance.js --compare scripts/balance-baseline.json",
-    "test:quality": "npm run lint && npm run test:unit && npm run test:balance && npm run build",
+    "test:quality": "npm run lint && npm run test:unit && npm run test:balance && npm run test:strategies && npm run build",
     "test:smoke": "npm run build && node scripts/browser-smoke.mjs",
     "perf:probe": "npm run build && node scripts/perf-probe.mjs",
-    "render:scenes": "node scripts/render-scenes.mjs"
+    "render:scenes": "node scripts/render-scenes.mjs",
+    "test:strategies": "node scripts/build-strategies.js"
   },
   "dependencies": {
     "react": "^19.2.7",

@@ -46,3 +46,17 @@ describe("lessons and earned challenges", () => {
     expect(replayRound(s.round).round).toEqual(s.round);
   });
 });
+
+it("keeps input diagnostics local and optional, including rejected purchases", () => {
+  let s = startGame(freshGame());
+  const rejected = { type: "upgrade", slot: "0-0", branch: "stone" };
+  expect(command(s, rejected)).toBe(s);
+  s = command(s, { type: "setting", key: "recording", value: true });
+  s = command(s, rejected, 1234);
+  expect(s.playtestLog.at(-1)).toMatchObject({ type: "upgrade", accepted: false, wallTime: 1234 });
+  s = finishCampaign(s);
+  const round = s.round;
+  s = command(s, { type: "collect" });
+  expect(s.lastPlaytestRound).toEqual(round);
+  expect(s.playtestLog.at(-1)).toMatchObject({ type: "collect", accepted: true });
+});

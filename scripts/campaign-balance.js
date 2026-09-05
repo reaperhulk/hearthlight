@@ -13,7 +13,7 @@ import {
 import { mapLanes, TOWNS } from "../src/engine/content.js";
 
 // Transparent heuristics, not claims about optimal play or a median human.
-export function planDay(state, style = "fortress") {
+export function planDay(state, style = "fortress", startNight = true) {
   let s = state;
   const act = (action) => {
     s = command(s, action);
@@ -79,7 +79,7 @@ export function planDay(state, style = "fortress") {
               : "courage";
       act({ type: "upgrade", slot: slot.id, branch });
     }
-  return command(s, { type: "start" });
+  return startNight ? command(s, { type: "start" }) : s;
 }
 
 export function nightAction(state, style = "fortress") {

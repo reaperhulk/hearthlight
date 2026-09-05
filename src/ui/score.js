@@ -50,6 +50,7 @@ function note(
 
 function schedule() {
   if (!ctx || ctx.state !== "running" || !active) return;
+  if (mood === "lost") { nextBeat = ctx.currentTime + 0.5; return; }
   while (nextBeat < ctx.currentTime + 0.15) {
     const root = roots[Math.floor(beat / 16) % roots.length];
     const n = beat % 16;
@@ -153,6 +154,7 @@ export function setMix(settings) {
   }
 }
 export function scoreMood(r) {
+  if (r?.phase === "lost") return "lost";
   if (!r || r.phase !== "night") return "day";
   const threatened = r.enemies.some(e => e.progress > 0.72 || r.slots.some(s => s.building && s.lane === e.lane && Math.abs(s.progress - e.progress) < 0.015 && s.building.hp < maxHp(s.building, r.kit) * 0.3));
   return threatened ? "danger" : "night";

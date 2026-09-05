@@ -33,7 +33,17 @@ acceptance criteria. The engine and interface now use the new loop.
 - [x] Phrase/orchestration variations, wind/fire/village ambience, material cues,
       distinct approach/breach/Heart sounds, threat-based danger music, alert
       coalescing, bounded voices and critical-warning music ducking.
-- [ ] Expand distinct build fixtures and representative performance transitions.
+- [x] Sixty matched-seed build cases: no-farm stone choke, harvest-funded
+      inner tower battery, and lantern/Warden with one supporting tower (two on
+      Cinder Ridge). Free-kit completion and genuinely distinct purchase orders
+      are asserted; the old heuristic variants remain separate diagnostics.
+- [x] Reachable fully upgraded 16-building town, simultaneous impacts and mist;
+      repeat dusk, settings opening, resize, background return and low-effects
+      frame probes with p50/p95/p99 and estimated missed 60Hz frames.
+- [x] Optional local input recording, retained completed-run reproducer, portable
+      playtest export and a command-line replay check. No data is transmitted.
+- [x] Mobile road labels avoid plots; all plot centers are checked for occlusion,
+      in addition to viewport bounds and control size.
 - [ ] Listen and play on real devices; verify mobile layout and frame pacing.
 - [ ] Fresh human playtest: comprehension, meaningful choices and voluntary replay.
 
