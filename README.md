@@ -1,116 +1,103 @@
 # Hearthlight
 
-A round-based city-defense incremental, born from
-[The Ruins Remember](https://github.com/reaperhulk/theruinsremember).
-Something in the dark keeps eating the towns. Light the Heart. Last longer.
+A small village-defense game. Build by day, defend by night, and restore a
+beacon before the dark takes the Heart.
 
-**Play it:** https://reaperhulk.github.io/hearthlight/ — installs to a
-homescreen as a PWA; a first round lasts one to two minutes.
+[Play Hearthlight](https://reaperhulk.github.io/hearthlight/)
 
-## The loop
+## The new loop
 
-1. **Day** (15s, or call the dusk early): Glow trickles in; you are offered
-   a draft of structures and get **one pair of hands** — place a structure,
-   or mend one bitten hit point out of a wall. That is the whole building
-   system — no roads, no zoning, one decision with real adjacency depth
-   (wells water farms and granaries, palisades bodyguard their neighbors,
-   towers cover theirs). Once a day, 4 Glow buys a fresh draft.
-2. **Night**: shades creep from the rim toward what you built — the day
-   header told you exactly how many were coming. One verb: send the Warden.
-   He grapples one shade at a time; once rested he can be redirected
-   anywhere — even torn off a hold, though the dropped shade bites fast.
-   Banishes temper him within the run (seasoned → grim → lightless), each
-   tier quickening his grip. Towers loose bolts, lanterns slow, bells
-   delay, walls take the teeth. From night 7, heartseekers ignore the town
-   and go for the Heart itself — the Warden can stand at the Heart to meet
-   them.
-3. **Omens**: every fourth night is named at the dawn before — a Hungry
-   Night brings more teeth; a Still Night brings none, and banks them; a
-   Veiled Night (night 8+) blinds every tower with mist, but the mist
-   muffles the dark too. A veteran tower's lamp pierces it for one bolt.
-4. **The fall**: the dark always wins eventually. When the Heart goes out,
-   the chronicle itemizes every Ember the vigil earned, and the home
-   screen's bar row remembers the last thirty falls.
-5. **The fire**: spend Embers on the **Ember tree** — three roots growing
-   from the Heart (Stone: the town endures; Watch: the night is answered;
-   Ember: the light reaches further). Every node past a root grows out of
-   another, so Embers buy a *path*, not a shopping list, and each kindling
-   runs light up the vein that fed it. Three pinnacles crown their roots
-   and unlock only by *proving* vigils (8, 10, and 12 nights), never by
-   hoarding. With everything kept, one node remains lit at the crown: the
-   Long Dawn, a fifteen-night vigil that closes the story.
+- **Plan without a clock.** Spend a dawn budget on farms, walls, watchtowers,
+  and lanterns. Inspect ranges and health, repair, move, salvage, or undo
+  the last change. The forecast shows the actual approaching wave.
+- **Hold physical roads.** Enemies stop at buildings and break through in
+  order. Only enemies that reach the Heart can hurt it. Send the Warden to
+  a rally point; he fights nearby enemies automatically. Limited lantern
+  bursts damage, interrupt, and push back an entire road.
+- **Make a build.** Each building has two exclusive specializations.
+  Every second dawn offers a choice of blessings. Different enemy roles
+  favor different defenses; a veil bearer protects nearby enemies until
+  interrupted, while Sunlance shots pierce its protection.
+- **Win something.** The First Fire teaches the game over three nights.
+  Save Briar Hollow, the Sunken Crossing, and Cinder Ridge over six nights
+  each. A saved village unlocks its endless watch.
+- **Carry earned Embers home.** Completed nights and victories pay for
+  alternative starting kits. Standard campaigns are winnable with the free
+  Hearthkeeper kit. Starting and immediately retiring earns nothing.
 
-Plays with one thumb; on desktop, 1–4 pick cards, 1–3 answer threats, D
-calls the dusk, R rerolls. A save travels between devices as one
-copy-pasteable ember-script.
+The battlefield uses layered Canvas2D illustrations with distinct enemy
+silhouettes, building upgrades, attack cues, and a growing beacon. An
+original procedural score changes between day, night, and danger, with
+separate music, effects, and ambience controls.
 
-## Running
+Keyboard: **1–4** select a building, **Tab / Enter** choose a plot,
+**D** starts night, **Space** pauses, and **Escape** clears selection or
+closes Settings. Night also supports half speed. Settings include reduced
+motion, higher contrast, and save transfer.
 
-```sh
-npm install
-npm run dev        # http://localhost:5173
-```
+## Saves and offline play
 
-## Testing — the interesting part
+Version 1 saves retain Embers and a legacy record. Previous foundation,
+Warden, and choir upgrades unlock their corresponding starting kits. The
+old active vigil is archived rather than converted into incompatible new
+combat rules. Version 2 runs resume paused. The previous automatic save is
+kept for recovery, and simultaneous tabs use a takeover prompt.
 
-The engine is pure and deterministic: `tick(state, dt, rng)` → new state,
-every random draw threaded through an injected rng. That makes the game's
-promises *testable*, and they are:
+The production PWA precaches each build's complete shell before replacing
+its previous worker. Open the game online once to prepare offline play.
+
+## Development
+
+Use Node **24.15 or newer** in the Node 24 line, or a newer compatible
+release.
 
 ```sh
-npm run test:unit       # engine unit tests
-npm run test:balance    # bot profiles + loop-promise assertions (5 fixed seeds)
-npm run test:quality    # lint + unit + balance + build
-npm run test:smoke      # a real Chromium plays one full loop
-npm run balance:story   # narrate one round night by night
-npm run balance:compare # diff current numbers against the committed baseline
-npm run perf:probe      # render cost in a real Chromium at phone-grade CPU
+npm ci
+npm run dev
 ```
 
-`perf:probe` is to frames what the balance harness is to nights: it drives
-a throttled Chromium through the game's cheapest and most expensive scenes
-and reads the paint loop's own timings back out, so render work is tuned
-against measurements instead of hunches. It is what caught the game being
-fill-rate bound on full-canvas gradient fills (19fps on a phone-grade core,
-now 58).
+```sh
+npm run test:quality    # lint, engine/DOM/offline tests, balance guards, build
+npm run test:smoke      # Chromium: actual UI controls + accelerated full loop
+npm run balance:story   # one scenario, night by night; accepts -- --seed N
+npm run balance:compare # exact comparison with the committed seed baseline
+npm run balance:baseline
+npm run render:scenes   # direct Canvas2D renders; not browser layout screenshots
+npm run perf:probe     # actual frame intervals, paint time, and scene population
+node scripts/screenshot.mjs /tmp/hearthlight-screenshots
+```
 
-The balance harness plays deterministic bot profiles — a do-nothing
-**passive**, a **builder** who sleeps at night, the optimal **keeper**, a
-median-human **villager**, and ablations (**randomPlace**, greedy builds, a
-two-structure **bunker**) — across five fixed seeds plus one fresh random
-seed per local run. It asserts, among ~30 promises:
+Browser scripts need an installed Chromium executable (`CHROME_PATH`).
+They use an isolated local preview on port 4174; override with
+`HEARTHLIGHT_TEST_PORT`. The browser hook exposes commands, state reads,
+and time advancement, rather than unrestricted fabricated state writes.
 
-- a do-nothing round still ends and pays; playing beats not playing;
-- the villager's first round lands in the 1–2 minute band;
-- placement is a real choice (keeper beats random placement by ≥1 night);
-- turtling never beats building, and **no strategy is immortal** — a bot
-  once found a two-structure bunker that literally never died; the fix and
-  a permanent guard profile shipped the same day. A `juggler` that breaks
-  grapples on every cooldown must always lose to committed holds, and even
-  a fully-upgraded town must still fall (while its 15-night Long Dawn
-  capstone stays provably reachable);
-- every meta upgrade earns its slot on a measured axis (round-1 nights,
-  round-1 embers, or 5-round-arc nights) — no traps, no shelf-warmers;
-- identical seeds produce identical rounds, always.
+The engine is pure: `command(state, action)` and `advance(state, dt)` return
+new states. Combat advances in fixed 50ms steps, the UI updates at 10Hz,
+and canvas entities interpolate between snapshots. Waves derive only from
+town, night, and seed. Timestamped commands support `replayRound(round)`;
+recordings exceeding 4,000 commands are explicitly marked incomplete.
 
-`scripts/balance-baseline.json` is a committed metrics snapshot;
-`balance:compare` fails when anything drifts past tolerance, so every
-deliberate balance change documents itself in the diff. CI runs the whole
-gate plus the browser smoke on every push.
+## What the checks establish
 
-## Design doctrine (inherited from The Ruins Remember)
+The balance gate covers 120 fixed-seed town/profile combinations, then
+checks fresh-save progression and eventual defeat in endless mode. The
+profiles are explicit scripts: fortress, scattershot, Warden support,
+four-second reactions, building without night input, and doing nothing.
+They are not models of human skill or evidence of enjoyment. Reported
+seconds include combat only; preparation time is chosen by the player.
 
-- Decisions, not busywork. One placement per day; one verb per night.
-- The wall always wins; how long you delay it is the scoreboard.
-- Randomness is bounded and visible: the draft always offers a defense,
-  omens are announced a dawn ahead, the forecast never lies.
-- Meta pre-pays costs; it never skips decisions.
-- Every change is measured by bots under seeds before it ships, and every
-  promise the loop makes is an assertion that can never silently regress.
+Performance probes report frame interval p50/p95/p99, command recording
+cost, every repeated run, and before/after scene populations. Their
+fixtures use the actual production map and engine. A throttled desktop
+browser is not a phone benchmark. Do not compare the old renderer's FPS
+numbers with this redesign without matching device measurements.
+
+See [PLAYTEST.md](PLAYTEST.md) for the comprehension and replay gate, and
+[ROADMAP.md](ROADMAP.md) for implemented work and remaining validation.
 
 ## Lore
 
 The shades are the Forgetting. Every town they take becomes ruins — and the
-ruins remember every wall you raised. Hearthlight is the fall of the towns
-that [The Ruins Remember](https://github.com/reaperhulk/theruinsremember)
-excavates.
+ruins remember every wall you raised. Hearthlight is a companion to
+[The Ruins Remember](https://github.com/reaperhulk/theruinsremember).

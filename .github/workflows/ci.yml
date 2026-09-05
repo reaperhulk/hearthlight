@@ -12,13 +12,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
       # Lint, deterministic engine tests, bot loop-promise assertions, build
       - run: npm run test:quality
-      # A real Chromium drives one full loop: begin -> place -> night -> fall
-      # -> collect -> shop. Fails on console errors or layout overflow.
+      # Chromium checks the new loop: build, defend, win, collect and choose a kit.
+      # Fails on console errors or layout overflow.
       - run: npm run test:smoke
         env:
           CHROME_PATH: /usr/bin/google-chrome

@@ -4,17 +4,23 @@
 
 The approved redesign replaces inevitable defeat with winnable scenarios.
 The historical queue below describes the previous game and is not the new
-acceptance criteria. The scenario engine lands before the interface switches.
+acceptance criteria. The engine and interface now use the new loop.
 
 - [x] Pure scenario engine: three roads, physical breaches, Warden rally,
       lantern burst, untimed preparation, specializations and explicit victory.
 - [x] Four towns, starting kits, blessings, earned rewards and legacy save migration.
 - [x] Engine checks for damage causality, tick-size independence, save validation,
       exact income, undo, rewards and several strategy profiles.
-- [ ] New guided interface, illustrated battlefield and responsive controls.
-- [ ] Adaptive score, ambience and exact event-driven sound/visual feedback.
-- [ ] Current-map performance fixtures, browser coverage, accessibility and PWA QA.
+- [x] New guided interface, illustrated battlefield and responsive controls.
+- [x] Adaptive score, ambience and exact event-driven sound/visual feedback.
+- [x] Production-map browser/performance fixtures, DOM interaction tests, focus
+      handling, save recovery and offline lifecycle tests.
+- [ ] Execute Chromium smoke/screenshots and frame probes for this build.
+      Cloud preview access was blocked; these checks remain unverified.
+- [ ] Listen and play on real devices; verify mobile layout and frame pacing.
 - [ ] Fresh human playtest: comprehension, meaningful choices and voluntary replay.
+
+## Historical queue — previous game
 
 The iteration queue. Each item is one coherent, measured, gate-passing
 commit pushed to main. Update checkboxes as work lands.

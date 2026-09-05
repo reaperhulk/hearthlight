@@ -1,328 +1,115 @@
-#!/usr/bin/env node
-// Browser smoke test: drives a real Chromium through one full loop —
-// home -> begin -> place -> dusk -> night -> fall -> collect -> shop.
-// Fails on any console error, page error, or progression miss.
-// Usage: node scripts/browser-smoke.mjs   (builds are expected in dist/)
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import puppeteer from 'puppeteer-core';
+import assert from "node:assert/strict";
+import { browserSession, clickText, hydrate } from "./browser-session.mjs";
+import { planDay, nightAction } from "./campaign-balance.js";
+import { freshGame } from "../src/engine/campaign.js";
+import { scene } from "./scenes.mjs";
 
-const CHROME_CANDIDATES = [
-  process.env.CHROME_PATH,
-  '/opt/pw-browsers/chromium',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/chromium',
-].filter(Boolean);
-
-const executablePath = CHROME_CANDIDATES.find(candidate => existsSync(candidate));
-if (!executablePath) {
-  console.error(`✗ no Chromium found (tried ${CHROME_CANDIDATES.join(', ')}) — set CHROME_PATH`);
-  process.exit(1);
-}
-
-const PORT = 4173;
-const URL = `http://localhost:${PORT}/`;
-
-function waitForServer(url, timeoutMs = 20000) {
-  const started = Date.now();
-  return new Promise((resolve, reject) => {
-    const poll = async () => {
-      try {
-        const response = await fetch(url);
-        if (response.ok) return resolve();
-      } catch { /* not up yet */ }
-      if (Date.now() - started > timeoutMs) return reject(new Error('preview server never came up'));
-      setTimeout(poll, 250);
-    };
-    poll();
-  });
-}
-
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-  stdio: 'ignore',
-  detached: true,
-});
-const cleanup = () => { try { process.kill(-server.pid); } catch { /* already gone */ } };
-process.on('exit', cleanup);
-
-const failures = [];
-const note = message => console.log(`  ${message}`);
-
-try {
-  await waitForServer(URL);
-  const browser = await puppeteer.launch({
-    executablePath,
-    args: ['--no-sandbox', '--disable-dev-shm-usage'],
-  });
-  const page = await browser.newPage();
-  await page.setViewport({ width: 420, height: 900 });
-  page.on('console', message => {
-    if (message.type() === 'error') failures.push(`console error: ${message.text()}`);
-  });
-  page.on('pageerror', error => failures.push(`page error: ${error.message}`));
-
-  await page.goto(URL, { waitUntil: 'networkidle0' });
-  await page.evaluate(() => window.localStorage.clear());
-  await page.reload({ waitUntil: 'networkidle0' });
-
-  // Home: the vigil beckons.
-  await page.waitForSelector('.begin', { timeout: 5000 });
-  note('home renders');
-  await page.click('.begin');
-  await page.waitForSelector('canvas.town-map', { timeout: 5000 });
-  await page.waitForFunction(() => window.__game?.getState().round?.phase === 'day', { timeout: 5000 });
-  note('round begins at day');
-
-  // Day: pick the first affordable card and tap an empty slot on the map.
-  await page.waitForFunction(() =>
-    [...document.querySelectorAll('.draft button')].some(button => !button.disabled), { timeout: 8000 });
-  await page.evaluate(() => {
-    [...document.querySelectorAll('.draft button')].find(button => !button.disabled).click();
-  });
-  const target = await page.evaluate(() => {
-    const round = window.__game.getState().round;
-    const slot = round.slots.find(candidate => !candidate.structure);
-    const rect = document.querySelector('canvas.town-map').getBoundingClientRect();
-    return { x: rect.left + slot.x * rect.width, y: rect.top + slot.y * rect.height };
-  });
-  await page.mouse.click(target.x, target.y);
-  const placed = await page.waitForFunction(
-    () => window.__game.getState().round.slots.some(slot => slot.structure), { timeout: 3000 })
-    .then(() => true).catch(() => false);
-  if (!placed) failures.push('placing a structure via canvas tap did not land');
-  else note('structure placed by canvas tap');
-
-  // Call the dusk, then let the harness clock run the night out.
-  await page.click('.end-day');
-  await page.waitForFunction(() => window.__game.getState().round.phase === 'night', { timeout: 3000 });
-  note('dusk falls');
-
-  // Night: the mirror button posts the warden at the threat.
-  const posted = await page.waitForSelector('.night-controls button', { timeout: 12000 })
-    .then(async () => {
-      await page.click('.night-controls button');
-      return page.waitForFunction(
-        () => window.__game.getState().round.wardens.some(warden => warden.slotId),
-        { timeout: 3000 }).then(() => true).catch(() => false);
-    })
-    .catch(() => false);
-  if (!posted) failures.push('night threat button did not post the warden');
-  else note('warden posted from the night panel');
-
-  // Motion must follow the FRAME, not the engine flush. The engine ticks
-  // ten times a second for battery; if the drawn clock only advanced with
-  // it, every shade would step 10x a second however fast the canvas
-  // painted — which is exactly what "stuttery" looked like before the
-  // render loop learned to interpolate between flushes.
-  const smoothness = await page.evaluate(() => new Promise(resolve => {
-    const drawn = [];
-    const engine = [];
-    const started = performance.now();
-    const step = () => {
-      drawn.push(window.__game.clock());
-      engine.push(window.__game.getState().round.time);
-      if (performance.now() - started < 900) requestAnimationFrame(step);
-      else resolve({
-        frames: drawn.length,
-        drawnValues: new Set(drawn.map(value => value.toFixed(4))).size,
-        engineValues: new Set(engine.map(value => value.toFixed(4))).size,
-      });
-    };
-    requestAnimationFrame(step);
+const session = await browserSession();
+const { page, errors } = session;
+async function layout() {
+  const result = await page.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+    escapes: /\\u[0-9a-f]{4}/i.test(document.body.innerText),
+    stamp: document.querySelector(".footer code")?.textContent,
   }));
-  if (smoothness.frames < 20) {
-    note(`skipped smoothness check (only ${smoothness.frames} frames sampled)`);
-  } else if (smoothness.drawnValues < smoothness.frames * 0.9) {
-    failures.push(`the drawn clock stepped ${smoothness.drawnValues} times over ${smoothness.frames} frames — motion is quantized to the engine flush`);
-  } else {
-    note(`motion is frame-smooth: ${smoothness.drawnValues} drawn positions over ${smoothness.frames} frames (engine flushed ${smoothness.engineValues}x)`);
-  }
-
-  // Fast-forward the whole round to its inevitable end.
-  for (let hops = 0; hops < 20; hops++) {
-    const phase = await page.evaluate(() => {
-      window.__game.fastForward(60);
-      return window.__game.getState().round?.phase;
-    });
-    if (phase === 'fallen') break;
-  }
-  const fell = await page.evaluate(() => window.__game.getState().round?.phase === 'fallen');
-  if (!fell) failures.push('the town never fell — the wall must always win');
-  else note('the wall wins, as promised');
-
-  // The chronicle pays, and the shop opens.
-  await page.waitForSelector('.fallen-panel .begin', { timeout: 4000 });
-  const embersEarned = await page.evaluate(() => {
-    const text = document.querySelector('.chronicle .total strong')?.textContent;
-    return Number(text);
-  });
-  if (!(embersEarned >= 1)) failures.push(`fall paid ${embersEarned} embers`);
-  else note(`fall pays ${embersEarned} embers`);
-  await page.click('.fallen-panel .to-the-fire');
-  await page.waitForSelector('.tree-panel', { timeout: 4000 });
-  const banked = await page.evaluate(() => document.querySelectorAll('.tree-node').length);
-  if (banked !== 12) failures.push(`ember tree drew ${banked} nodes, expected 12 (11 upgrades + the crown)`);
-  else note('embers banked, the Ember tree is open');
-
-  // The tree is a path: kindling a root opens what grows from it, and
-  // the node that was blocked becomes reachable.
-  const kindling = await page.evaluate(async () => {
-    window.__game.setState(state => ({ ...state, embers: 40, meta: {} }));
-    await new Promise(resolve => setTimeout(resolve, 60));
-    const before = document.querySelectorAll('.tree-node.rooted').length;
-    const root = [...document.querySelectorAll('.tree-node.ready')][0];
-    if (!root) return { error: 'no ready root on a full purse' };
-    root.click();
-    await new Promise(resolve => setTimeout(resolve, 60));
-    const kindle = document.querySelector('.tree-detail .kindle');
-    if (!kindle) return { error: 'a ready node offered no way to kindle it' };
-    kindle.click();
-    await new Promise(resolve => setTimeout(resolve, 120));
-    return {
-      before,
-      after: document.querySelectorAll('.tree-node.rooted').length,
-      ranks: Object.values(window.__game.getState().meta).filter(Boolean).length,
-      spent: window.__game.getState().embers,
-      banner: document.querySelector('.kindled-banner')?.textContent ?? null,
-    };
-  });
-  if (kindling.error) failures.push(kindling.error);
-  else if (kindling.ranks !== 1) failures.push(`kindling lit ${kindling.ranks} nodes, expected 1`);
-  else if (kindling.after >= kindling.before) failures.push('kindling a root opened no path (rooted count did not fall)');
-  else if (kindling.spent !== 35) failures.push(`kindling spent ${40 - kindling.spent} embers, expected 5`);
-  else if (!kindling.banner) failures.push('kindling announced nothing');
-  else note(`node kindled: ${kindling.before - kindling.after} path(s) opened, banner shown`);
-
-  // The tail: a kindled node with ranks left can take another course, and
-  // the Embers keep having somewhere to go.
-  const ranking = await page.evaluate(async () => {
-    window.__game.setState(state => ({ ...state, embers: 300 }));
-    await new Promise(resolve => setTimeout(resolve, 60));
-    const node = [...document.querySelectorAll('.tree-node')]
-      .find(candidate => candidate.getAttribute('aria-label')?.startsWith('Stone Foundations'));
-    // Clicking a node toggles it, and the kindling step above may have
-    // left this one already open — select it, don't flip it shut.
-    node.click();
-    await new Promise(resolve => setTimeout(resolve, 60));
-    if (!document.querySelector('.tree-detail')) {
-      node.click();
-      await new Promise(resolve => setTimeout(resolve, 60));
-    }
-    const poured = [];
-    for (let rank = 0; rank < 4; rank++) {
-      const button = document.querySelector('.tree-detail .kindle');
-      if (!button) break;
-      button.click();
-      await new Promise(resolve => setTimeout(resolve, 90));
-      poured.push(window.__game.getState().meta.stoneFoundations);
-    }
-    return {
-      poured,
-      maxed: document.querySelectorAll('.tree-node.maxed').length > 0,
-      label: document.querySelector('.rank-gauge span')?.textContent ?? null,
-    };
-  });
-  if (ranking.poured.at(-1) !== 3) failures.push(`ranks stopped at ${ranking.poured.at(-1)}, expected 3 (poured ${ranking.poured.join(',')})`);
-  else if (!ranking.maxed) failures.push('a fully-poured node never read as maxed');
-  else note(`ranks pour: ${ranking.label}, node maxed and closed`);
-
-  // A vigil can be abandoned: double-tap walks away, the chronicle pays.
-  await page.click('.begin');
-  await page.waitForSelector('.abandon', { timeout: 5000 });
-  await page.click('.abandon');
-  await page.click('.abandon');
-  const abandoned = await page.waitForSelector('.fallen-panel', { timeout: 3000 })
-    .then(() => true).catch(() => false);
-  if (!abandoned) failures.push('abandoning the vigil did not end the round');
-  else note('vigil abandoned by double-tap, chronicle shown');
-
-  // UX contract: during the day, the whole decision surface fits a
-  // 420x860 phone without scrolling, and targets are finger-sized.
-  await page.click('.begin');
-  await page.waitForSelector('.end-day', { timeout: 5000 });
-  const uxReport = await page.evaluate(() => {
-    const viewport = window.innerHeight;
-    const below = [...document.querySelectorAll('.draft button, .end-day')]
-      .filter(button => button.getBoundingClientRect().bottom > viewport)
-      .length;
-    const small = [...document.querySelectorAll('.draft button, .end-day, .night-controls button')]
-      .filter(button => !button.disabled && button.getBoundingClientRect().height < 40)
-      .length;
-    return { below, small };
-  });
-  if (uxReport.below > 0) failures.push(`${uxReport.below} day controls fall below the fold at phone size`);
-  else note('day controls fit the phone fold');
-  if (uxReport.small > 0) failures.push(`${uxReport.small} action buttons under 40px`);
-  else note('all action targets finger-sized');
-  await page.click('.abandon');
-  await page.click('.abandon');
-  await page.waitForSelector('.fallen-panel', { timeout: 3000 });
-  await page.click('.fallen-panel .to-the-fire');
-
-  // Carry the fire: export, wipe, import — the vigil survives the move.
-  await page.click('.carry summary');
-  await page.click('.carry-row button');
-  const script = await page.evaluate(() => document.querySelector('.carry textarea').value);
-  if (!script || script.length < 50) failures.push('ember-script did not render on export');
-  else {
-    await page.evaluate(() => window.localStorage.removeItem('hearthlight-save'));
-    await page.evaluate(text => {
-      const area = document.querySelector('.carry textarea');
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-      setter.call(area, text);
-      area.dispatchEvent(new Event('input', { bubbles: true }));
-    }, script);
-    await page.click('.carry-row button:nth-of-type(2)');
-    const confirmText = await page.waitForSelector('.carry-note', { timeout: 2000 })
-      .then(element => element.evaluate(node => node.textContent))
-      .catch(() => null);
-    if (!confirmText || !confirmText.includes('carried')) failures.push(`ember-script import did not confirm (${confirmText})`);
-    else note('save round-trips through the ember-script');
-  }
-
-  // The deploy stamps itself: a page that cannot say which commit it is
-  // makes every bug report a guess.
-  const stamp = await page.evaluate(() => {
-    const node = document.querySelector('.build-stamp code');
-    if (!node) return null;
-    const box = node.getBoundingClientRect();
-    return {
-      text: node.textContent,
-      // Present is not the same as legible: a stamp nobody can read is
-      // no better than no stamp.
-      shown: box.width > 0 && box.height > 0 &&
-        getComputedStyle(node).visibility === 'visible' &&
-        box.right <= document.documentElement.clientWidth + 1,
-    };
-  });
-  if (!stamp || !/^[0-9a-f]{7}(-dirty)?$/.test(stamp.text)) {
-    failures.push(`build stamp missing or malformed (${stamp?.text})`);
-  } else if (!stamp.shown) {
-    failures.push(`build stamp ${stamp.text} is present but not visible`);
-  } else note(`build stamps itself: ${stamp.text}`);
-
-  // No raw escape sequences leaking into visible text (\uXXXX in JSX
-  // text renders literally — it has happened).
-  const rawEscapes = await page.evaluate(() => /\\u[0-9a-fA-F]{4}/.test(document.body.innerText));
-  if (rawEscapes) failures.push('visible text contains a literal \\uXXXX escape');
-  else note('no raw escapes in visible text');
-
-  // No horizontal scroll on a phone-width viewport.
-  const overflow = await page.evaluate(() =>
-    document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-  if (overflow) failures.push('layout overflows the 420px viewport horizontally');
-  else note('no horizontal overflow at 420px');
-
-  await browser.close();
-} catch (error) {
-  failures.push(`smoke run crashed: ${error.message}`);
+  assert.equal(result.overflow, false, "Horizontal overflow");
+  assert.equal(result.escapes, false, "Leaked JSX Unicode escape");
+  assert.ok(result.stamp && result.stamp !== "unknown", "Missing build stamp");
 }
+try {
+  await hydrate(page, freshGame());
+  await layout();
+  await clickText(page, "Light the first fire");
+  for (const [building, plot] of [
+    ["Farm", 3],
+    ["Timber wall", 1],
+    ["Watchtower", 2],
+  ]) {
+    await clickText(page, building);
+    await page.click(`[aria-label^="North road, plot ${plot}"]`);
+  }
+  assert.equal(
+    (await page.evaluate(() => window.__game.getState())).round.stats.built,
+    3,
+  );
+  await layout();
+  await clickText(page, "Start Night");
+  await page.click('[aria-label="Send Warden to North road"]');
+  await page.waitForFunction(
+    () => window.__game.getState().round.warden.deployed,
+  );
+  await page.waitForFunction(
+    () => window.__game.getState().round.enemies.length > 0,
+  );
+  await page.click('[aria-label="Lantern burst on North road"]');
+  await page.waitForFunction(() => window.__game.getState().round.bursts === 1);
+  await page.click('[aria-label="Open settings"]');
+  assert.ok((await page.evaluate(() => window.__game.getState())).round.paused);
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+  await clickText(page, "Resume night");
 
-cleanup();
-console.log('\n── Browser smoke ──');
-if (failures.length > 0) {
-  for (const failure of failures) console.log(`  ✗ ${failure}`);
-  process.exit(1);
+  // Use the production engine to accelerate combat; initial controls above
+  // are actual pointer/keyboard interactions. There is no state fabrication.
+  for (let i = 0; i < 180; i++) {
+    const before = await page.evaluate(() => window.__game.getState());
+    if (before.round.phase === "won") break;
+    assert.notEqual(before.round.phase, "lost");
+    const next =
+      before.round.phase === "day" ? planDay(before) : nightAction(before);
+    const commands = next.round.commands.slice(before.round.commands.length);
+    await page.evaluate((actions) => {
+      for (const action of actions) window.__game.command(action);
+      window.__game.advance(1);
+    }, commands);
+    await page.waitForFunction(
+      (time) => {
+        const r = window.__game.getState().round;
+        return r.time > time;
+      },
+      {},
+      before.round.time,
+    );
+  }
+  await page.waitForSelector(".outcome.won");
+  await clickText(page, "Carry the fire home");
+  await page.waitForSelector(".kit");
+  assert.equal(
+    (await page.evaluate(() => window.__game.getState())).embers,
+    17,
+  );
+  await clickText(page, "Stone & timber");
+  assert.equal(
+    (await page.evaluate(() => window.__game.getState())).kit,
+    "mason",
+  );
+  await clickText(page, "Return to Briar Hollow");
+  assert.equal(
+    (await page.evaluate(() => window.__game.getState())).round.town,
+    "meadow",
+  );
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".village-map");
+  assert.equal(
+    (await page.evaluate(() => window.__game.getState())).round.kit,
+    "mason",
+  );
+  await hydrate(page, scene("ridge-battle"));
+  for (const width of [360, 390, 768, 1440]) {
+    await page.setViewport({ width, height: 900 });
+    await layout();
+  }
+  await page.click('[aria-label="Open settings"]');
+  await page.click(".settings summary");
+  await clickText(page, "Export save");
+  const saved = await page.$eval('[aria-label="Save transfer text"]', (el) =>
+    JSON.parse(el.value),
+  );
+  assert.equal(saved.round.town, "ridge");
+  assert.deepEqual(errors, [], "Browser console/page errors");
+  console.log(
+    "Browser smoke passed: build, defend, win, reward, kit, save, settings and responsive layouts.",
+  );
+} finally {
+  await session.close();
 }
-console.log('  ✓ one full loop, no console errors, no overflow');
