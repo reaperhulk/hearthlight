@@ -1,5 +1,21 @@
 # Hearthlight roadmap
 
+## Town-defense redesign (September 2026)
+
+The approved redesign replaces inevitable defeat with winnable scenarios.
+The historical queue below describes the previous game and is not the new
+acceptance criteria. The scenario engine lands before the interface switches.
+
+- [x] Pure scenario engine: three roads, physical breaches, Warden rally,
+      lantern burst, untimed preparation, specializations and explicit victory.
+- [x] Four towns, starting kits, blessings, earned rewards and legacy save migration.
+- [x] Engine checks for damage causality, tick-size independence, save validation,
+      exact income, undo, rewards and several strategy profiles.
+- [ ] New guided interface, illustrated battlefield and responsive controls.
+- [ ] Adaptive score, ambience and exact event-driven sound/visual feedback.
+- [ ] Current-map performance fixtures, browser coverage, accessibility and PWA QA.
+- [ ] Fresh human playtest: comprehension, meaningful choices and voluntary replay.
+
 The iteration queue. Each item is one coherent, measured, gate-passing
 commit pushed to main. Update checkboxes as work lands.
 
