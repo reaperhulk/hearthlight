@@ -118,7 +118,7 @@ describe("the playable interface", () => {
     await click(button("Stone & timber"));
     expect(window.__game.getState().kit).toBe("mason");
     expect(window.__game.getState().embers).toBe(9);
-    await click(button("Return to Briar Hollow"));
+    await click(button("Continue to Briar Hollow"));
     expect(window.__game.getState().round.town).toBe("meadow");
     expect(window.__game.getState().round.kit).toBe("mason");
   });

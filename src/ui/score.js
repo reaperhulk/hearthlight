@@ -3,7 +3,9 @@ import { maxHp } from "../engine/campaign.js";
 // An original, scheduled folk motif with day/night arrangements and three mix buses.
 // Audio is decorative: every warning also has a visible counterpart.
 let ctx, buses, compressor, timer, noiseSource, noiseBuffer;
-let duckUntil = 0, variation = 0, generation = 0;
+let duckUntil = 0,
+  variation = 0,
+  generation = 0;
 const lastSounds = new Map();
 let nextBeat = 0,
   beat = 0,
@@ -23,7 +25,13 @@ function note(
   type = "triangle",
   when = 0,
 ) {
-  if (!ctx || ctx.state !== "running" || voices >= (bus === "music" ? 24 : 36) || levels[bus] === 0) return;
+  if (
+    !ctx ||
+    ctx.state !== "running" ||
+    voices >= (bus === "music" ? 24 : 36) ||
+    levels[bus] === 0
+  )
+    return;
   const start = Math.max(ctx.currentTime, when);
   const osc = ctx.createOscillator(),
     amp = ctx.createGain(),
@@ -50,7 +58,10 @@ function note(
 
 function schedule() {
   if (!ctx || ctx.state !== "running" || !active) return;
-  if (mood === "lost") { nextBeat = ctx.currentTime + 0.5; return; }
+  if (mood === "lost") {
+    nextBeat = ctx.currentTime + 0.5;
+    return;
+  }
   while (nextBeat < ctx.currentTime + 0.15) {
     const root = roots[Math.floor(beat / 16) % roots.length];
     const n = beat % 16;
@@ -71,7 +82,8 @@ function schedule() {
       note(root + 24, 0.12, 0.018, "ambience", "sine", nextBeat);
       note(root + 26, 0.1, 0.012, "ambience", "sine", nextBeat + 0.16);
     }
-    if (n % 8 === 0) percussion(0.05, 700 + (beat % 3) * 130, 0.04, "ambience", nextBeat);
+    if (n % 8 === 0)
+      percussion(0.05, 700 + (beat % 3) * 130, 0.04, "ambience", nextBeat);
     if (mood === "night" || mood === "danger") {
       if (n % 8 === 0) {
         note(root - 12, 3.0, 0.035, "music", "triangle", nextBeat);
@@ -148,15 +160,31 @@ export function setMix(settings) {
     if (ctx && buses) {
       const param = buses[id].gain;
       param.cancelScheduledValues(ctx.currentTime);
-      param.setTargetAtTime(settings[id] * (id === "music" && ctx.currentTime < duckUntil ? 0.3 : 1), ctx.currentTime, 0.06);
-      if (id === "music" && ctx.currentTime < duckUntil) param.setTargetAtTime(settings[id], duckUntil, 0.3);
+      param.setTargetAtTime(
+        settings[id] *
+          (id === "music" && ctx.currentTime < duckUntil ? 0.3 : 1),
+        ctx.currentTime,
+        0.06,
+      );
+      if (id === "music" && ctx.currentTime < duckUntil)
+        param.setTargetAtTime(settings[id], duckUntil, 0.3);
     }
   }
 }
 export function scoreMood(r) {
   if (r?.phase === "lost") return "lost";
   if (!r || r.phase !== "night") return "day";
-  const threatened = r.enemies.some(e => e.progress > 0.72 || r.slots.some(s => s.building && s.lane === e.lane && Math.abs(s.progress - e.progress) < 0.015 && s.building.hp < maxHp(s.building, r.kit) * 0.3));
+  const threatened = r.enemies.some(
+    (e) =>
+      e.progress > 0.72 ||
+      r.slots.some(
+        (s) =>
+          s.building &&
+          s.lane === e.lane &&
+          Math.abs(s.progress - e.progress) < 0.015 &&
+          s.building.hp < maxHp(s.building, r.kit) * 0.3,
+      ),
+  );
   return threatened ? "danger" : "night";
 }
 
@@ -184,26 +212,55 @@ export function disposeScore() {
 }
 
 function percussion(length, cutoff, volume, bus = "effects", when = 0) {
-  if (!ctx || ctx.state !== "running" || voices >= 36 || !noiseBuffer || levels[bus] === 0) return;
-  const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
-  const start = Math.max(ctx.currentTime, when), ownGeneration = generation;
+  if (
+    !ctx ||
+    ctx.state !== "running" ||
+    voices >= 36 ||
+    !noiseBuffer ||
+    levels[bus] === 0
+  )
+    return;
+  const source = ctx.createBufferSource(),
+    filter = ctx.createBiquadFilter(),
+    gain = ctx.createGain();
+  const start = Math.max(ctx.currentTime, when),
+    ownGeneration = generation;
   source.buffer = noiseBuffer;
-  filter.type = "bandpass"; filter.frequency.value = cutoff; filter.Q.value = 1.6;
-  gain.gain.setValueAtTime(volume, start); gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  filter.type = "bandpass";
+  filter.frequency.value = cutoff;
+  filter.Q.value = 1.6;
+  gain.gain.setValueAtTime(volume, start);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
   source.connect(filter).connect(gain).connect(buses[bus]);
-  source.start(start, (variation++ % 20) * 0.1, length); voices++;
-  source.onended = () => { if (ownGeneration === generation) voices--; source.disconnect(); filter.disconnect(); gain.disconnect(); };
+  source.start(start, (variation++ % 20) * 0.1, length);
+  voices++;
+  source.onended = () => {
+    if (ownGeneration === generation) voices--;
+    source.disconnect();
+    filter.disconnect();
+    gain.disconnect();
+  };
 }
 function duck() {
-  const t = ctx.currentTime, gain = buses.music.gain;
+  const t = ctx.currentTime,
+    gain = buses.music.gain;
   duckUntil = t + 0.7;
   gain.cancelScheduledValues(t);
   gain.setTargetAtTime(levels.music * 0.3, t, 0.025);
   gain.setTargetAtTime(levels.music, duckUntil, 0.3);
 }
 export function soundEvent(event) {
-  if (!active || !ctx || ctx.state !== "running" || levels.effects === 0) return;
-  const gap = { approach: 6, heart: 0.65, fall: 0.3, hit: 0.035, bite: 0.07, banish: 0.08 }[event.type] || 0;
+  if (!active || !ctx || ctx.state !== "running" || levels.effects === 0)
+    return;
+  const gap =
+    {
+      approach: 6,
+      heart: 0.65,
+      fall: 0.3,
+      hit: 0.035,
+      bite: 0.07,
+      banish: 0.08,
+    }[event.type] || 0;
   const key = `${event.type}:${event.type === "approach" ? event.lane : event.source || ""}`;
   if (ctx.currentTime - (lastSounds.get(key) ?? -Infinity) < gap) return;
   lastSounds.set(key, ctx.currentTime);
@@ -244,7 +301,12 @@ export function soundEvent(event) {
       break;
     case "hit":
       percussion(0.07, event.source === "tower" ? 2800 : 1000, 0.3);
-      note((event.source === "tower" ? 83 : 67) + detune, 0.09, 0.025, "effects");
+      note(
+        (event.source === "tower" ? 83 : 67) + detune,
+        0.09,
+        0.025,
+        "effects",
+      );
       break;
     case "banish":
       note(88, 0.22, 0.035, "effects", "sine");

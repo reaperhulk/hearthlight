@@ -136,15 +136,48 @@ export function migrateGame(saved) {
   state.settings.speed = [0.5, 1, 2].includes(saved.settings?.speed)
     ? saved.settings.speed
     : 1;
-  state.playtestLog = Array.isArray(saved.playtestLog) ? saved.playtestLog.filter(e => e && typeof e.type === "string" && Number.isFinite(e.time) && typeof e.accepted === "boolean").slice(-1000) : [];
-  state.lastPlaytestRound = validRound(saved.lastPlaytestRound) ? copy(saved.lastPlaytestRound) : null;
+  state.playtestLog = Array.isArray(saved.playtestLog)
+    ? saved.playtestLog
+        .filter(
+          (e) =>
+            e &&
+            typeof e.type === "string" &&
+            Number.isFinite(e.time) &&
+            typeof e.accepted === "boolean",
+        )
+        .slice(-1000)
+    : [];
+  state.lastPlaytestRound = validRound(saved.lastPlaytestRound)
+    ? copy(saved.lastPlaytestRound)
+    : null;
   if (validRound(saved.round)) {
     state.round = copy(saved.round);
     state.round.undo = null;
-    state.round.lessons = Array.isArray(saved.round.lessons) ? saved.round.lessons.filter(x => ["wall", "burst"].includes(x)) : [];
-    state.round.incidents = Array.isArray(saved.round.incidents) ? saved.round.incidents.filter(x => x && ["fall", "heart"].includes(x.type) && Number.isInteger(x.lane) && mapLanes(state.round.town)[x.lane] && Number.isFinite(x.night) && typeof x.text === "string").slice(-24) : [];
-    state.round.dawnReport = saved.round.dawnReport && ["night", "income", "farms", "kills", "lost", "damage", "standing"].every(key => Number.isFinite(saved.round.dawnReport[key])) ? { ...saved.round.dawnReport } : null;
-    state.round.challenge = saved.round.challenge === "no-bursts" ? "no-bursts" : "standard";
+    state.round.lessons = Array.isArray(saved.round.lessons)
+      ? saved.round.lessons.filter((x) => ["wall", "burst"].includes(x))
+      : [];
+    state.round.incidents = Array.isArray(saved.round.incidents)
+      ? saved.round.incidents
+          .filter(
+            (x) =>
+              x &&
+              ["fall", "heart"].includes(x.type) &&
+              Number.isInteger(x.lane) &&
+              mapLanes(state.round.town)[x.lane] &&
+              Number.isFinite(x.night) &&
+              typeof x.text === "string",
+          )
+          .slice(-24)
+      : [];
+    state.round.dawnReport =
+      saved.round.dawnReport &&
+      ["night", "income", "farms", "kills", "lost", "damage", "standing"].every(
+        (key) => Number.isFinite(saved.round.dawnReport[key]),
+      )
+        ? { ...saved.round.dawnReport }
+        : null;
+    state.round.challenge =
+      saved.round.challenge === "no-bursts" ? "no-bursts" : "standard";
     if (state.round.phase === "day" && state.round.offers.length)
       state.round.offers = blessingOffers(state.round);
     if (state.round.phase === "night" && !state.round.paused)
@@ -324,7 +357,13 @@ export function townUnlocked(state, id) {
     known(TOWNS, id) && (!TOWNS[id].requires || state.wins[TOWNS[id].requires]),
   );
 }
-export function startGame(state, town = "first", seed = 1, endless = false, challenge = "standard") {
+export function startGame(
+  state,
+  town = "first",
+  seed = 1,
+  endless = false,
+  challenge = "standard",
+) {
   if (
     state.round ||
     !townUnlocked(state, town) ||
@@ -366,6 +405,7 @@ export function startGame(state, town = "first", seed = 1, endless = false, chal
         targetY: 0.51,
         cooldown: 0,
         deployed: false,
+        lane: null,
       },
       stats: {
         kills: 0,
@@ -445,8 +485,26 @@ export function forecast(r) {
 
 export function command(state, action, wallTime = null) {
   const next = applyCommand(state, action);
-  if (!state.settings.recording || !action || typeof action.type !== "string") return next;
-  return { ...next, playtestLog: [...(state.playtestLog || []), { type: action.type, time: state.round?.time || 0, wallTime, phase: state.round?.phase || "home", accepted: next !== state, ...Object.fromEntries(["slot", "lane", "building", "branch", "id"].filter(key => ["string", "number"].includes(typeof action[key])).map(key => [key, action[key]])) }].slice(-1000) };
+  if (!state.settings.recording || !action || typeof action.type !== "string")
+    return next;
+  return {
+    ...next,
+    playtestLog: [
+      ...(state.playtestLog || []),
+      {
+        type: action.type,
+        time: state.round?.time || 0,
+        wallTime,
+        phase: state.round?.phase || "home",
+        accepted: next !== state,
+        ...Object.fromEntries(
+          ["slot", "lane", "building", "branch", "id"]
+            .filter((key) => ["string", "number"].includes(typeof action[key]))
+            .map((key) => [key, action[key]]),
+        ),
+      },
+    ].slice(-1000),
+  };
 }
 
 function applyCommand(state, action) {
@@ -473,7 +531,9 @@ function applyCommand(state, action) {
       : state;
   if (action.type === "setting") {
     if (!known(state.settings, action.key)) return state;
-    const value = ["music", "ambience", "effects", "intensity"].includes(action.key)
+    const value = ["music", "ambience", "effects", "intensity"].includes(
+      action.key,
+    )
       ? clamp(finite(action.value), 0, 1)
       : action.key === "speed"
         ? [0.5, 1, 2].includes(action.value)
@@ -493,7 +553,9 @@ function applyCommand(state, action) {
     return {
       ...state,
       embers: state.embers + earned,
-      lastPlaytestRound: state.settings.recording ? previous : state.lastPlaytestRound,
+      lastPlaytestRound: state.settings.recording
+        ? previous
+        : state.lastPlaytestRound,
       wins,
       records: {
         ...state.records,
@@ -529,7 +591,13 @@ function applyCommand(state, action) {
     }
     return { ...state, round: r };
   };
-  if (action.type === "lesson" && r.town === "first" && r.phase === "night" && ["wall", "burst"].includes(action.id) && !r.lessons.includes(action.id)) {
+  if (
+    action.type === "lesson" &&
+    r.town === "first" &&
+    r.phase === "night" &&
+    ["wall", "burst"].includes(action.id) &&
+    !r.lessons.includes(action.id)
+  ) {
     r.lessons.push(action.id);
     r.paused = true;
     return record();
@@ -630,7 +698,10 @@ function applyCommand(state, action) {
       r.paused = false;
       r.waveTime = 0;
       r.undo = null;
-      r.bursts = r.challenge === "no-bursts" ? 0 : 2 + (r.blessings.includes("reserves") ? 1 : 0);
+      r.bursts =
+        r.challenge === "no-bursts"
+          ? 0
+          : 2 + (r.blessings.includes("reserves") ? 1 : 0);
       r.nightStart = { ...r.stats };
       r.slots.forEach((s) => {
         if (s.building) s.building.cooldown = 0;
@@ -654,6 +725,7 @@ function applyCommand(state, action) {
       r.warden.targetX = pos.x;
       r.warden.targetY = pos.y;
       r.warden.deployed = true;
+      r.warden.lane = lane.id;
       event(r, "rally", pos);
       return record();
     }
@@ -687,7 +759,13 @@ function distance(a, b) {
 }
 
 function incident(r, type, lane, text) {
-  if (type === "heart" && r.incidents.some(e => e.type === type && e.lane === lane && e.night === r.night)) return;
+  if (
+    type === "heart" &&
+    r.incidents.some(
+      (e) => e.type === type && e.lane === lane && e.night === r.night,
+    )
+  )
+    return;
   r.incidents.push({ type, lane, night: r.night, time: r.time, text });
   if (r.incidents.length > 24) r.incidents.shift();
 }
@@ -774,7 +852,7 @@ function simulate(r) {
   const threats = r.enemies
     .filter((e) => e.hp > 0 && distance(w, positions.get(e.id)) < 0.14)
     .sort((a, b) => b.progress - a.progress);
-  w.targetEnemy = w.deployed ? threats[0]?.id ?? null : null;
+  w.targetEnemy = w.deployed ? (threats[0]?.id ?? null) : null;
   if (w.deployed && w.cooldown < 1e-8 && threats.length) {
     const lamp = litBy(w);
     const damage =
@@ -824,7 +902,12 @@ function simulate(r) {
     enemy.windup = def.interval;
     if (target) {
       target.building.hp -= def.damage;
-      event(r, "bite", { x: target.x, y: target.y, damage: def.damage, material: target.building.type });
+      event(r, "bite", {
+        x: target.x,
+        y: target.y,
+        damage: def.damage,
+        material: target.building.type,
+      });
       if (target.building.branch === "thorns") {
         hurt(enemy, 4, "thorns", { x: target.x, y: target.y });
         enemy.stun = 0.6;
@@ -865,12 +948,15 @@ function simulate(r) {
     r.completed++;
     r.dawnReport = {
       night: r.night,
-      income: !r.endless && r.completed >= TOWNS[r.town].nights ? 0 : dawnIncome(r),
-      farms: r.slots.filter(s => s.building?.type === "farm").reduce((sum, s) => sum + farmIncome(s.building, r.kit), 0),
+      income:
+        !r.endless && r.completed >= TOWNS[r.town].nights ? 0 : dawnIncome(r),
+      farms: r.slots
+        .filter((s) => s.building?.type === "farm")
+        .reduce((sum, s) => sum + farmIncome(s.building, r.kit), 0),
       kills: r.stats.kills - (r.nightStart?.kills || 0),
       lost: r.stats.lost - (r.nightStart?.lost || 0),
       damage: r.stats.damage - (r.nightStart?.damage || 0),
-      standing: r.slots.filter(s => s.building).length,
+      standing: r.slots.filter((s) => s.building).length,
     };
     r.waveHistory.push({ night: r.night, heart: r.heart, seconds: r.waveTime });
     if (!r.endless && r.completed >= TOWNS[r.town].nights) {
@@ -944,7 +1030,13 @@ export function replayRound(record) {
   let state = freshGame();
   state.kit = record.kit;
   state.wins = Object.fromEntries(Object.keys(TOWNS).map((id) => [id, 1]));
-  state = startGame(state, record.town, record.seed, record.endless, record.challenge || "standard");
+  state = startGame(
+    state,
+    record.town,
+    record.seed,
+    record.endless,
+    record.challenge || "standard",
+  );
   for (const action of record.commands) {
     if (
       !Number.isFinite(action.time) ||

@@ -16,6 +16,8 @@ criteria.
 - `src/ui/score.js`: original procedural music, effects, ambience buses.
 - `scripts/campaign-balance.js`: explicit scripted policies and balance gate.
 - `scripts/scenes.mjs`: reachable production-map fixtures.
+- `scripts/build-strategies.js`: three distinct, matched-seed purchase policies.
+- `IMPROVEMENTS.md`: original-plan completion record and limits of the evidence.
 
 ## Repository policy
 
@@ -29,9 +31,12 @@ work lands.
 Use Node 24.15+ (CI uses Node 24).
 
 - `npm run test:quality`: lint, unit/DOM/offline tests, balance assertions,
-  production build. Run before committing.
+  distinct build cases, production build. Run before committing.
 - `npm run test:smoke`: Chromium interaction and full-loop regression.
+  Includes offline reload and viewport/plot hit checks, including short desktops.
   Uses CHROME_PATH and isolated local preview port 4174.
+- `npm run test:strategies`: 60 distinct build examples on matched seeds.
+- `node scripts/replay.mjs file.json`: verify an exported local playtest record.
 - `npm run balance:compare`: exact deterministic baseline comparison.
 - `npm run balance:baseline`: deliberately regenerate the baseline in the
   same commit as a balance change, after reviewing its metrics.

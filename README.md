@@ -20,7 +20,7 @@ beacon before the dark takes the Heart.
   interrupted, while Sunlance shots pierce its protection.
 - **Win something.** The First Fire teaches the game over three nights.
   Save Briar Hollow, the Sunken Crossing, and Cinder Ridge over six nights
-  each. A saved village unlocks its endless watch.
+  each. A saved village unlocks its endless watch and no-burst challenge. Saving all four towns completes the campaign.
 - **Carry earned Embers home.** Completed nights and victories pay for
   alternative starting kits. Standard campaigns are winnable with the free
   Hearthkeeper kit. Starting and immediately retiring earns nothing.
@@ -33,7 +33,7 @@ separate music, effects, and ambience controls.
 Keyboard: **1–4** select a building, **Tab / Enter** choose a plot,
 **D** starts night, **Space** pauses, and **Escape** clears selection or
 closes Settings. Night also supports half speed. Settings include reduced
-motion, higher contrast, and save transfer.
+motion, higher contrast, independent visual-effects intensity, save transfer, and optional local playtest recording.
 
 ## Saves and offline play
 
@@ -57,14 +57,16 @@ npm run dev
 ```
 
 ```sh
-npm run test:quality    # lint, engine/DOM/offline tests, balance guards, build
-npm run test:smoke      # Chromium: actual UI controls + accelerated full loop
+npm run test:quality    # lint, engine/DOM/offline tests, balance/build guards, build
+npm run test:smoke      # Chromium: UI, full loop, offline reload, viewport/target checks
+npm run test:strategies # three distinct builds on 60 matched town/seed cases
 npm run balance:story   # one scenario, night by night; accepts -- --seed N
 npm run balance:compare # exact comparison with the committed seed baseline
 npm run balance:baseline
 npm run render:scenes   # direct Canvas2D renders; not browser layout screenshots
 npm run perf:probe     # actual frame intervals, paint time, and scene population
 node scripts/screenshot.mjs /tmp/hearthlight-screenshots
+node scripts/replay.mjs playtest-record.json
 ```
 
 Browser scripts need an installed Chromium executable (`CHROME_PATH`).
@@ -87,13 +89,12 @@ four-second reactions, building without night input, and doing nothing.
 They are not models of human skill or evidence of enjoyment. Reported
 seconds include combat only; preparation time is chosen by the player.
 
-Performance probes report frame interval p50/p95/p99, command recording
-cost, every repeated run, and before/after scene populations. Their
+Performance probes report frame interval p50/p95/p99, estimated missed 60Hz frames, command recording cost, every repeated run, and before/after scene populations. They cover fully upgraded towns, mist, impacts, dusk, Settings, resize, background return and essential effects. Their
 fixtures use the actual production map and engine. A throttled desktop
 browser is not a phone benchmark. Do not compare the old renderer's FPS
 numbers with this redesign without matching device measurements.
 
-See [PLAYTEST.md](PLAYTEST.md) for the comprehension and replay gate, and
+See [IMPROVEMENTS.md](IMPROVEMENTS.md) for the implementation record, [PLAYTEST.md](PLAYTEST.md) for the comprehension and replay gate, and
 [ROADMAP.md](ROADMAP.md) for implemented work and remaining validation.
 
 ## Lore

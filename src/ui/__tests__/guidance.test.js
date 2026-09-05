@@ -1,6 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { advance, command, freshGame, startGame, replayRound } from "../../engine/campaign.js";
-import { introduction, pauseForLesson, defeatExplanation } from "../guidance.js";
+import {
+  advance,
+  command,
+  freshGame,
+  startGame,
+  replayRound,
+} from "../../engine/campaign.js";
+import {
+  introduction,
+  pauseForLesson,
+  defeatExplanation,
+} from "../guidance.js";
 import { finishCampaign } from "../../../scripts/campaign-balance.js";
 
 describe("lessons and earned challenges", () => {
@@ -11,12 +21,14 @@ describe("lessons and earned challenges", () => {
     expect(introduction(s.round).plot).toBe("0-0");
     s = command(s, { type: "build", slot: "0-0", building: "wall" });
     s = command(s, { type: "start" });
-    for (let i = 0; i < 100 && !s.round.paused; i++) s = pauseForLesson(advance(s, 0.1));
+    for (let i = 0; i < 100 && !s.round.paused; i++)
+      s = pauseForLesson(advance(s, 0.1));
     expect(s.round.lessons).toEqual(["wall"]);
     expect(s.round.heart).toBe(100);
     s = command(s, { type: "rally", lane: 0, progress: 0.33 });
     s = command(s, { type: "pause" });
-    for (let i = 0; i < 600 && s.round.phase === "night"; i++) s = advance(s, 0.1);
+    for (let i = 0; i < 600 && s.round.phase === "night"; i++)
+      s = advance(s, 0.1);
     expect(s.round.phase).toBe("day");
     expect(s.round.heart).toBe(100);
     expect(s.round.dawnReport.income).toBe(40);
@@ -27,7 +39,8 @@ describe("lessons and earned challenges", () => {
     let s = startGame(freshGame(), "first", 42);
     s = command(s, { type: "build", slot: "0-0", building: "wall" });
     s = command(s, { type: "start" });
-    for (let i = 0; i < 1200 && s.round.phase === "night"; i++) s = advance(s, 0.1);
+    for (let i = 0; i < 1200 && s.round.phase === "night"; i++)
+      s = advance(s, 0.1);
     expect(s.round.phase).toBe("lost");
     const result = defeatExplanation(s.round);
     expect(result.chain[0]).toContain("Timber wall fell on North road");
@@ -53,10 +66,17 @@ it("keeps input diagnostics local and optional, including rejected purchases", (
   expect(command(s, rejected)).toBe(s);
   s = command(s, { type: "setting", key: "recording", value: true });
   s = command(s, rejected, 1234);
-  expect(s.playtestLog.at(-1)).toMatchObject({ type: "upgrade", accepted: false, wallTime: 1234 });
+  expect(s.playtestLog.at(-1)).toMatchObject({
+    type: "upgrade",
+    accepted: false,
+    wallTime: 1234,
+  });
   s = finishCampaign(s);
   const round = s.round;
   s = command(s, { type: "collect" });
   expect(s.lastPlaytestRound).toEqual(round);
-  expect(s.playtestLog.at(-1)).toMatchObject({ type: "collect", accepted: true });
+  expect(s.playtestLog.at(-1)).toMatchObject({
+    type: "collect",
+    accepted: true,
+  });
 });

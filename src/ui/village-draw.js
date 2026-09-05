@@ -375,7 +375,18 @@ export function paintBuildings(ctx, r, contrast = false) {
         ctx.strokeRect(p.x - 27, p.y - 26, 54, 51);
       }
       if (hp < 0.65) {
-        path(ctx, [[p.x - 4, p.y - 18], [p.x + 2, p.y - 9], [p.x - 3, p.y], [p.x + 5, p.y + 14]], null, "#322d29", 3);
+        path(
+          ctx,
+          [
+            [p.x - 4, p.y - 18],
+            [p.x + 2, p.y - 9],
+            [p.x - 3, p.y],
+            [p.x + 5, p.y + 14],
+          ],
+          null,
+          "#322d29",
+          3,
+        );
       }
       if (hp < 0.98) {
         ctx.fillStyle = "#182923";
@@ -461,11 +472,18 @@ export function paintLiving(
   ctx.clearRect(0, 0, SIZE, SIZE);
   const lanes = mapLanes(r.town);
   const decorative = motion && intensity > 0;
-  if (contrast) for (const lane of lanes) {
-    ctx.strokeStyle = "#f4e8ba88"; ctx.lineWidth = 3; ctx.beginPath();
-    for (let i = 0; i <= 24; i++) { const p = pt(routePoint(lane, i / 24, r.town)); if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); }
-    ctx.stroke();
-  }
+  if (contrast)
+    for (const lane of lanes) {
+      ctx.strokeStyle = "#f4e8ba88";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i <= 24; i++) {
+        const p = pt(routePoint(lane, i / 24, r.town));
+        if (i) ctx.lineTo(p.x, p.y);
+        else ctx.moveTo(p.x, p.y);
+      }
+      ctx.stroke();
+    }
   if (selected) {
     const slot = r.slots.find((s) => s.id === selected);
     if (slot) {
@@ -534,7 +552,9 @@ export function paintLiving(
       i < r.completed ? "#ffda83" : "#a6aa7970",
     );
   }
-  const previousEnemies = new Map(previous?.enemies.map(e => [e.id, e]) || []);
+  const previousEnemies = new Map(
+    previous?.enemies.map((e) => [e.id, e]) || [],
+  );
   for (const enemy of r.enemies) {
     const old = previousEnemies.get(enemy.id);
     const progress = old
@@ -545,14 +565,35 @@ export function paintLiving(
       decorative && enemy.stun <= 0 ? Math.sin(clock * 5 + enemy.lane) * 2 : 0;
     ctx.drawImage(enemySprite(enemy.type), p.x - 30, p.y - 37 + bob);
     if (contrast) {
-      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.type === "brute" ? 25 : 19, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, enemy.type === "brute" ? 25 : 19, 0, Math.PI * 2);
+      ctx.stroke();
     }
     if (enemy.id === r.warden.targetEnemy) {
-      ctx.strokeStyle = "#9ff5e0"; ctx.lineWidth = 3;
-      path(ctx, [[p.x - 9, p.y - 34], [p.x, p.y - 29], [p.x + 9, p.y - 34]], null, "#9ff5e0", 3);
+      ctx.strokeStyle = "#9ff5e0";
+      ctx.lineWidth = 3;
+      path(
+        ctx,
+        [
+          [p.x - 9, p.y - 34],
+          [p.x, p.y - 29],
+          [p.x + 9, p.y - 34],
+        ],
+        null,
+        "#9ff5e0",
+        3,
+      );
     }
     if (enemy.type === "mist" && enemy.stun <= 0) {
-      ctx.strokeStyle = contrast ? "#e2ffff" : "#97dcd677"; ctx.lineWidth = 1.5; ctx.setLineDash([5, 7]); ctx.beginPath(); ctx.arc(p.x, p.y, 0.14 * SIZE, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle = contrast ? "#e2ffff" : "#97dcd677";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 7]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 0.14 * SIZE, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
     if (enemy.hp < enemy.maxHp) {
       ctx.fillStyle = "#172729";
@@ -588,9 +629,25 @@ export function paintLiving(
   };
   if (r.warden.deployed) {
     const target = pt({ x: r.warden.targetX, y: r.warden.targetY });
-    ctx.strokeStyle = "#a1e7d8"; ctx.lineWidth = 2; ctx.setLineDash([4, 6]); ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(target.x, target.y); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = "#b6efdf"; ctx.fillRect(target.x, target.y - 17, 2, 18);
-    path(ctx, [[target.x + 2, target.y - 17], [target.x + 13, target.y - 13], [target.x + 2, target.y - 8]], "#b6efdf");
+    ctx.strokeStyle = "#a1e7d8";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    ctx.moveTo(w.x, w.y);
+    ctx.lineTo(target.x, target.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#b6efdf";
+    ctx.fillRect(target.x, target.y - 17, 2, 18);
+    path(
+      ctx,
+      [
+        [target.x + 2, target.y - 17],
+        [target.x + 13, target.y - 13],
+        [target.x + 2, target.y - 8],
+      ],
+      "#b6efdf",
+    );
     ctx.strokeStyle = contrast ? "#b6ffec" : "#a7ddd077";
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -598,8 +655,17 @@ export function paintLiving(
     ctx.stroke();
   }
   if (r.warden.deployed) {
-    ctx.strokeStyle = "#9ff5e0"; ctx.lineWidth = 3; ctx.beginPath();
-    ctx.arc(w.x, w.y, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, 1 - r.warden.cooldown / 1.1)); ctx.stroke();
+    ctx.strokeStyle = "#9ff5e0";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(
+      w.x,
+      w.y,
+      20,
+      -Math.PI / 2,
+      -Math.PI / 2 + Math.PI * 2 * Math.max(0, 1 - r.warden.cooldown / 1.1),
+    );
+    ctx.stroke();
   }
   circle(ctx, w.x, w.y + 9, 11, "#0c292b55");
   path(
@@ -630,27 +696,68 @@ export function paintLiving(
     if (age < 0 || age > 0.75) continue;
     ctx.globalAlpha = 1 - age / 0.75;
     if (e.type === "hit" && e.from && e.to) {
-      const from = pt(e.from), to = pt(e.to), travel = e.source === "tower" ? 0.16 : 0.08;
+      const from = pt(e.from),
+        to = pt(e.to),
+        travel = e.source === "tower" ? 0.16 : 0.08;
       const f = motion ? Math.min(1, age / travel) : 1;
-      const x = from.x + (to.x - from.x) * f, y = from.y + (to.y - from.y) * f;
+      const x = from.x + (to.x - from.x) * f,
+        y = from.y + (to.y - from.y) * f;
       ctx.strokeStyle = e.source === "tower" ? "#ffe2a0" : "#bdeddb";
       ctx.lineWidth = e.source === "tower" ? 2 : 4;
       if (f < 1) {
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - (to.x - from.x) * 0.13, y - (to.y - from.y) * 0.13); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - (to.x - from.x) * 0.13, y - (to.y - from.y) * 0.13);
+        ctx.stroke();
         circle(ctx, x, y, 2.5, "#fff4c4");
       } else if (age < 0.45) {
-        ctx.beginPath(); ctx.arc(to.x, to.y, 7 + (decorative ? (age - travel) * 22 : 0), 0, Math.PI * 2); ctx.stroke();
-        if (!motion) { ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke(); }
+        ctx.beginPath();
+        ctx.arc(
+          to.x,
+          to.y,
+          7 + (decorative ? (age - travel) * 22 : 0),
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+        if (!motion) {
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(from.x, from.y);
+          ctx.lineTo(to.x, to.y);
+          ctx.stroke();
+        }
       }
     }
     if (["bite", "fall"].includes(e.type) && Number.isFinite(e.x)) {
-      const p = pt(e); ctx.strokeStyle = "#ffc0a4"; ctx.lineWidth = 3;
+      const p = pt(e);
+      ctx.strokeStyle = "#ffc0a4";
+      ctx.lineWidth = 3;
       ctx.strokeRect(p.x - 26, p.y - 24, 52, 48);
-      if (e.type === "fall") path(ctx, [[p.x - 12, p.y - 10], [p.x + 12, p.y + 10], [p.x, p.y], [p.x + 12, p.y - 10], [p.x - 12, p.y + 10]], null, "#ffc0a4", 3);
+      if (e.type === "fall")
+        path(
+          ctx,
+          [
+            [p.x - 12, p.y - 10],
+            [p.x + 12, p.y + 10],
+            [p.x, p.y],
+            [p.x + 12, p.y - 10],
+            [p.x - 12, p.y + 10],
+          ],
+          null,
+          "#ffc0a4",
+          3,
+        );
     }
     if (e.type === "burst") {
-      ctx.strokeStyle = "#ffecb077"; ctx.lineWidth = decorative ? 10 : 3; ctx.beginPath();
-      for (let i = 0; i <= 20; i++) { const at = pt(routePoint(lanes[e.lane], i / 20, r.town)); if (i) ctx.lineTo(at.x, at.y); else ctx.moveTo(at.x, at.y); }
+      ctx.strokeStyle = "#ffecb077";
+      ctx.lineWidth = decorative ? 10 : 3;
+      ctx.beginPath();
+      for (let i = 0; i <= 20; i++) {
+        const at = pt(routePoint(lanes[e.lane], i / 20, r.town));
+        if (i) ctx.lineTo(at.x, at.y);
+        else ctx.moveTo(at.x, at.y);
+      }
       ctx.stroke();
       const p = pt(routePoint(lanes[e.lane], 0.55, r.town));
       ctx.strokeStyle = "#ffecb0";
@@ -687,15 +794,33 @@ export function paintLiving(
   if (["day", "won"].includes(r.phase) && decorative) {
     for (let i = 0; i < Math.ceil(intensity * 6); i++) {
       const f = (clock * 0.3 + i * 0.2) % 1;
-      circle(ctx, 323 + Math.sin(i + f) * 6, 370 - f * 30, 2 + f * 4, `rgba(219,225,201,${(1 - f) * 0.14})`);
+      circle(
+        ctx,
+        323 + Math.sin(i + f) * 6,
+        370 - f * 30,
+        2 + f * 4,
+        `rgba(219,225,201,${(1 - f) * 0.14})`,
+      );
     }
   }
   if (r.phase === "won") {
-    ctx.strokeStyle = "#ffe4a1"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(360, 353, 61, 0, Math.PI * 2); ctx.stroke();
-    if (decorative) for (let i = 0; i < Math.ceil(24 * intensity); i++) {
-      const a = i * 2.4, radius = 65 + ((clock * 18 + i * 9) % 90);
-      circle(ctx, 360 + Math.cos(a) * radius, 353 + Math.sin(a) * radius, 1.5, "#ffe4a188");
-    }
+    ctx.strokeStyle = "#ffe4a1";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(360, 353, 61, 0, Math.PI * 2);
+    ctx.stroke();
+    if (decorative)
+      for (let i = 0; i < Math.ceil(24 * intensity); i++) {
+        const a = i * 2.4,
+          radius = 65 + ((clock * 18 + i * 9) % 90);
+        circle(
+          ctx,
+          360 + Math.cos(a) * radius,
+          353 + Math.sin(a) * radius,
+          1.5,
+          "#ffe4a188",
+        );
+      }
   }
   if (["day", "won"].includes(r.phase) && decorative)
     for (let i = 0; i < 3; i++) {

@@ -41,7 +41,16 @@ try {
     "background-return",
     "essential-effects",
   ]) {
-    const fixtureName = ["dusk"].includes(name) ? "full-day" : ["open-settings", "resize", "background-return", "essential-effects"].includes(name) ? "full-battle" : name;
+    const fixtureName = ["dusk"].includes(name)
+      ? "full-day"
+      : [
+            "open-settings",
+            "resize",
+            "background-return",
+            "essential-effects",
+          ].includes(name)
+        ? "full-battle"
+        : name;
     const fixture = scene(fixtureName),
       runs = [];
     for (let repeat = 0; repeat < repeats; repeat++) {
@@ -57,23 +66,46 @@ try {
         await cover.bringToFront();
         await page.waitForFunction(() => document.visibilityState === "hidden");
         await page.waitForFunction(() => window.__game.getState().round.paused);
-        const stopped = await page.evaluate(() => window.__game.getState().round.time);
-        await new Promise(resolve => setTimeout(resolve, 250));
-        assert.equal(await page.evaluate(() => window.__game.getState().round.time), stopped, "Background game kept advancing");
+        const stopped = await page.evaluate(
+          () => window.__game.getState().round.time,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        assert.equal(
+          await page.evaluate(() => window.__game.getState().round.time),
+          stopped,
+          "Background game kept advancing",
+        );
         await page.bringToFront();
         await cover.close();
-        await page.waitForFunction(() => document.visibilityState === "visible");
+        await page.waitForFunction(
+          () => document.visibilityState === "visible",
+        );
         await clickText(page, "Resume night");
         await page.evaluate(() => window.__game.resetMetrics());
       }
-      if (name === "essential-effects") await page.evaluate(() => {
-        window.__game.command({ type: "setting", key: "intensity", value: 0 });
-        window.__game.command({ type: "setting", key: "motion", value: false });
-      });
+      if (name === "essential-effects")
+        await page.evaluate(() => {
+          window.__game.command({
+            type: "setting",
+            key: "intensity",
+            value: 0,
+          });
+          window.__game.command({
+            type: "setting",
+            key: "motion",
+            value: false,
+          });
+        });
       const before = await page.evaluate(() => window.__game.getState());
       if (name === "dusk") await clickText(page, "Start Night");
-      if (name === "open-settings") await page.click('[aria-label="Open settings"]');
-      if (name === "resize") await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
+      if (name === "open-settings")
+        await page.click('[aria-label="Open settings"]');
+      if (name === "resize")
+        await page.setViewport({
+          width: 1280,
+          height: 720,
+          deviceScaleFactor: 1,
+        });
       await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
       const { metrics, state } = await page.evaluate(() => ({
         metrics: window.__game.metrics(),
@@ -95,8 +127,15 @@ try {
         assert.ok(await page.$('[role="dialog"]'), "Settings scene drifted");
       }
       if (fixtureName === "full-battle") {
-        assert.equal(before.round.slots.filter(s => s.building?.branch).length, 16, "Incomplete upgraded-town fixture");
-        assert.ok(before.round.enemies.some(e => e.type === "mist"), "Missing mist-support fixture");
+        assert.equal(
+          before.round.slots.filter((s) => s.building?.branch).length,
+          16,
+          "Incomplete upgraded-town fixture",
+        );
+        assert.ok(
+          before.round.enemies.some((e) => e.type === "mist"),
+          "Missing mist-support fixture",
+        );
       }
       assert.ok(metrics.frames.length > 10, `${name}: No frame samples`);
       const mean =
@@ -107,8 +146,12 @@ try {
         frameP95: percentile(metrics.frames, 0.95),
         frameP99: percentile(metrics.frames, 0.99),
         paintP95: percentile(metrics.paint, 0.95),
-        framesOver60HzBudget: metrics.frames.filter(ms => ms > 1000 / 60 + 1).length,
-        estimatedMissed60HzFrames: metrics.frames.reduce((sum, ms) => sum + Math.max(0, Math.round(ms / (1000 / 60)) - 1), 0),
+        framesOver60HzBudget: metrics.frames.filter((ms) => ms > 1000 / 60 + 1)
+          .length,
+        estimatedMissed60HzFrames: metrics.frames.reduce(
+          (sum, ms) => sum + Math.max(0, Math.round(ms / (1000 / 60)) - 1),
+          0,
+        ),
         sampleCount: metrics.frames.length,
         before: describeScene(before),
         after: describeScene(state),

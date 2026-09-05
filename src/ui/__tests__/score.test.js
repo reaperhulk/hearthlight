@@ -1,41 +1,99 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { freshGame, startGame, command, advance } from "../../engine/campaign.js";
+import {
+  freshGame,
+  startGame,
+  command,
+  advance,
+} from "../../engine/campaign.js";
 let score, audio;
 class Param {
   value = 0;
   calls = [];
-  setValueAtTime(...v) { this.calls.push(["set", ...v]); }
-  linearRampToValueAtTime(...v) { this.calls.push(["ramp", ...v]); }
-  exponentialRampToValueAtTime(...v) { this.calls.push(["exponential", ...v]); }
-  cancelScheduledValues(...v) { this.calls.push(["cancel", ...v]); }
-  setTargetAtTime(...v) { this.calls.push(["target", ...v]); }
+  setValueAtTime(...v) {
+    this.calls.push(["set", ...v]);
+  }
+  linearRampToValueAtTime(...v) {
+    this.calls.push(["ramp", ...v]);
+  }
+  exponentialRampToValueAtTime(...v) {
+    this.calls.push(["exponential", ...v]);
+  }
+  cancelScheduledValues(...v) {
+    this.calls.push(["cancel", ...v]);
+  }
+  setTargetAtTime(...v) {
+    this.calls.push(["target", ...v]);
+  }
 }
 class Node {
-  gain = new Param(); frequency = new Param(); Q = new Param();
-  threshold = new Param(); ratio = new Param();
-  connect(node) { return node; }
+  gain = new Param();
+  frequency = new Param();
+  Q = new Param();
+  threshold = new Param();
+  ratio = new Param();
+  connect(node) {
+    return node;
+  }
   disconnect() {}
-  start() { audio.starts++; }
+  start() {
+    audio.starts++;
+  }
   stop() {}
 }
 beforeEach(async () => {
-  vi.resetModules(); vi.useFakeTimers();
-  vi.stubGlobal("window", { AudioContext: class {
-    currentTime = 10; state = "running"; sampleRate = 8000; starts = 0; gains = [];
-    constructor() { audio = this; }
-    createDynamicsCompressor() { return new Node(); }
-    createGain() { const n = new Node(); this.gains.push(n); return n; }
-    createOscillator() { return new Node(); }
-    createBiquadFilter() { return new Node(); }
-    createBufferSource() { return new Node(); }
-    createBuffer(_channels, size) { return { getChannelData: () => new Float32Array(size) }; }
-    suspend() { this.state = "suspended"; return Promise.resolve(); }
-    resume() { this.state = "running"; return Promise.resolve(); }
-    close() { this.state = "closed"; return Promise.resolve(); }
-  } });
+  vi.resetModules();
+  vi.useFakeTimers();
+  vi.stubGlobal("window", {
+    AudioContext: class {
+      currentTime = 10;
+      state = "running";
+      sampleRate = 8000;
+      starts = 0;
+      gains = [];
+      constructor() {
+        audio = this;
+      }
+      createDynamicsCompressor() {
+        return new Node();
+      }
+      createGain() {
+        const n = new Node();
+        this.gains.push(n);
+        return n;
+      }
+      createOscillator() {
+        return new Node();
+      }
+      createBiquadFilter() {
+        return new Node();
+      }
+      createBufferSource() {
+        return new Node();
+      }
+      createBuffer(_channels, size) {
+        return { getChannelData: () => new Float32Array(size) };
+      }
+      suspend() {
+        this.state = "suspended";
+        return Promise.resolve();
+      }
+      resume() {
+        this.state = "running";
+        return Promise.resolve();
+      }
+      close() {
+        this.state = "closed";
+        return Promise.resolve();
+      }
+    },
+  });
   score = await import("../score.js");
 });
-afterEach(() => { score.disposeScore(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  score.disposeScore();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 it("signals danger from a breached approach before Heart damage", () => {
   let s = command(startGame(freshGame()), { type: "start" });
   s = advance(s, 19);

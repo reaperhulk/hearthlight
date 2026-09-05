@@ -23,7 +23,15 @@ export function VillageMap({
     nightRef = useRef(null),
     townRef = useRef(null),
     liveRef = useRef(null);
-  const data = useRef({ round, previous: round, selected, motion, contrast, intensity, at: 0 });
+  const data = useRef({
+    round,
+    previous: round,
+    selected,
+    motion,
+    contrast,
+    intensity,
+    at: 0,
+  });
   useEffect(() => {
     const old = data.current;
     data.current = {
@@ -71,15 +79,20 @@ export function VillageMap({
       if (!running) return;
       const current = data.current;
       if (document.visibilityState === "visible") {
-        const key = current.round.slots
-          .map((s) =>
-            s.building
-              ? `${s.building.type}:${s.building.branch}:${s.building.hp}`
-              : "",
-          )
-          .join("|") + current.contrast;
+        const key =
+          current.round.slots
+            .map((s) =>
+              s.building
+                ? `${s.building.type}:${s.building.branch}:${s.building.hp}`
+                : "",
+            )
+            .join("|") + current.contrast;
         if (key !== townKey) {
-          paintBuildings(town.getContext("2d"), current.round, current.contrast);
+          paintBuildings(
+            town.getContext("2d"),
+            current.round,
+            current.contrast,
+          );
           townKey = key;
         }
         const interpolation =
@@ -88,27 +101,36 @@ export function VillageMap({
             : Math.min(1, (now - current.at) / 100);
         const start = performance.now();
         for (const e of current.round.events)
-          if (!effectTimes.has(e.id)) effectTimes.set(e.id, now / 1000 - Math.max(0, current.round.time - e.time));
+          if (!effectTimes.has(e.id))
+            effectTimes.set(
+              e.id,
+              now / 1000 - Math.max(0, current.round.time - e.time),
+            );
         for (const [id, time] of effectTimes)
           if (
             now / 1000 - time > 2 &&
             !current.round.events.some((e) => e.id === id)
           )
             effectTimes.delete(id);
-        const animate = (current.motion && current.intensity > 0) || (current.round.phase === "night" && !current.round.paused);
-        const effects = [...effectTimes.values()].some(t => now / 1000 - t <= 0.75);
-        if (animate || effects || painted !== current) paintLiving(
-          live.getContext("2d"),
-          current.round,
-          current.previous,
-          interpolation,
-          current.selected,
-          current.motion,
-          now / 1000,
-          effectTimes,
-          current.intensity,
-          current.contrast,
+        const animate =
+          (current.motion && current.intensity > 0) ||
+          (current.round.phase === "night" && !current.round.paused);
+        const effects = [...effectTimes.values()].some(
+          (t) => now / 1000 - t <= 0.75,
         );
+        if (animate || effects || painted !== current)
+          paintLiving(
+            live.getContext("2d"),
+            current.round,
+            current.previous,
+            interpolation,
+            current.selected,
+            current.motion,
+            now / 1000,
+            effectTimes,
+            current.intensity,
+            current.contrast,
+          );
         painted = current;
         if (last && metrics) {
           metrics.current.frames.push(now - last);
@@ -158,7 +180,9 @@ export function VillageMap({
             style={{ left: `${slot.x * 100}%`, top: `${slot.y * 100}%` }}
             onClick={() => onSlot(slot)}
             aria-label={`${mapLanes(round.town)[slot.lane].name}, plot ${slot.index + 1}${slot.building ? `, ${BUILDINGS[slot.building.type].name}, ${Math.ceil(slot.building.hp)} health` : `, empty${card ? `, build ${BUILDINGS[card].name}` : ""}`}`}
-            aria-describedby={recommended === slot.id ? "plot-recommendation" : undefined}
+            aria-describedby={
+              recommended === slot.id ? "plot-recommendation" : undefined
+            }
             title={`${mapLanes(round.town)[slot.lane].name} · ${slot.building ? BUILDINGS[slot.building.type].name : `plot ${slot.index + 1}`}`}
           >
             {!slot.building && (
@@ -178,7 +202,7 @@ export function VillageMap({
             className="road-label"
             style={{
               left: `${x * 100}%`,
-              top: `${(round.town === "ridge" && Math.abs(Math.sin(lane.angle)) < 0.1 ? y - 0.09 : y) * 100}%`,
+              top: `${(round.town === "ridge" && Math.abs(Math.sin(lane.angle)) < 0.1 ? y - 0.2 : y) * 100}%`,
               transform:
                 round.town === "ridge" && lane.id === 1
                   ? "translate(-100%,-50%)"
@@ -189,11 +213,22 @@ export function VillageMap({
             onClick={() => onRoad(lane.id)}
           >
             {lane.name}
-            {round.phase === "day" && <span className="road-count" aria-label={`${round.wave.filter(e => e.lane === lane.id).length} approaching`}>{round.wave.filter(e => e.lane === lane.id).length}</span>}
+            {round.phase === "day" && (
+              <span
+                className="road-count"
+                aria-label={`${round.wave.filter((e) => e.lane === lane.id).length} approaching`}
+              >
+                {round.wave.filter((e) => e.lane === lane.id).length}
+              </span>
+            )}
           </button>
         );
       })}
-      {recommended && <span id="plot-recommendation" className="sr-only">Recommended plot for the current lesson</span>}
+      {recommended && (
+        <span id="plot-recommendation" className="sr-only">
+          Recommended plot for the current lesson
+        </span>
+      )}
       <div className="map-caption">
         {round.phase === "day"
           ? card

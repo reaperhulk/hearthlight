@@ -1129,98 +1129,411 @@ textarea {
   padding: 0 20px 6px;
   overflow: hidden;
 }
-.in-game .masthead { min-height: 54px; margin: 0; flex-shrink: 0; }
-.in-game .wordmark { font-size: 23px; }
-.in-game .wordmark small { display: none; }
-.in-game .brand-flame { font-size: 28px; }
-.in-game .run-heading { margin: 10px 0; flex-shrink: 0; }
-.in-game .run-heading h1 { font-size: clamp(23px, 2.5vw, 32px); margin-top: 2px; }
-.in-game .heart-track { flex: 0 0 3px; margin-bottom: 10px; }
-.in-game .footer { margin: 6px 0 0; padding-top: 4px; flex-shrink: 0; }
-.in-game .play-layout { flex: 1; min-height: 0; align-items: stretch; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); gap: 20px; }
-.in-game .battlefield { position: relative; min-height: 0; display: flex; flex-direction: column; align-items: center; container-type: size; }
-.in-game .village-map { width: min(100cqw, calc(100cqh - 66px)); flex: 0 0 auto; max-width: 100%; }
-.in-game .map-footer { width: 100%; min-height: 56px; padding: 6px 0; flex-wrap: wrap; gap: 4px; }
-.in-game .map-footer button, .in-game .map-footer select { min-height: 44px; font-size: 13px; }
-.in-game .map-footer > span { flex: 1; min-width: 180px; }
-.in-game .pause-note { position: absolute; bottom: 74px; max-width: 90%; padding: 6px 12px; pointer-events: none; }
-.battlefield-tale { display: none; }
-.command-panel { min-height: 0; gap: 8px; }
-.command-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; display: flex; flex-direction: column; gap: 10px; padding: 3px; }
-.command-scroll > * { flex-shrink: 0; }
-.command-panel .panel { padding: 14px; }
-.panel-tabs { display: flex; gap: 5px; flex-shrink: 0; }
-.panel-tabs button { flex: 1; min-height: 44px; padding: 6px; font-size: 13px; }
-.panel-tabs button[aria-pressed="true"] { background: #d9be88; color: #203327; border-color: #d9be88; }
-.command-panel:not(.view-forecast) .forecast, .command-panel:not(.view-story) .story-panel { display: none; }
-.command-panel:not(.view-build) :is(.guide,.blessings,.build-panel,.inspector,.dawn-summary,.kit-summary),
-.command-panel.inspecting .build-panel, .command-panel.choosing-blessing :is(.build-panel,.inspector) { display: none; }
-.story-panel p { margin-top: 14px; font-size: 14px; }
-.planning-actions { flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
-.planning-actions > button:first-child { align-self: stretch; font-size: 12px; min-height: 48px; }
-.planning-actions .primary { min-height: 48px; }
-.guide { position: relative; padding: 8px 12px; }
-.guide p { font-size: 13px; line-height: 1.5; }
-.skip-guide { font-size: 12px; background: none; border: none; padding: 4px 0; min-height: 32px; text-decoration: underline; }
-.recommended { outline: 2px solid #f6d58f; outline-offset: 2px; }
-.plot.recommended { background: #eec37733; border: 2px solid #fff0ac; box-shadow: 0 0 0 5px #f1ce7222; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.dawn-summary, .kit-summary { font-size: 13px; padding: 8px 10px; border-left: 2px solid #a7c584; color: #d1dfbd; background: #273f2c; }
-.progression-guide, .completion { margin: 16px 0; }
-.progression-guide p, .completion p { margin: 12px 0; }
-.progression-guide .primary { margin: 12px 0; }
-.threat-card { padding: 9px 0; }
-.threat-card > div:first-child { margin-bottom: 6px; }
-.threat-card .button-row button { font-size: 13px; }
-.night-controls .section-heading { margin-bottom: 7px; }
-.retire { min-height: 44px; font-size: 12px; }
-.inspector .button-row button { min-height: 44px; font-size: 12px; }
-.advice { text-align: left; font-size: 14px; }
-.advice ol { padding-left: 20px; }
-.section-heading button { min-height: 44px; min-width: 44px; }
+.in-game .masthead {
+  min-height: 54px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.in-game .wordmark {
+  font-size: 23px;
+}
+.in-game .wordmark small {
+  display: none;
+}
+.in-game .brand-flame {
+  font-size: 28px;
+}
+.in-game .run-heading {
+  margin: 10px 0;
+  flex-shrink: 0;
+}
+.in-game .run-heading h1 {
+  font-size: clamp(23px, 2.5vw, 32px);
+  margin-top: 2px;
+}
+.in-game .heart-track {
+  flex: 0 0 3px;
+  margin-bottom: 10px;
+}
+.in-game .footer {
+  margin: 6px 0 0;
+  padding-top: 4px;
+  flex-shrink: 0;
+}
+.in-game .play-layout {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+  gap: 20px;
+}
+.in-game .battlefield {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  container-type: size;
+}
+.in-game .village-map {
+  width: min(100cqw, calc(100cqh - 66px));
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+.in-game .map-footer {
+  width: 100%;
+  min-height: 56px;
+  padding: 6px 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.in-game .map-footer button,
+.in-game .map-footer select {
+  min-height: 44px;
+  font-size: 13px;
+}
+.in-game .map-footer > span {
+  flex: 1;
+  min-width: 180px;
+}
+.in-game .pause-note {
+  position: absolute;
+  bottom: 74px;
+  max-width: 90%;
+  padding: 6px 12px;
+  pointer-events: none;
+}
+.battlefield-tale {
+  display: none;
+}
+.command-panel {
+  min-height: 0;
+  gap: 8px;
+}
+.command-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 3px;
+}
+.command-scroll > * {
+  flex-shrink: 0;
+}
+.command-panel .panel {
+  padding: 14px;
+}
+.panel-tabs {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.panel-tabs button {
+  flex: 1;
+  min-height: 44px;
+  padding: 6px;
+  font-size: 13px;
+}
+.panel-tabs button[aria-pressed="true"] {
+  background: #d9be88;
+  color: #203327;
+  border-color: #d9be88;
+}
+.command-panel:not(.view-forecast) .forecast,
+.command-panel:not(.view-story) .story-panel {
+  display: none;
+}
+.command-panel:not(.view-build)
+  :is(
+    .guide,
+    .blessings,
+    .build-panel,
+    .inspector,
+    .dawn-summary,
+    .kit-summary
+  ),
+.command-panel.inspecting .build-panel,
+.command-panel.choosing-blessing :is(.build-panel, .inspector) {
+  display: none;
+}
+.story-panel p {
+  margin-top: 14px;
+  font-size: 14px;
+}
+.planning-actions {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 8px;
+}
+.planning-actions > button:first-child {
+  align-self: stretch;
+  font-size: 12px;
+  min-height: 48px;
+}
+.planning-actions .primary {
+  min-height: 48px;
+}
+.guide {
+  position: relative;
+  padding: 8px 12px;
+}
+.guide p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.skip-guide {
+  font-size: 12px;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  min-height: 32px;
+  text-decoration: underline;
+}
+.recommended {
+  outline: 2px solid #f6d58f;
+  outline-offset: 2px;
+}
+.plot.recommended {
+  background: #eec37733;
+  border: 2px solid #fff0ac;
+  box-shadow: 0 0 0 5px #f1ce7222;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.dawn-summary,
+.kit-summary {
+  font-size: 13px;
+  padding: 8px 10px;
+  border-left: 2px solid #a7c584;
+  color: #d1dfbd;
+  background: #273f2c;
+}
+.progression-guide,
+.completion {
+  margin: 16px 0;
+}
+.progression-guide p,
+.completion p {
+  margin: 12px 0;
+}
+.progression-guide .primary {
+  margin: 12px 0;
+}
+.threat-card {
+  padding: 9px 0;
+}
+.threat-card > div:first-child {
+  margin-bottom: 6px;
+}
+.threat-card .button-row button {
+  font-size: 13px;
+}
+.night-controls .section-heading {
+  margin-bottom: 7px;
+}
+.retire {
+  min-height: 44px;
+  font-size: 12px;
+}
+.inspector .button-row button {
+  min-height: 44px;
+  font-size: 12px;
+}
+.advice {
+  text-align: left;
+  font-size: 14px;
+}
+.advice ol {
+  padding-left: 20px;
+}
+.section-heading button {
+  min-height: 44px;
+  min-width: 44px;
+}
 @media (max-width: 760px) {
-  .in-game { padding: 0 10px 4px; }
-  .in-game .masthead { min-height: 44px; }
-  .in-game .run-heading { margin: 5px 0; gap: 3px; }
-  .in-game .run-heading h1 { display: none; }
-  .in-game .run-heading .eyebrow { font-size: 10px; letter-spacing: 0.4px; }
-  .in-game .run-stats { gap: 14px; }
-  .in-game .run-stats > span { gap: 5px; }
-  .in-game .run-stats small { font-size: 10px; letter-spacing: 0; }
-  .in-game .run-stats strong { font-size: 17px; }
-  .in-game .heart-track { margin-bottom: 5px; }
-  .in-game .play-layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(285px, 48%) minmax(0, 1fr); gap: 6px; }
-  .in-game .village-map { width: min(100cqw, calc(100cqh - 48px)); border-radius: 10px; }
-  .in-game .map-footer { min-height: 44px; flex-wrap: nowrap; font-size: 11px; }
-  .in-game .map-footer > span { min-width: 0; }
-  .in-game .map-footer .button-row { flex-wrap: nowrap; gap: 4px; }
-  .in-game .map-footer select { width: 78px; }
-  .in-game .map-footer button { padding: 4px 8px; }
-  .in-game .pause-note { bottom: 50px; font-size: 11px; }
-  .command-scroll { gap: 6px; }
-  .command-panel .panel { padding: 10px; }
-  .command-panel h2 { font-size: 18px; }
-  .night-controls .section-heading { display: none; }
-  .night-controls .threat-card { display: grid; grid-template-columns: 1fr 1.45fr; gap: 7px; padding: 4px 0; }
-  .threat-card > div:first-child { flex-direction: column; gap: 0; margin: 0; justify-content: center; font-size: 12px; }
-  .threat-card span { font-size: 11px; }
-  .threat-card .button-row { flex-wrap: nowrap; gap: 4px; }
-  .threat-card .button-row button { padding: 5px 6px; font-size: 12px; }
-  .in-game .footer { font-size: 10px; margin-top: 2px; padding-top: 2px; }
-  .in-game .footer > span:first-child { font-size: 10px; }
+  .in-game {
+    padding: 0 10px 4px;
+  }
+  .in-game .masthead {
+    min-height: 44px;
+  }
+  .in-game .run-heading {
+    margin: 5px 0;
+    gap: 3px;
+  }
+  .in-game .run-heading h1 {
+    display: none;
+  }
+  .in-game .run-heading .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.4px;
+  }
+  .in-game .run-stats {
+    gap: 14px;
+  }
+  .in-game .run-stats > span {
+    gap: 5px;
+  }
+  .in-game .run-stats small {
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  .in-game .run-stats strong {
+    font-size: 17px;
+  }
+  .in-game .heart-track {
+    margin-bottom: 5px;
+  }
+  .in-game .play-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(285px, 48%) minmax(0, 1fr);
+    gap: 6px;
+  }
+  .in-game .village-map {
+    width: min(100cqw, calc(100cqh - 48px));
+    border-radius: 10px;
+  }
+  .in-game .map-footer {
+    min-height: 44px;
+    flex-wrap: nowrap;
+    font-size: 11px;
+  }
+  .in-game .map-footer > span {
+    min-width: 0;
+  }
+  .in-game .map-footer .button-row {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .in-game .map-footer select {
+    width: 78px;
+  }
+  .in-game .map-footer button {
+    padding: 4px 8px;
+  }
+  .in-game .pause-note {
+    bottom: 50px;
+    font-size: 11px;
+  }
+  .command-scroll {
+    gap: 6px;
+  }
+  .command-panel .panel {
+    padding: 10px;
+  }
+  .command-panel h2 {
+    font-size: 18px;
+  }
+  .night-controls .section-heading {
+    display: none;
+  }
+  .night-controls .threat-card {
+    display: grid;
+    grid-template-columns: 1fr 1.45fr;
+    gap: 7px;
+    padding: 4px 0;
+  }
+  .threat-card > div:first-child {
+    flex-direction: column;
+    gap: 0;
+    margin: 0;
+    justify-content: center;
+    font-size: 12px;
+  }
+  .threat-card span {
+    font-size: 11px;
+  }
+  .threat-card .button-row {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .threat-card .button-row button {
+    padding: 5px 6px;
+    font-size: 12px;
+  }
+  .in-game .footer {
+    font-size: 10px;
+    margin-top: 2px;
+    padding-top: 2px;
+  }
+  .in-game .footer > span:first-child {
+    font-size: 10px;
+  }
 }
 /* Short phone landscapes retain readable plots; the command dock stays visible. */
 @media (max-height: 620px) and (max-width: 760px) {
-  .in-game { height: auto; min-height: 100dvh; overflow: visible; }
-  .in-game .play-layout { display: flex; }
-  .in-game .battlefield { height: 360px; flex: 0 0 360px; }
-  .command-scroll { max-height: 300px; }
-  .planning-actions { position: sticky; bottom: 0; background: #101c1c; padding: 4px 0; }
+  .in-game {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .in-game .play-layout {
+    display: flex;
+  }
+  .in-game .battlefield {
+    height: 360px;
+    flex: 0 0 360px;
+  }
+  .command-scroll {
+    max-height: 300px;
+  }
+  .planning-actions {
+    position: sticky;
+    bottom: 0;
+    background: #101c1c;
+    padding: 4px 0;
+  }
 }
 
 /* Pause status stays beside Resume instead of covering the southern approach. */
-.in-game .pause-note { display: none; }
-.road-count { display: block; font-size: 10px; letter-spacing: 0; text-transform: none; }
-.setting-row select { background: #20392e; color: #e5dfc0; border: 1px solid #85916f; border-radius: 6px; min-height: 44px; max-width: 55%; }
+.in-game .pause-note {
+  display: none;
+}
+.road-count {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.setting-row select {
+  background: #20392e;
+  color: #e5dfc0;
+  border: 1px solid #85916f;
+  border-radius: 6px;
+  min-height: 44px;
+  max-width: 55%;
+}
 
-.road-count { position: absolute; top: -8px; right: -8px; min-width: 21px; height: 21px; border-radius: 50%; background: #efd395; color: #1a3025; font: 600 12px/21px ui-sans-serif, system-ui; pointer-events: none; }
+.road-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #efd395;
+  color: #1a3025;
+  font:
+    600 12px/21px ui-sans-serif,
+    system-ui;
+  pointer-events: none;
+}
+
+.threat-card button[aria-pressed="true"] {
+  border-color: #a2ebd8;
+  background: #35594e;
+}

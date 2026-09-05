@@ -44,6 +44,8 @@ acceptance criteria. The engine and interface now use the new loop.
       playtest export and a command-line replay check. No data is transmitted.
 - [x] Mobile road labels avoid plots; all plot centers are checked for occlusion,
       in addition to viewport bounds and control size.
+- [x] Reconcile all work packages in IMPROVEMENTS.md; continue toward the next
+      unsaved town from the main play button and show the assigned Warden road.
 - [ ] Listen and play on real devices; verify mobile layout and frame pacing.
 - [ ] Fresh human playtest: comprehension, meaningful choices and voluntary replay.
 
