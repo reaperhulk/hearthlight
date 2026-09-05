@@ -6,13 +6,13 @@ const out = resolve(process.argv[2] || "/tmp/hearthlight-screenshots");
 await mkdir(out, { recursive: true });
 const session = await browserSession();
 try {
-  for (const width of [390, 1440]) {
+  for (const [width, height] of [[390, 844], [1280, 650], [1440, 900]]) {
     await session.page.setViewport({
       width,
-      height: 900,
+      height,
       deviceScaleFactor: 1,
     });
-    for (const name of ["home", "first-day", "ridge-battle", "victory"]) {
+    for (const name of ["home", "first-day", "ridge-day", "ridge-battle", "victory"]) {
       await hydrate(session.page, scene(name));
       await session.page.waitForFunction(
         () =>

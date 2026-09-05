@@ -21,6 +21,7 @@ import {
   TOWNS,
   mapLanes,
 } from "../engine/content.js";
+import { introduction, defeatExplanation, pauseForLesson } from "./guidance.js";
 import { VillageMap } from "./VillageMap.jsx";
 import { drawBuilding } from "./village-draw.js";
 import {
@@ -52,54 +53,6 @@ function Icon({ type }) {
     [type],
   );
   return <canvas className="building-icon" ref={mount} aria-hidden="true" />;
-}
-function guide(r) {
-  if (r.town !== "first") return null;
-  if (r.phase === "night")
-    return !r.warden.deployed
-      ? [
-          "Send the Warden",
-          "Choose “Send Warden” on a threatened road. He walks there and fights nearby enemies.",
-        ]
-      : r.stats.bursts === 0 && r.night >= 2
-        ? [
-            "Keep a spark in reserve",
-            "A lantern burst damages, interrupts and pushes enemies back. The road controls show how many you have left.",
-          ]
-        : [
-            "Hold until dawn",
-            "Watch the roads. Reposition the Warden when another defense needs help.",
-          ];
-  if (r.phase !== "day") return null;
-  if (r.night > 1)
-    return !hasFutureDawn(r)
-      ? [
-          "One last night",
-          "This is the final assault. Repair and strengthen your defenses; there are no more dawn budgets to grow.",
-        ]
-      : [
-          "A brighter dawn",
-          `Your Glow has arrived. Repair damaged buildings, cover the next roads, and choose a specialization. ${TOWNS.first.nights - r.completed} nights remain.`,
-        ];
-  if (!r.slots.some((s) => s.building?.type === "farm"))
-    return [
-      "1 · A village needs a garden",
-      "Choose Farm, then North road, plot 3. It adds 12 Glow to each dawn’s budget. Take your time.",
-    ];
-  if (!r.slots.some((s) => s.building?.type === "wall"))
-    return [
-      "2 · Hold the north road",
-      "Build a Timber wall on North road, plot 1. Enemies must break it before moving on.",
-    ];
-  if (!r.slots.some((s) => s.building?.type === "tower"))
-    return [
-      "3 · Give the wall a watchtower",
-      "Build a Watchtower on North road, plot 2. Select it to see its firing range.",
-    ];
-  return [
-    "4 · You decide when night begins",
-    "Your defenses are ready. Start Night, then send the Warden where he can help.",
-  ];
 }
 
 function Settings({ state, act, onClose, onImport }) {
@@ -253,7 +206,8 @@ export function Village() {
     [settings, setSettings] = useState(false),
     [elsewhere, setElsewhere] = useState(false),
     [notice, setNotice] = useState(""),
-    [retiring, setRetiring] = useState(false);
+    [retiring, setRetiring] = useState(false),
+    [view, setView] = useState("build");
   const current = useRef(state),
     foreign = useRef(false),
     soundCursor = useRef({ seed: null, event: 0 }),
@@ -271,16 +225,23 @@ export function Village() {
   }, [elsewhere]);
   const act = useCallback((action) => {
     unlockScore();
-    setState((s) => command(s, action));
+    setState((s) => {
+      const resumeLesson = s.round?.paused && s.settings.guide && s.round.town === "first" &&
+        ((action.type === "rally" && !s.round.warden.deployed && s.round.lessons?.includes("wall")) ||
+         (action.type === "burst" && s.round.stats.bursts === 0 && s.round.lessons?.includes("burst")));
+      const next = command(s, action);
+      return resumeLesson && next !== s ? command(next, { type: "pause" }) : next;
+    });
   }, []);
   const closeSettings = useCallback(() => setSettings(false), []);
-  const begin = (id, endless = false) => {
+  const begin = (id, endless = false, challenge = "standard") => {
     unlockScore();
     setSelected(null);
     setCard(null);
     setMoving(null);
     setRetiring(false);
-    setState((s) => startGame(s, id, seed(), endless));
+    setView("build");
+    setState((s) => startGame(s, id, seed(), endless, challenge));
   };
   useEffect(() => {
     let frame,
@@ -294,7 +255,7 @@ export function Village() {
         if (pending >= 0.1) {
           const elapsed = pending;
           pending = 0;
-          setState((s) => advance(s, elapsed * s.settings.speed));
+          setState((s) => pauseForLesson(advance(s, elapsed * s.settings.speed)));
         }
       } else pending = 0;
       frame = requestAnimationFrame(loop);
@@ -446,6 +407,7 @@ export function Village() {
   const onRoad = (lane) => {
     if (!r) return;
     if (r.phase === "day") {
+      setView("build");
       setSelected(`${lane}-0`);
       return;
     }
@@ -461,6 +423,7 @@ export function Village() {
     }
   };
   const onSlot = (slot) => {
+    setView("build");
     if (r.phase === "night") {
       act({ type: "rally", lane: slot.lane, progress: slot.progress });
       return;
@@ -475,7 +438,7 @@ export function Village() {
     if (card && !slot.building && r.glow >= BUILDINGS[card].cost) {
       act({ type: "build", slot: slot.id, building: card });
       setCard(null);
-      setSelected(slot.id);
+      setSelected(null);
     } else {
       setSelected(slot.id);
       setCard(null);
@@ -483,11 +446,14 @@ export function Village() {
   };
   const selectedSlot = r?.slots.find((s) => s.id === selected),
     b = selectedSlot?.building;
-  const lesson = r && state.settings.guide ? guide(r) : null;
+  const lesson = r && state.settings.guide ? introduction(r) : null;
   const over = r && !["day", "night"].includes(r.phase);
+  const defeat = r?.phase === "lost" ? defeatExplanation(r) : null;
+  const firstPurchase = state.wins.first && state.unlocked.length === 1 && state.embers >= KITS.mason.cost;
+  const complete = Object.keys(TOWNS).every(id => state.wins[id]);
   return (
     <main
-      className={`hearthlight ${state.settings.contrast ? "high-contrast" : ""} ${!state.settings.motion || reduce ? "still" : ""}`}
+      className={`hearthlight ${r && !elsewhere ? "in-game" : ""} ${state.settings.contrast ? "high-contrast" : ""} ${!state.settings.motion || reduce ? "still" : ""}`}
     >
       <header className="masthead">
         <a href="#" onClick={(e) => e.preventDefault()} className="wordmark">
@@ -553,6 +519,16 @@ export function Village() {
                 : "A guided three-night story. Plan at your own pace."}
             </small>
           </section>
+          {firstPurchase && <section className="panel progression-guide" aria-label="Your first starting kit">
+            <h2>A saved village leaves you something.</h2>
+            <p>Spend 8 of your earned Embers on the Mason kit. Your next opening will have walls with 90 health instead of 65, and repairs will cost 6 Glow instead of 8.</p>
+            <button className="primary" onClick={() => act({ type: "unlock", id: "mason" })}>Carry the Mason kit · 8 Embers</button>
+            <small>Or choose another kit below. Kits can be reassigned freely between games.</small>
+          </section>}
+          {complete && <section className="panel completion" aria-label="Campaign complete">
+            <h2>Every beacon is burning.</h2>
+            <p>You have saved all four towns. The story is complete. Return with a different kit, attempt a night watch without bursts, or see how long your village lasts in Endless watch.</p>
+          </section>}
           <section className="town-selection">
             <div className="section-heading">
               <h2>Places worth saving</h2>
@@ -592,7 +568,7 @@ export function Village() {
                 Visit {TOWNS[town].name} →
               </button>
               {state.wins[town] > 0 && (
-                <button onClick={() => begin(town, true)}>Endless watch</button>
+                <><button onClick={() => begin(town, true)}>Endless watch</button><button onClick={() => begin(town, false, "no-bursts")}>Challenge · No bursts</button></>
               )}
             </div>
           </section>
@@ -666,7 +642,7 @@ export function Village() {
           <section className="run-heading">
             <div>
               <span className="eyebrow">
-                {TOWNS[r.town].name} · {KITS[r.kit].name}
+                {TOWNS[r.town].name} · {KITS[r.kit].name}{r.challenge === "no-bursts" ? " · No bursts" : ""}
               </span>
               <h1>
                 {over
@@ -714,6 +690,7 @@ export function Village() {
                 round={r}
                 selected={selected}
                 card={card}
+                recommended={lesson?.plot}
                 onSlot={onSlot}
                 onRoad={onRoad}
                 motion={state.settings.motion && !reduce}
@@ -759,14 +736,25 @@ export function Village() {
                   resume.
                 </p>
               )}
-              <details className="tale">
+              <details className="tale battlefield-tale">
                 <summary>The night’s story</summary>
                 {r.tale.map((line, i) => (
                   <p key={i}>{line}</p>
                 ))}
               </details>
             </div>
-            <aside className="command-panel">
+            <aside className={`command-panel view-${view} ${b ? "inspecting" : ""} ${r.offers.length ? "choosing-blessing" : ""}`}>
+              {!over && r.phase === "day" && <nav className="panel-tabs" aria-label="Planning panels">
+                <button aria-pressed={view === "build"} onClick={() => setView("build")}>Build{r.offers.length ? " · gift" : ""}</button>
+                <button aria-pressed={view === "forecast"} onClick={() => setView("forecast")}>Approach</button>
+                <button aria-pressed={view === "story"} onClick={() => setView("story")}>Dawn & story</button>
+              </nav>}
+              <div className="command-scroll">
+              {!over && r.phase === "day" && <section className="panel story-panel">
+                <h2>{r.dawnReport ? `Dawn ${r.dawnReport.night} · a beacon restored` : "The village chronicle"}</h2>
+                {r.dawnReport && <p>{r.dawnReport.kills} enemies banished. {r.dawnReport.standing} buildings standing; {r.dawnReport.lost} lost. {r.dawnReport.damage} Heart damage. Dawn paid {r.dawnReport.income} Glow, including {r.dawnReport.farms} from farms.</p>}
+                {r.tale.map((line, i) => <p key={i}>{line}</p>)}
+              </section>}
               {over ? (
                 <section className={`panel outcome ${r.phase}`}>
                   <span className="outcome-mark">
@@ -785,12 +773,10 @@ export function Village() {
                       : r.lastLoss ||
                         "You banked the fire before the next assault."}
                   </p>
-                  {r.phase === "lost" && (
-                    <p className="advice">
-                      Next time, cover each threatened road with a tower and a
-                      wall. Save a burst for attackers that get through.
-                    </p>
-                  )}
+                  {defeat && <div className="advice">
+                    <ol>{defeat.chain.map((line, i) => <li key={i}>{line}</li>)}</ol>
+                    <p>{defeat.advice}</p>
+                  </div>}
                   <div className="reward">
                     <span>{r.completed} completed nights × 3</span>
                     <strong>{r.completed * 3} Embers</strong>
@@ -823,6 +809,7 @@ export function Village() {
                           town,
                           oldSeed,
                           r.endless,
+                          r.challenge,
                         ),
                       );
                       setSelected(null);
@@ -840,8 +827,9 @@ export function Village() {
                     <div className="guide">
                       <span className="guide-star">✧</span>
                       <div>
-                        <strong>{lesson[0]}</strong>
-                        <p>{lesson[1]}</p>
+                        <strong>{lesson.title}</strong>
+                        <p>{lesson.text}</p>
+                        <button className="skip-guide" onClick={() => act({ type: "setting", key: "guide", value: false })}>Skip guide</button>
                       </div>
                     </div>
                   )}
@@ -897,16 +885,18 @@ export function Village() {
                           ))}
                         </section>
                       )}
+                      {r.dawnReport && <p className="dawn-summary" role="status">Dawn paid {r.dawnReport.income} Glow · {r.dawnReport.kills} banished · {r.dawnReport.lost ? `${r.dawnReport.lost} buildings lost` : "every building held"}</p>}
+                      {r.night === 1 && r.kit !== "keeper" && <p className="kit-summary">{KITS[r.kit].name}: {KITS[r.kit].detail}</p>}
                       <section className="panel build-panel">
                         <div className="section-heading">
                           <h2>Make your stand</h2>
                           <span>No clock. Take your time.</span>
                         </div>
                         <div className="build-grid">
-                          {Object.entries(BUILDINGS).map(([id, def]) => (
+                          {Object.entries(BUILDINGS).filter(([id]) => !(state.settings.guide && r.town === "first" && r.night === 1 && ["tower", "lantern"].includes(id))).map(([id, def]) => (
                             <button
                               key={id}
-                              className={`build-card ${card === id ? "chosen" : ""}`}
+                              className={`build-card ${card === id ? "chosen" : ""} ${lesson?.card === id ? "recommended" : ""}`}
                               disabled={
                                 r.glow < def.cost ||
                                 (id === "farm" && !hasFutureDawn(r))
@@ -1019,25 +1009,7 @@ export function Village() {
                           </div>
                         </section>
                       )}
-                      <div className="planning-actions">
-                        <button
-                          disabled={!r.undo}
-                          onClick={() => act({ type: "undo" })}
-                        >
-                          ↶ Undo last change
-                        </button>
-                        <button
-                          className="primary"
-                          disabled={r.offers.length > 0}
-                          onClick={() => {
-                            act({ type: "start" });
-                            setCard(null);
-                            setMoving(null);
-                          }}
-                        >
-                          Start Night {r.night} <span>→</span>
-                        </button>
-                      </div>
+
                     </>
                   ) : (
                     <section className="panel night-controls">
@@ -1047,10 +1019,7 @@ export function Village() {
                           ✧ {r.bursts} {r.bursts === 1 ? "burst" : "bursts"}
                         </span>
                       </div>
-                      <p>
-                        Your Warden fights near his rally point. A burst
-                        interrupts and pushes back enemies on one road.
-                      </p>
+
                       {mapLanes(r.town).map((lane) => {
                         const enemies = r.enemies.filter(
                           (e) => e.lane === lane.id,
@@ -1130,6 +1099,28 @@ export function Village() {
                     </button>
                   )}
                 </>
+              )}
+              </div>
+              {!over && r.phase === "day" && (
+                      <div className="planning-actions">
+                        <button
+                          disabled={!r.undo}
+                          onClick={() => act({ type: "undo" })}
+                        >
+                          ↶ Undo last change
+                        </button>
+                        <button
+                          className="primary"
+                          disabled={r.offers.length > 0}
+                          onClick={() => {
+                            act({ type: "start" });
+                            setCard(null);
+                            setMoving(null);
+                          }}
+                        >
+                          Start Night {r.night} <span>→</span>
+                        </button>
+                      </div>
               )}
             </aside>
           </div>

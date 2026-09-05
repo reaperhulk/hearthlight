@@ -11,6 +11,7 @@ export function VillageMap({
   round,
   selected,
   card,
+  recommended,
   onSlot,
   onRoad,
   motion,
@@ -143,10 +144,11 @@ export function VillageMap({
         {round.slots.map((slot) => (
           <button
             key={slot.id}
-            className={`plot ${selected === slot.id ? "selected" : ""} ${slot.building ? "built" : ""}`}
+            className={`plot ${recommended === slot.id ? "recommended" : ""} ${selected === slot.id ? "selected" : ""} ${slot.building ? "built" : ""}`}
             style={{ left: `${slot.x * 100}%`, top: `${slot.y * 100}%` }}
             onClick={() => onSlot(slot)}
             aria-label={`${mapLanes(round.town)[slot.lane].name}, plot ${slot.index + 1}${slot.building ? `, ${BUILDINGS[slot.building.type].name}, ${Math.ceil(slot.building.hp)} health` : `, empty${card ? `, build ${BUILDINGS[card].name}` : ""}`}`}
+            aria-describedby={recommended === slot.id ? "plot-recommendation" : undefined}
             title={`${mapLanes(round.town)[slot.lane].name} · ${slot.building ? BUILDINGS[slot.building.type].name : `plot ${slot.index + 1}`}`}
           >
             {!slot.building && (
@@ -178,6 +180,7 @@ export function VillageMap({
           </button>
         );
       })}
+      {recommended && <span id="plot-recommendation" className="sr-only">Recommended plot for the current lesson</span>}
       <div className="map-caption">
         {round.phase === "day"
           ? card

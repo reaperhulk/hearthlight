@@ -72,6 +72,7 @@ describe("the playable interface", () => {
     await click(button("Farm"));
     await click(document.querySelector('[aria-label^="North road, plot 3"]'));
     expect(window.__game.getState().round.slots[2].building.type).toBe("farm");
+    await click(document.querySelector('[aria-label^="North road, plot 3"]'));
     expect(document.body.textContent).toContain("+12 Glow at dawn");
     await click(button("↶ Undo last change"));
     expect(window.__game.getState().round.glow).toBe(62);

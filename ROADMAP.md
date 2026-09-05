@@ -20,6 +20,14 @@ acceptance criteria. The engine and interface now use the new loop.
       Responsive smoke covers widths 360, 390, 768 and 1440.
 - [x] Remove final-night economy traps discovered during browser playtesting;
       replace useless dawn-only blessings and explain the final assault.
+- [x] Incremental farm/wall/Warden/tower lessons with marked plots, optional
+      teaching pauses, earned-kit guidance, actual breach chains and dawn reports.
+- [x] Explicit all-town completion and an earned, replayable no-burst challenge.
+- [x] Viewport-sized battlefield and fixed planning dock; separate build,
+      approach and chronicle panels. CI gates vertical fit and reachable controls
+      at 360×800 through 1920×1080, including 1280×650 laptops, and saves screenshots.
+- [ ] Complete accessible effects, threat-based audio mixing and material cues.
+- [ ] Expand distinct build fixtures and representative performance transitions.
 - [ ] Listen and play on real devices; verify mobile layout and frame pacing.
 - [ ] Fresh human playtest: comprehension, meaningful choices and voluntary replay.
 

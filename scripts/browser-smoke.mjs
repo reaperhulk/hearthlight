@@ -23,17 +23,18 @@ try {
   for (const [building, plot] of [
     ["Farm", 3],
     ["Timber wall", 1],
-    ["Watchtower", 2],
   ]) {
     await clickText(page, building);
     await page.click(`[aria-label^="North road, plot ${plot}"]`);
   }
   assert.equal(
     (await page.evaluate(() => window.__game.getState())).round.stats.built,
-    3,
+    2,
   );
   await layout();
   await clickText(page, "Start Night");
+  await page.waitForFunction(() => window.__game.getState().round.paused);
+  assert.ok((await page.evaluate(() => window.__game.getState())).round.lessons.includes("wall"));
   await page.click('[aria-label="Send Warden to North road"]');
   await page.waitForFunction(
     () => window.__game.getState().round.warden.deployed,
@@ -48,6 +49,8 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
   await clickText(page, "Resume night");
+
+  await page.evaluate(() => window.__game.command({ type: "setting", key: "guide", value: false }));
 
   // Use the production engine to accelerate combat; initial controls above
   // are actual pointer/keyboard interactions. There is no state fabrication.
@@ -104,11 +107,33 @@ try {
     (await page.evaluate(() => window.__game.getState())).round.kit,
     "mason",
   );
-  await hydrate(page, scene("ridge-battle"));
-  for (const width of [360, 390, 768, 1440]) {
-    await page.setViewport({ width, height: 900 });
-    await layout();
+  // Desktop height is a gate, including real control hit targets and the bottom dock.
+  for (const [width, height] of [[360, 800], [390, 844], [768, 900], [1280, 650], [1280, 720], [1366, 768], [1440, 900], [1920, 1080]]) {
+    await page.setViewport({ width, height });
+    for (const name of ["first-day", "ridge-day", "ridge-battle", "victory"]) {
+      await hydrate(page, scene(name));
+      await page.waitForFunction(() => document.querySelector(".village-map").getBoundingClientRect().height > 100);
+      await layout();
+      const fit = await page.evaluate(() => {
+        const visible = selector => [...document.querySelectorAll(selector)].filter(el => el.getClientRects().length).map(el => {
+          const r = el.getBoundingClientRect();
+          const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+          return { label: el.getAttribute("aria-label") || el.textContent.trim(), fits: r.top >= 0 && r.bottom <= innerHeight + 1 && r.left >= 0 && r.right <= innerWidth + 1, hit: el.contains(hit), height: r.height };
+        });
+        return { overflow: document.documentElement.scrollHeight > innerHeight + 1, map: visible(".village-map"), controls: visible('.planning-actions .primary, .map-footer button, .map-footer select, .night-controls button') };
+      });
+      assert.equal(fit.overflow, false, `${name} ${width}×${height}: vertical page overflow`);
+      assert.ok(fit.map.every(x => x.fits), `${name}: battlefield clipped`);
+      assert.ok(fit.controls.every(x => x.fits && x.hit && x.height >= 43), `${name} ${width}×${height}: unreachable controls ${JSON.stringify(fit.controls)}`);
+      if (width >= 1280 && name === "first-day") {
+        await page.click('[aria-label^="North road, plot 2"]');
+        assert.ok(await page.$eval('.planning-actions .primary', el => el.getBoundingClientRect().bottom <= innerHeight), 'Inspector pushed Start Night out of view');
+        await clickText(page, "Approach");
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('.forecast')).display !== 'none');
+      }
+    }
   }
+  await hydrate(page, scene("ridge-battle"));
   await page.click('[aria-label="Open settings"]');
   await page.click(".settings summary");
   await clickText(page, "Export save");

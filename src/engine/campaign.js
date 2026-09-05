@@ -35,6 +35,8 @@ function forkRound(r) {
     commands: [...r.commands],
     blessings: [...r.blessings],
     waveHistory: [...r.waveHistory],
+    incidents: [...(r.incidents || [])],
+    lessons: [...(r.lessons || [])],
   };
 }
 
@@ -133,6 +135,10 @@ export function migrateGame(saved) {
   if (validRound(saved.round)) {
     state.round = copy(saved.round);
     state.round.undo = null;
+    state.round.lessons = Array.isArray(saved.round.lessons) ? saved.round.lessons.filter(x => ["wall", "burst"].includes(x)) : [];
+    state.round.incidents = Array.isArray(saved.round.incidents) ? saved.round.incidents.filter(x => x && ["fall", "heart"].includes(x.type) && Number.isInteger(x.lane) && mapLanes(state.round.town)[x.lane] && Number.isFinite(x.night) && typeof x.text === "string").slice(-24) : [];
+    state.round.dawnReport = null;
+    state.round.challenge = saved.round.challenge === "no-bursts" ? "no-bursts" : "standard";
     if (state.round.phase === "day" && state.round.offers.length)
       state.round.offers = blessingOffers(state.round);
     if (state.round.phase === "night" && !state.round.paused)
@@ -296,6 +302,7 @@ export function blessingOffers(r) {
   const available = Object.keys(BLESSINGS).filter(
     (id) =>
       !r.blessings.includes(id) &&
+      (r.challenge !== "no-bursts" || !["kindle", "reserves"].includes(id)) &&
       (!finalNight || !["shelter", "salvage"].includes(id)) &&
       (!finalNight || hasLantern || id !== "chain"),
   );
@@ -311,11 +318,12 @@ export function townUnlocked(state, id) {
     known(TOWNS, id) && (!TOWNS[id].requires || state.wins[TOWNS[id].requires]),
   );
 }
-export function startGame(state, town = "first", seed = 1, endless = false) {
+export function startGame(state, town = "first", seed = 1, endless = false, challenge = "standard") {
   if (
     state.round ||
     !townUnlocked(state, town) ||
-    (endless && !state.wins[town])
+    ((endless || challenge !== "standard") && !state.wins[town]) ||
+    !["standard", "no-bursts"].includes(challenge)
   )
     return state;
   const kit = state.kit;
@@ -326,6 +334,10 @@ export function startGame(state, town = "first", seed = 1, endless = false) {
       kit,
       seed: seed >>> 0,
       endless,
+      challenge,
+      lessons: [],
+      incidents: [],
+      dawnReport: null,
       night: 1,
       completed: 0,
       phase: "day",
@@ -338,7 +350,7 @@ export function startGame(state, town = "first", seed = 1, endless = false) {
       enemies: [],
       wave: makeWave(town, 1, seed >>> 0),
       waveHistory: [],
-      bursts: 2,
+      bursts: challenge === "no-bursts" ? 0 : 2,
       blessings: [],
       offers: [],
       warden: {
@@ -486,6 +498,8 @@ export function command(state, action) {
           outcome: previous.phase,
           seed: previous.seed,
           kit: previous.kit,
+          challenge: previous.challenge || "standard",
+          heart: previous.heart,
         },
       ].slice(-30),
       round: null,
@@ -502,6 +516,11 @@ export function command(state, action) {
     }
     return { ...state, round: r };
   };
+  if (action.type === "lesson" && r.town === "first" && r.phase === "night" && ["wall", "burst"].includes(action.id) && !r.lessons.includes(action.id)) {
+    r.lessons.push(action.id);
+    r.paused = true;
+    return record();
+  }
   if (action.type === "pause") {
     r.paused = !r.paused;
     return record();
@@ -545,7 +564,7 @@ export function command(state, action) {
         };
         r.glow -= def.cost;
         r.stats.built++;
-        event(r, "build", { x: slot.x, y: slot.y });
+        event(r, "build", { x: slot.x, y: slot.y, material: action.building });
       } else if (action.type === "repair") {
         if (
           !slot.building ||
@@ -598,7 +617,8 @@ export function command(state, action) {
       r.paused = false;
       r.waveTime = 0;
       r.undo = null;
-      r.bursts = 2 + (r.blessings.includes("reserves") ? 1 : 0);
+      r.bursts = r.challenge === "no-bursts" ? 0 : 2 + (r.blessings.includes("reserves") ? 1 : 0);
+      r.nightStart = { ...r.stats };
       r.slots.forEach((s) => {
         if (s.building) s.building.cooldown = 0;
       });
@@ -653,6 +673,12 @@ function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function incident(r, type, lane, text) {
+  if (type === "heart" && r.incidents.some(e => e.type === type && e.lane === lane && e.night === r.night)) return;
+  r.incidents.push({ type, lane, night: r.night, time: r.time, text });
+  if (r.incidents.length > 24) r.incidents.shift();
+}
+
 function simulate(r) {
   r.time = Math.round((r.time + STEP) * 1000) / 1000;
   r.waveTime = Math.round((r.waveTime + STEP) * 1000) / 1000;
@@ -663,6 +689,7 @@ function simulate(r) {
       const mult = r.endless
         ? 1 + Math.max(0, r.night - TOWNS[r.town].nights) * 0.16
         : 1;
+      event(r, "approach", { lane: spawn.lane });
       r.enemies.push({
         ...spawn,
         hp: def.hp * mult,
@@ -783,7 +810,7 @@ function simulate(r) {
     enemy.windup = def.interval;
     if (target) {
       target.building.hp -= def.damage;
-      event(r, "bite", { x: target.x, y: target.y, damage: def.damage });
+      event(r, "bite", { x: target.x, y: target.y, damage: def.damage, material: target.building.type });
       if (target.building.branch === "thorns") {
         enemy.hp -= 4;
         enemy.stun = 0.6;
@@ -794,15 +821,17 @@ function simulate(r) {
           r.glow += Math.floor(BUILDINGS[target.building.type].cost / 2);
         target.building = null;
         r.stats.lost++;
-        event(r, "fall", { x: target.x, y: target.y });
+        event(r, "fall", { x: target.x, y: target.y, lane: enemy.lane });
         r.lastLoss = `${name} fell on ${mapLanes(r.town)[enemy.lane].name}.`;
         tale(r, `${r.lastLoss} The road is open behind it.`);
+        incident(r, "fall", enemy.lane, r.lastLoss);
       }
     } else {
       r.heart = Math.max(0, r.heart - def.damage);
       r.stats.damage += def.damage;
       r.lastLoss = `${def.name} reached the Heart along ${mapLanes(r.town)[enemy.lane].name}.`;
       event(r, "heart", { damage: def.damage, lane: enemy.lane });
+      incident(r, "heart", enemy.lane, r.lastLoss);
       if (r.heart <= 0) {
         r.phase = "lost";
         tale(r, r.lastLoss);
@@ -820,6 +849,15 @@ function simulate(r) {
   if (r.phase !== "night") return;
   if (r.wave.every((e) => e.spawned) && r.enemies.length === 0) {
     r.completed++;
+    r.dawnReport = {
+      night: r.night,
+      income: !r.endless && r.completed >= TOWNS[r.town].nights ? 0 : dawnIncome(r),
+      farms: r.slots.filter(s => s.building?.type === "farm").reduce((sum, s) => sum + farmIncome(s.building, r.kit), 0),
+      kills: r.stats.kills - (r.nightStart?.kills || 0),
+      lost: r.stats.lost - (r.nightStart?.lost || 0),
+      damage: r.stats.damage - (r.nightStart?.damage || 0),
+      standing: r.slots.filter(s => s.building).length,
+    };
     r.waveHistory.push({ night: r.night, heart: r.heart, seconds: r.waveTime });
     if (!r.endless && r.completed >= TOWNS[r.town].nights) {
       r.phase = "won";
@@ -892,7 +930,7 @@ export function replayRound(record) {
   let state = freshGame();
   state.kit = record.kit;
   state.wins = Object.fromEntries(Object.keys(TOWNS).map((id) => [id, 1]));
-  state = startGame(state, record.town, record.seed, record.endless);
+  state = startGame(state, record.town, record.seed, record.endless, record.challenge || "standard");
   for (const action of record.commands) {
     if (
       !Number.isFinite(action.time) ||
