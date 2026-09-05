@@ -55,6 +55,16 @@ try {
     const before = await page.evaluate(() => window.__game.getState());
     if (before.round.phase === "won") break;
     assert.notEqual(before.round.phase, "lost");
+    if (before.round.phase === "day" && before.round.night === 3) {
+      assert.ok(
+        await page.$eval(".build-card", (button) => button.disabled),
+        "Farm spending must stop before the final night",
+      );
+      assert.ok(
+        before.round.offers.every((id) => !["shelter", "salvage"].includes(id)),
+        "Final-night rewards must still be useful",
+      );
+    }
     const next =
       before.round.phase === "day" ? planDay(before) : nightAction(before);
     const commands = next.round.commands.slice(before.round.commands.length);

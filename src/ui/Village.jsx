@@ -5,6 +5,7 @@ import {
   dawnIncome,
   farmIncome,
   freshGame,
+  hasFutureDawn,
   maxHp,
   migrateGame,
   repairCost,
@@ -63,7 +64,7 @@ function guide(r) {
       : r.stats.bursts === 0 && r.night >= 2
         ? [
             "Keep a spark in reserve",
-            "A lantern burst damages, interrupts and pushes enemies back. You have two each night.",
+            "A lantern burst damages, interrupts and pushes enemies back. The road controls show how many you have left.",
           ]
         : [
             "Hold until dawn",
@@ -71,10 +72,15 @@ function guide(r) {
           ];
   if (r.phase !== "day") return null;
   if (r.night > 1)
-    return [
-      "A brighter dawn",
-      `Your Glow has arrived. Repair damaged buildings, cover the next roads, and choose a specialization. ${TOWNS.first.nights - r.completed} nights remain.`,
-    ];
+    return !hasFutureDawn(r)
+      ? [
+          "One last night",
+          "This is the final assault. Repair and strengthen your defenses; there are no more dawn budgets to grow.",
+        ]
+      : [
+          "A brighter dawn",
+          `Your Glow has arrived. Repair damaged buildings, cover the next roads, and choose a specialization. ${TOWNS.first.nights - r.completed} nights remain.`,
+        ];
   if (!r.slots.some((s) => s.building?.type === "farm"))
     return [
       "1 · A village needs a garden",
@@ -717,10 +723,12 @@ export function Village() {
               <div className="map-footer">
                 <span>
                   {r.phase === "day"
-                    ? `Dawn pays ${dawnIncome(r)} Glow from your standing village.`
+                    ? hasFutureDawn(r)
+                      ? `Dawn pays ${dawnIncome(r)} Glow from your standing village.`
+                      : "Survive this night to restore the beacon."
                     : over
                       ? `${r.stats.kills} enemies banished · ${r.stats.lost} buildings lost`
-                      : `Night ${r.night} · ${r.enemies.length} enemies on the roads · ${r.wave.filter((e) => !e.spawned).length} still to come`}
+                      : `Night ${r.night} · ${r.enemies.length} ${r.enemies.length === 1 ? "enemy" : "enemies"} on the roads · ${r.wave.filter((e) => !e.spawned).length} still to come`}
                 </span>
                 {r.phase === "night" && (
                   <div className="button-row">
@@ -899,7 +907,10 @@ export function Village() {
                             <button
                               key={id}
                               className={`build-card ${card === id ? "chosen" : ""}`}
-                              disabled={r.glow < def.cost}
+                              disabled={
+                                r.glow < def.cost ||
+                                (id === "farm" && !hasFutureDawn(r))
+                              }
                               onClick={() => {
                                 setCard(card === id ? null : id);
                                 setMoving(null);
@@ -917,7 +928,9 @@ export function Village() {
                             ? `${BUILDINGS[card].description} Choose an empty plot on the map.`
                             : moving
                               ? "Choose an empty plot. Moving costs 3 Glow."
-                              : "Choose a building, then a plot. Select an existing building to improve it."}
+                              : !hasFutureDawn(r)
+                                ? "Final night: invest in defense. New farms and farm upgrades cannot pay off before victory."
+                                : "Choose a building, then a plot. Select an existing building to improve it."}
                         </p>
                       </section>
                       {b && (
@@ -952,7 +965,10 @@ export function Village() {
                                 ([id, branch]) => (
                                   <button
                                     key={id}
-                                    disabled={r.glow < branch.cost}
+                                    disabled={
+                                      r.glow < branch.cost ||
+                                      (b.type === "farm" && !hasFutureDawn(r))
+                                    }
                                     onClick={() =>
                                       act({
                                         type: "upgrade",
@@ -1027,7 +1043,9 @@ export function Village() {
                     <section className="panel night-controls">
                       <div className="section-heading">
                         <h2>Keep the light moving</h2>
-                        <span>✧ {r.bursts} bursts</span>
+                        <span>
+                          ✧ {r.bursts} {r.bursts === 1 ? "burst" : "bursts"}
+                        </span>
                       </div>
                       <p>
                         Your Warden fights near his rally point. A burst

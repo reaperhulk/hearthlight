@@ -62,3 +62,26 @@ and causal feedback. If players understand but feel passive, revise enemy
 pressure and competing road priorities. If choices converge, change the
 specializations and economy. More towns and prettier effects come after
 these checks, not as a substitute for them.
+
+## September 5 verification
+
+The deployed redesign was played through the visible cloud-browser controls
+on desktop, seed 1840459331. The First Fire reached 3/3 nights with 100 Heart,
+18 banishes, no lost buildings, and the displayed 17-Ember reward. The run
+used the guide, built all three road defenses, specialized a tower, moved
+the Warden, used bursts, exported a save, and reloaded mid-night paused.
+This is an agent acceptance check, not a fresh-player fun assessment.
+
+That playthrough exposed final-night economy choices with no remaining
+payoff. The engine and UI now stop new farm spending on the final night and
+offer immediate combat blessings; existing final-dawn saves refresh their
+unclaimed offer list. Endless mode retains economic choices.
+
+The Chromium smoke also checks narrow and wide viewports, rewards, kit
+selection, the next town, save/reload, and settings. Frame-pacing samples
+are uploaded by CI as `browser-performance`, with the exact revision and
+all repeats. On revision 48e910c, the four scenes held median 59.75–60.00 FPS
+with 4× CPU throttling, and frame p95 at or below 16.8ms. This reaches that
+browser's 60Hz cap; it is not a measured speedup over the old game or a
+claim about a real phone. Device listening, touch ergonomics, heat/battery,
+and independent human playtests remain outstanding.

@@ -133,6 +133,8 @@ export function migrateGame(saved) {
   if (validRound(saved.round)) {
     state.round = copy(saved.round);
     state.round.undo = null;
+    if (state.round.phase === "day" && state.round.offers.length)
+      state.round.offers = blessingOffers(state.round);
     if (state.round.phase === "night" && !state.round.paused)
       return command(state, { type: "pause" });
     state.round.paused = true;
@@ -281,6 +283,26 @@ function validRound(r) {
     r.waveHistory.every(
       (w) => w && [w.night, w.heart, w.seconds].every(Number.isFinite),
     )
+  );
+}
+
+export function hasFutureDawn(r) {
+  return r.endless || r.night < TOWNS[r.town].nights;
+}
+
+export function blessingOffers(r) {
+  const finalNight = !hasFutureDawn(r);
+  const hasLantern = r.slots.some((s) => s.building?.type === "lantern");
+  const available = Object.keys(BLESSINGS).filter(
+    (id) =>
+      !r.blessings.includes(id) &&
+      (!finalNight || !["shelter", "salvage"].includes(id)) &&
+      (!finalNight || hasLantern || id !== "chain"),
+  );
+  const offset = (r.seed + r.completed) % Math.max(1, available.length);
+  return [...available.slice(offset), ...available.slice(0, offset)].slice(
+    0,
+    3,
   );
 }
 
@@ -508,7 +530,13 @@ export function command(state, action) {
         const def = known(BUILDINGS, action.building)
           ? BUILDINGS[action.building]
           : null;
-        if (!def || slot.building || r.glow < def.cost) return state;
+        if (
+          !def ||
+          slot.building ||
+          r.glow < def.cost ||
+          (action.building === "farm" && !hasFutureDawn(r))
+        )
+          return state;
         slot.building = {
           type: action.building,
           branch: null,
@@ -533,7 +561,12 @@ export function command(state, action) {
           slot.building &&
           known(BUILDINGS[slot.building.type].branches, action.branch) &&
           BUILDINGS[slot.building.type].branches[action.branch];
-        if (!branch || slot.building.branch || r.glow < branch.cost)
+        if (
+          !branch ||
+          slot.building.branch ||
+          r.glow < branch.cost ||
+          (slot.building.type === "farm" && !hasFutureDawn(r))
+        )
           return state;
         slot.building.branch = action.branch;
         slot.building.hp = maxHp(slot.building, r.kit);
@@ -813,14 +846,7 @@ function simulate(r) {
     r.undo = null;
     r.wave = makeWave(r.town, r.night, r.seed);
     if (r.completed % 2 === 0) {
-      const available = Object.keys(BLESSINGS).filter(
-        (id) => !r.blessings.includes(id),
-      );
-      const offset = (r.seed + r.completed) % Math.max(1, available.length);
-      r.offers = [
-        ...available.slice(offset),
-        ...available.slice(0, offset),
-      ].slice(0, 3);
+      r.offers = blessingOffers(r);
     }
     event(r, "dawn");
     tale(

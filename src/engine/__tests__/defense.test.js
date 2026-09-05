@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advance,
+  blessingOffers,
   command,
   freshGame,
   migrateGame,
@@ -146,5 +147,37 @@ describe("combat and persistence regressions", () => {
       legacy: { bestNights: { bad: true } },
     });
     expect(legacy.legacy.bestNights).toBe(0);
+  });
+  it("the final dawn offers immediate combat benefits, while endless keeps economy choices", () => {
+    let s = command(start(), { type: "build", slot: "0-2", building: "farm" });
+    s.round.night = 3;
+    s.round.completed = 2;
+    s.round.glow = 100;
+    for (let seed = 0; seed < 30; seed++) {
+      s.round.seed = seed;
+      expect(blessingOffers(s.round).sort()).toEqual([
+        "kindle",
+        "reserves",
+        "watch",
+      ]);
+    }
+    expect(command(s, { type: "build", slot: "1-2", building: "farm" })).toBe(
+      s,
+    );
+    expect(
+      command(s, { type: "upgrade", slot: "0-2", branch: "harvest" }),
+    ).toBe(s);
+    s.round.endless = true;
+    expect(
+      command(s, { type: "build", slot: "1-2", building: "farm" }).round
+        .slots[6].building.type,
+    ).toBe("farm");
+    s.round.endless = false;
+    s.round.offers = ["shelter", "salvage", "chain"];
+    expect(migrateGame(s).round.offers.sort()).toEqual([
+      "kindle",
+      "reserves",
+      "watch",
+    ]);
   });
 });

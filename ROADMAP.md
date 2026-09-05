@@ -15,8 +15,11 @@ acceptance criteria. The engine and interface now use the new loop.
 - [x] Adaptive score, ambience and exact event-driven sound/visual feedback.
 - [x] Production-map browser/performance fixtures, DOM interaction tests, focus
       handling, save recovery and offline lifecycle tests.
-- [ ] Execute Chromium smoke/screenshots and frame probes for this build.
-      Cloud preview access was blocked; these checks remain unverified.
+- [x] Chromium smoke and repeated frame probes run in CI; desktop cloud-browser
+      playthrough reaches victory, collects 17 Embers, and resumes a saved night.
+      Responsive smoke covers widths 360, 390, 768 and 1440.
+- [x] Remove final-night economy traps discovered during browser playtesting;
+      replace useless dawn-only blessings and explain the final assault.
 - [ ] Listen and play on real devices; verify mobile layout and frame pacing.
 - [ ] Fresh human playtest: comprehension, meaningful choices and voluntary replay.
 
