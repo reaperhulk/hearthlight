@@ -50,6 +50,8 @@ acceptance criteria. The engine and interface now use the new loop.
       offline reload, 32 viewport cases and all ten repeated performance scenes.
       PLAYTEST.md records the results and transition stalls, without claiming
       physical-device performance or a human fun assessment.
+- [x] Live alternate opening earns 39 Glow at 94 Heart; dawn now identifies
+      the recorded breach and describes partial beacon progress accurately.
 - [ ] Listen and play on real devices; verify mobile layout and frame pacing.
 - [ ] Fresh human playtest: comprehension, meaningful choices and voluntary replay.
 

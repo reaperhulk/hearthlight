@@ -882,7 +882,7 @@ export function Village() {
                   <section className="panel story-panel">
                     <h2>
                       {r.dawnReport
-                        ? `Dawn ${r.dawnReport.night} · a beacon restored`
+                        ? `Dawn ${r.dawnReport.night} · ${r.endless ? "another night held" : "one night closer"}`
                         : "The village chronicle"}
                     </h2>
                     {r.dawnReport && (
@@ -894,6 +894,17 @@ export function Village() {
                         {r.dawnReport.farms} from farms.
                       </p>
                     )}
+                    {(r.incidents || [])
+                      .filter(
+                        (incident) =>
+                          incident.type === "heart" &&
+                          incident.night === r.completed,
+                      )
+                      .map((incident, i) => (
+                        <p className="danger-text" key={`breach-${i}`}>
+                          {incident.text}
+                        </p>
+                      ))}
                     {r.tale.map((line, i) => (
                       <p key={i}>{line}</p>
                     ))}
@@ -1055,6 +1066,8 @@ export function Village() {
                             {r.dawnReport.lost
                               ? `${r.dawnReport.lost} buildings lost`
                               : "every building held"}
+                            {r.dawnReport.damage > 0 &&
+                              ` · ${r.dawnReport.damage} Heart damage. Dawn & story shows the breach.`}
                           </p>
                         )}
                         {r.night === 1 && r.kit !== "keeper" && (

@@ -101,6 +101,12 @@ essential visual effects, local recording and export. Its exported Briar
 Hollow record (seed 1493368650, 15 commands) replayed to the same gameplay
 state. A separate 14-night heavy-scene record replayed 965 commands.
 
+The live alternate opening then reached dawn with all four buildings,
+8 banishes, 39 Glow and 94 Heart. One Shade reached the Heart from Orchard
+road. That check led to displaying the recorded breach in Dawn & story,
+including nonfatal Heart damage in the compact summary, and describing an
+early dawn as partial progress rather than an already restored beacon.
+
 The final expanded probe used Linux Chrome 152.0.7977.64, 4× CPU throttling,
 three four-second repetitions per scene. Results from CI run 33946814592:
 
