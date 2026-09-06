@@ -20,6 +20,8 @@ import {
   KITS,
   TOWNS,
   mapLanes,
+  encounterFor,
+  buildCost,
 } from "../engine/content.js";
 import { introduction, defeatExplanation, pauseForLesson } from "./guidance.js";
 import { VillageMap } from "./VillageMap.jsx";
@@ -414,6 +416,7 @@ export function Village() {
       )
         return;
       const r = current.current.round;
+      const digit = /^Digit[1-4]$/.test(e.code) ? e.code.at(-1) : e.key;
       if (!r || settings || elsewhere) return;
       if (e.key === "Escape") {
         setCard(null);
@@ -434,8 +437,8 @@ export function Village() {
         e.preventDefault();
         act({ type: "pause" });
       }
-      if (r.phase === "night" && ["1", "2", "3", "4"].includes(e.key)) {
-        const lane = Number(e.key) - 1;
+      if (r.phase === "night" && ["1", "2", "3", "4"].includes(digit)) {
+        const lane = Number(digit) - 1;
         if (mapLanes(r.town)[lane]) {
           const threats = r.enemies.filter((x) => x.lane === lane);
           act(
@@ -443,6 +446,7 @@ export function Village() {
               ? { type: "burst", lane }
               : {
                   type: "rally",
+                  mode: "guard",
                   lane,
                   progress: threats.length
                     ? Math.max(0.3, ...threats.map((x) => x.progress + 0.03))
@@ -455,8 +459,8 @@ export function Village() {
         act({ type: "start" });
         setCard(null);
       }
-      if (r.phase === "day" && ["1", "2", "3", "4"].includes(e.key)) {
-        const id = Object.keys(BUILDINGS)[Number(e.key) - 1];
+      if (r.phase === "day" && ["1", "2", "3", "4"].includes(digit)) {
+        const id = Object.keys(BUILDINGS)[Number(digit) - 1];
         if (
           current.current.settings.guide &&
           r.town === "first" &&
@@ -515,6 +519,7 @@ export function Village() {
       act({
         type: "rally",
         lane,
+        mode: "guard",
         progress: threats.length
           ? Math.max(0.3, Math.max(...threats.map((e) => e.progress)) + 0.03)
           : 0.48,
@@ -524,7 +529,12 @@ export function Village() {
   const onSlot = (slot, touch = false) => {
     setView("build");
     if (r.phase === "night") {
-      act({ type: "rally", lane: slot.lane, progress: slot.progress });
+      act({
+        type: "rally",
+        mode: "hold",
+        lane: slot.lane,
+        progress: slot.progress,
+      });
       return;
     }
     if (r.phase !== "day") return;
@@ -534,7 +544,11 @@ export function Village() {
       setSelected(slot.id);
       return;
     }
-    if (card && !slot.building && r.glow >= BUILDINGS[card].cost) {
+    if (
+      card &&
+      !slot.building &&
+      r.glow >= buildCost(card, r.kit, r.rules || 2)
+    ) {
       if (touch) {
         setPending({ slot: slot.id, building: card });
         setPreview(slot.id);
@@ -785,7 +799,8 @@ export function Village() {
             <div>
               <span className="eyebrow">
                 {TOWNS[r.town].name} · {KITS[r.kit].name}
-                {r.challenge === "no-bursts" ? " · No bursts" : ""}
+                {r.challenge === "no-bursts" ? " · No flares" : ""}
+                {r.rules >= 4 && ` · ${encounterFor(r.town, r.night).name}`}
               </span>
               <h1>
                 {over
@@ -811,7 +826,7 @@ export function Village() {
                 <strong>✦ {r.glow}</strong>
               </span>
               <span>
-                <small>NIGHTS SURVIVED</small>
+                <small>NIGHTS HELD</small>
                 <strong>
                   {r.completed} / {r.endless ? "∞" : TOWNS[r.town].nights}
                 </strong>
@@ -1075,6 +1090,11 @@ export function Village() {
                               </div>
                             );
                           })}
+                          {r.rules >= 4 && (
+                            <p className="encounter-advice">
+                              {encounterFor(r.town, r.night).lesson}
+                            </p>
+                          )}
                           <details>
                             <summary>Know the enemy</summary>
                             {[...new Set(r.wave.map((e) => e.type))].map(
@@ -1133,7 +1153,7 @@ export function Village() {
                               <div className="placement-confirm" role="status">
                                 <strong>
                                   {BUILDINGS[card].name} ·{" "}
-                                  {BUILDINGS[card].cost} Glow
+                                  {buildCost(card, r.kit, r.rules || 2)} Glow
                                 </strong>
                                 <span>
                                   {
@@ -1186,7 +1206,8 @@ export function Village() {
                                   key={id}
                                   className={`build-card ${card === id ? "chosen" : ""} ${lesson?.card === id ? "recommended" : ""}`}
                                   disabled={
-                                    r.glow < def.cost ||
+                                    r.glow <
+                                      buildCost(id, r.kit, r.rules || 2) ||
                                     (id === "farm" && !hasFutureDawn(r))
                                   }
                                   onClick={() => {
@@ -1198,7 +1219,9 @@ export function Village() {
                                 >
                                   <Icon type={id} />
                                   <strong>{def.name}</strong>
-                                  <span>✦ {def.cost}</span>
+                                  <span>
+                                    ✦ {buildCost(id, r.kit, r.rules || 2)}
+                                  </span>
                                 </button>
                               ))}
                           </div>
@@ -1303,6 +1326,15 @@ export function Village() {
                       </>
                     ) : (
                       <section className="panel night-controls">
+                        {r.rules >= 4 && (
+                          <p className="order-summary" role="status">
+                            {r.warden.deployed
+                              ? `${r.warden.mode === "guard" ? "Guarding" : "Holding position on"} ${mapLanes(r.town)[r.warden.lane]?.name}. ${r.warden.orderPending ? "On the way." : "Ready."}`
+                              : "The Warden is awaiting your first order."}
+                            {encounterFor(r.town, r.night).finale &&
+                              ` Assault ${r.assault} of ${r.town === "first" ? 1 : 2}.`}
+                          </p>
+                        )}
                         <div className="section-heading">
                           <h2>Keep the light moving</h2>
                           <span>
@@ -1352,7 +1384,9 @@ export function Village() {
                                   aria-label={`Send Warden to ${lane.name}`}
                                   aria-pressed={r.warden.lane === lane.id}
                                 >
-                                  Send Warden →
+                                  {r.rules >= 4
+                                    ? `Guard road ${lane.id + 1}`
+                                    : "Send Warden →"}
                                 </button>
                                 <button
                                   className="burst"

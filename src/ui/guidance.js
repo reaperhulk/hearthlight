@@ -10,7 +10,7 @@ export function introduction(r) {
           r.paused && r.lessons?.includes("wall")
             ? "The wall is holding. Now help it."
             : "Watch the north wall",
-        text: "Send the Warden to North road. He walks to the attackers and fights automatically.",
+        text: "Send the Warden to North road. He guards that road, follows its attackers and fights automatically until you change his order.",
       };
     if (r.night >= 2 && r.stats.bursts === 0)
       return {
@@ -22,7 +22,7 @@ export function introduction(r) {
       };
     return {
       title: "Hold until dawn",
-      text: "Your Warden fights within his blue circle. Move him when another road needs help.",
+      text: "Your Warden keeps guarding his assigned road. Trust your walls and towers; change his road when another defense needs help.",
     };
   }
   if (r.phase !== "day") return null;

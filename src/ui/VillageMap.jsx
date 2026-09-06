@@ -71,8 +71,20 @@ export function VillageMap({
         canvas.height = Math.round(SIZE * scale);
         canvas.getContext("2d").setTransform(scale, 0, 0, scale, 0, 0);
       }
-      paintGround(ground.getContext("2d"), data.current.round.town);
-      paintGround(night.getContext("2d"), data.current.round.town, true);
+      paintGround(
+        ground.getContext("2d"),
+        data.current.round.town,
+        false,
+        data.current.round.rules || 2,
+        data.current.round.layout,
+      );
+      paintGround(
+        night.getContext("2d"),
+        data.current.round.town,
+        true,
+        data.current.round.rules || 2,
+        data.current.round.layout,
+      );
       townKey = "";
       painted = null;
     };

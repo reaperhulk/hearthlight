@@ -6,7 +6,7 @@ import {
   mapLanes,
   routePoint,
 } from "../engine/content.js";
-import { buildingRange, maxHp } from "../engine/campaign.js";
+import { buildingRange, maxHp, enemyPosition } from "../engine/campaign.js";
 
 export const SIZE = 720;
 const hash = (n) => {
@@ -57,7 +57,7 @@ function tree(ctx, x, y, s, tone) {
   );
 }
 
-export function paintGround(ctx, town, dark = false) {
+export function paintGround(ctx, town, dark = false, rules = 4, layout = null) {
   ctx.clearRect(0, 0, SIZE, SIZE);
   ctx.fillStyle = dark ? "#142528" : "#263f36";
   ctx.fillRect(0, 0, SIZE, SIZE);
@@ -80,7 +80,7 @@ export function paintGround(ctx, town, dark = false) {
       y = hash(i + 100) * SIZE;
     circle(ctx, x, y, 0.7 + hash(i + 200) * 1.8, dark ? "#45615a" : "#85936b");
   }
-  const { lanes, slots } = createMap(town);
+  const { lanes, slots } = createMap(town, rules, layout);
   for (const lane of lanes) {
     for (const [width, color] of [
       [34, "#253b31"],
@@ -92,14 +92,14 @@ export function paintGround(ctx, town, dark = false) {
       ctx.lineCap = "round";
       ctx.beginPath();
       for (let i = 0; i <= 30; i++) {
-        const p = pt(routePoint(lane, i / 30, town));
+        const p = pt(routePoint(lane, i / 30, town, rules, layout));
         if (!i) ctx.moveTo(p.x, p.y);
         else ctx.lineTo(p.x, p.y);
       }
       ctx.stroke();
     }
     for (let i = 0; i < 20; i++) {
-      const p = pt(routePoint(lane, i / 20, town));
+      const p = pt(routePoint(lane, i / 20, town, rules, layout));
       circle(
         ctx,
         p.x + hash(i + lane.id * 50) * 10 - 5,
@@ -108,7 +108,7 @@ export function paintGround(ctx, town, dark = false) {
         "#746d52",
       );
     }
-    const p = pt(routePoint(lane, 0.035, town));
+    const p = pt(routePoint(lane, 0.035, town, rules, layout));
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(lane.angle + Math.PI);
@@ -131,7 +131,7 @@ export function paintGround(ctx, town, dark = false) {
     const x = 360 + Math.cos(angle) * radius,
       y = 360 + Math.sin(angle) * radius;
     const nearRoad = lanes.some((lane) => {
-      const p = pt(routePoint(lane, 0.1, town));
+      const p = pt(routePoint(lane, 0.1, town, rules, layout));
       return Math.hypot(x - p.x, y - p.y) < 49;
     });
     if (!nearRoad)
@@ -367,6 +367,27 @@ export function paintBuildings(ctx, r, contrast = false) {
   for (const slot of r.slots)
     if (slot.building) {
       const p = pt(slot);
+      if (slot.building.type === "wall" && r.rules >= 4) {
+        const road = pt(
+          routePoint(
+            mapLanes(r.town)[slot.lane],
+            slot.progress,
+            r.town,
+            4,
+            r.layout,
+          ),
+        );
+        ctx.strokeStyle =
+          slot.building.branch === "stone" ? "#a9ada0" : "#bc9169";
+        ctx.lineWidth = 9;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(
+          road.x + (road.x - p.x) * 0.3,
+          road.y + (road.y - p.y) * 0.3,
+        );
+        ctx.stroke();
+      }
       drawBuilding(ctx, slot.building.type, p.x, p.y, 1, slot.building.branch);
       const hp = slot.building.hp / maxHp(slot.building, r.kit);
       if (contrast) {
@@ -478,7 +499,7 @@ export function paintLiving(
       ctx.lineWidth = 3;
       ctx.beginPath();
       for (let i = 0; i <= 24; i++) {
-        const p = pt(routePoint(lane, i / 24, r.town));
+        const p = pt(routePoint(lane, i / 24, r.town, r.rules || 2, r.layout));
         if (i) ctx.lineTo(p.x, p.y);
         else ctx.moveTo(p.x, p.y);
       }
@@ -557,10 +578,12 @@ export function paintLiving(
   );
   for (const enemy of r.enemies) {
     const old = previousEnemies.get(enemy.id);
-    const progress = old
-      ? old.progress + (enemy.progress - old.progress) * mix
-      : enemy.progress;
-    const p = pt(routePoint(lanes[enemy.lane], progress, r.town));
+    const at = enemyPosition(r, enemy),
+      before = old ? enemyPosition(r, old) : at;
+    const p = pt({
+      x: before.x + (at.x - before.x) * mix,
+      y: before.y + (at.y - before.y) * mix,
+    });
     const bob =
       decorative && enemy.stun <= 0 ? Math.sin(clock * 5 + enemy.lane) * 2 : 0;
     ctx.drawImage(enemySprite(enemy.type), p.x - 30, p.y - 37 + bob);
@@ -695,11 +718,19 @@ export function paintLiving(
       : r.time - e.time;
     if (age < 0 || age > 0.75) continue;
     ctx.globalAlpha = 1 - age / 0.75;
-    if (e.type === "hit" && e.from && e.to) {
+    if (["hit", "shot"].includes(e.type) && e.from && e.to) {
       const from = pt(e.from),
         to = pt(e.to),
-        travel = e.source === "tower" ? 0.16 : 0.08;
-      const f = motion ? Math.min(1, age / travel) : 1;
+        travel =
+          e.type === "shot"
+            ? 0.15
+            : r.rules >= 4
+              ? 0
+              : e.source === "tower"
+                ? 0.16
+                : 0.08;
+      const f = motion && travel > 0 ? Math.min(1, age / travel) : 1;
+      if (e.type === "shot" && f === 1) continue;
       const x = from.x + (to.x - from.x) * f,
         y = from.y + (to.y - from.y) * f;
       ctx.strokeStyle = e.source === "tower" ? "#ffe2a0" : "#bdeddb";
@@ -754,12 +785,16 @@ export function paintLiving(
       ctx.lineWidth = decorative ? 10 : 3;
       ctx.beginPath();
       for (let i = 0; i <= 20; i++) {
-        const at = pt(routePoint(lanes[e.lane], i / 20, r.town));
+        const at = pt(
+          routePoint(lanes[e.lane], i / 20, r.town, r.rules || 2, r.layout),
+        );
         if (i) ctx.lineTo(at.x, at.y);
         else ctx.moveTo(at.x, at.y);
       }
       ctx.stroke();
-      const p = pt(routePoint(lanes[e.lane], 0.55, r.town));
+      const p = pt(
+        routePoint(lanes[e.lane], 0.55, r.town, r.rules || 2, r.layout),
+      );
       ctx.strokeStyle = "#ffecb0";
       ctx.lineWidth = decorative ? 5 : 2;
       ctx.beginPath();

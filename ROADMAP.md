@@ -9,8 +9,9 @@ implementation; physical-device and listening claims still require evidence.
       and a wall-first opening; Space respects focused buttons.
 - [x] Mouse/keyboard coverage previews and explicit touch placement confirmation.
 - [x] Preserve the previous simulation for existing saves and replay records.
-- [ ] Persistent guard orders, physical raiders, authored tactical geography.
-- [ ] Six-night encounter arcs, finales, distinct towns, kit sidegrades and mastery.
+- [x] Persistent guard orders, physical raiders, authored tactical geography.
+- [x] Six-night encounter arcs, finales, distinct towns, kit sidegrades and mastery.
+- [x] Matched-seed tactical counterexamples and a validated, replayable local scenario API.
 - [ ] Desktop/mobile information layout, recovery advice and accessible battle reports.
 - [ ] Village life, restoration, distinct silhouettes and synchronized impacts.
 - [ ] Authored instrument timbres, longer arrangements and spatial combat cues.

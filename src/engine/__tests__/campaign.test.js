@@ -110,11 +110,12 @@ describe("the village campaign", () => {
     let state = command(start(), { type: "start" });
     expect(command(state, { type: "burst", lane: 0 })).toBe(state);
     state = advance(state, 3);
-    state = command(state, { type: "burst", lane: 0 });
-    expect(state.round.bursts).toBe(1);
-    expect(state.round.enemies[0].stun).toBe(2);
-    state = command(state, { type: "burst", lane: 0 });
-    expect(state.round.bursts).toBe(0);
+    state.round.enemies[0].hp = 100;
+    for (const remaining of [2, 1, 0]) {
+      state = command(state, { type: "burst", lane: 0 });
+      expect(state.round.bursts).toBe(remaining);
+      expect(state.round.enemies[0].stun).toBe(2);
+    }
     expect(command(state, { type: "burst", lane: 0 })).toBe(state);
   });
   it("pausing prevents simulation and does not prevent planning commands", () => {

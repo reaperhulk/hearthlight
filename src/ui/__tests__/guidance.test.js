@@ -44,7 +44,7 @@ describe("lessons and earned challenges", () => {
     const result = defeatExplanation(s.round);
     expect(result.chain[0]).toContain("Timber wall fell on North road");
     expect(result.chain.at(-1)).toContain("reached the Hearth");
-    expect(result.advice).toContain("2 flare charges");
+    expect(result.advice).toContain("3 flare charges");
   });
   it("a no-burst challenge is locked until victory, completable and replayable", () => {
     const fresh = freshGame();

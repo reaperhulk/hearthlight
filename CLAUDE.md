@@ -8,7 +8,11 @@ criteria.
 ## Project structure
 
 - `src/engine/content.js`: towns, maps, buildings, enemies, kits, blessings,
-  and seed-derived waves. No browser dependencies or ambient randomness.
+  and authored, seed-derived waves. No browser dependencies or ambient randomness.
+- `src/engine/encounters.js`: the complete campaign encounter arcs.
+- `src/engine/scenarios.js`: tactical workbench examples.
+- `src/engine/legacy-v2`, `legacy-v3`: frozen simulations for previous saves;
+  never rebalance them when changing current rules.
 - `src/engine/campaign.js`: pure commands, fixed-step combat, rewards,
   save migration, and replay.
 - `src/ui/Village.jsx`: accessible React controls, state loop, persistence.
@@ -36,6 +40,7 @@ Use Node 24.15+ (CI uses Node 24).
   Includes offline reload and viewport/plot hit checks, including short desktops.
   Uses CHROME_PATH and isolated local preview port 4174.
 - `npm run test:strategies`: 60 distinct build examples on matched seeds.
+- `npm run test:tactics`: 30 counterexamples for guard commitment and tower specialization; every result replays exactly.
 - `node scripts/replay.mjs file.json`: verify an exported local playtest record.
 - `npm run balance:compare`: exact deterministic baseline comparison.
 - `npm run balance:baseline`: deliberately regenerate the baseline in the

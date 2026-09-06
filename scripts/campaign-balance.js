@@ -90,6 +90,7 @@ export function nightAction(state, style = "fortress") {
   const urgent = threats[0];
   s = command(s, {
     type: "rally",
+    mode: "guard",
     lane: urgent.lane,
     progress: Math.max(0.3, urgent.progress + 0.04),
   });

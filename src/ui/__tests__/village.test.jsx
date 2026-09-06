@@ -95,7 +95,7 @@ describe("the playable interface", () => {
     expect(labelled("Hearth flare on North road").disabled).toBe(false);
     expect(document.querySelectorAll(".threat-card")).toHaveLength(3);
     await click(labelled("Hearth flare on North road"));
-    expect(window.__game.getState().round.bursts).toBe(1);
+    expect(window.__game.getState().round.bursts).toBe(2);
   });
   it("shows exact victory rewards, collects once, and enables the next town", async () => {
     let state = startGame(freshGame(), "first", 42);

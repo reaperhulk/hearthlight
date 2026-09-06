@@ -42,14 +42,14 @@ function nightWith(enemies, setup = []) {
 const build = (slot, building) => ({ type: "build", slot, building });
 
 describe("combat and persistence regressions", () => {
-  it("a lantern destroyed early in a step cannot crash a later attacker", () => {
+  it("ordinary attackers pass a roadside lantern without damaging it", () => {
     let s = nightWith(
       [enemy("biter"), enemy("walker", "shade", 0.2)],
       [build("0-0", "lantern")],
     );
     s.round.slots[0].building.hp = 1;
     s = advance(s, 0.05);
-    expect(s.round.slots[0].building).toBeNull();
+    expect(s.round.slots[0].building.hp).toBe(1);
     expect(s.round.enemies[1].progress).toBeGreaterThan(0.2);
     expect(s.round.heart).toBe(100);
   });
@@ -76,15 +76,17 @@ describe("combat and persistence regressions", () => {
         [enemy("veil", "mist", 0.4), enemy("shade", "shade", 0.39)],
         [build("0-1", "tower")],
       );
-    const protectedHit = advance(fixture(), 0.05);
+    const fired = advance(fixture(), 0.05);
+    expect(fired.round.enemies[0].hp).toBe(30);
+    const protectedHit = advance(fired, 0.15);
     expect(protectedHit.round.enemies[0].hp).toBeCloseTo(30 - 5 * 0.65);
     let pierce = fixture();
     pierce.round.slots[1].building.branch = "pierce";
-    pierce = advance(pierce, 0.05);
+    pierce = advance(pierce, 0.2);
     expect(pierce.round.enemies[0].hp).toBe(20);
     const interrupted = advance(
       command(fixture(), { type: "burst", lane: 0 }),
-      0.05,
+      0.2,
     );
     expect(interrupted.round.enemies[0].hp).toBe(16);
   });

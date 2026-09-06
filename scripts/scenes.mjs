@@ -97,6 +97,7 @@ function fullTown(battle) {
       battle &&
       s.round.slots.every((p) => p.building?.branch) &&
       s.round.enemies.length >= 8 &&
+      s.round.enemies.some((e) => e.type === "mist") &&
       s.round.events.filter(
         (e) => e.type === "hit" && s.round.time - e.time < 0.5,
       ).length >= 2

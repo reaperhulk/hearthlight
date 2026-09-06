@@ -1,15 +1,9 @@
 import {
-  advance as previousAdvance,
-  command as previousCommand,
-  migrateGame as previousMigrate,
-  replayRound as previousReplay,
-} from "./legacy-v3/campaign.js";
-import {
   advance as legacyAdvance,
   command as legacyCommand,
   migrateGame as legacyMigrate,
   replayRound as legacyReplay,
-} from "./legacy-v2/campaign.js";
+} from "../legacy-v2/campaign.js";
 import {
   BUILDINGS,
   BLESSINGS,
@@ -20,14 +14,6 @@ import {
   mapLanes,
   makeWave,
   routePoint,
-  routeLength,
-  buildCost,
-  startingGlow,
-  flareCharges,
-  encounterFor,
-  validLayout,
-  validGroups,
-  waveFromGroups,
 } from "./content.js";
 
 export const VERSION = 2;
@@ -47,8 +33,6 @@ function forkRound(r) {
       building: s.building ? { ...s.building } : null,
     })),
     enemies: r.enemies.map((e) => ({ ...e })),
-    projectiles: r.projectiles.map((p) => ({ ...p })),
-    ruins: [...r.ruins],
     wave: r.wave.map((e) => ({ ...e })),
     warden: { ...r.warden },
     stats: { ...r.stats },
@@ -70,7 +54,6 @@ export function freshGame() {
     kit: "keeper",
     wins: {},
     records: {},
-    mastery: {},
     history: [],
     legacy: null,
     round: null,
@@ -92,7 +75,6 @@ export function freshGame() {
 
 export function migrateGame(saved) {
   if (saved?.round && !saved.round.rules) return legacyMigrate(saved);
-  if (saved?.round?.rules === 3) return previousMigrate(saved);
   const fresh = freshGame();
   if (!saved || typeof saved !== "object" || Array.isArray(saved)) return fresh;
   const embers = clamp(finite(saved.embers), 0, 1e9);
@@ -130,12 +112,6 @@ export function migrateGame(saved) {
       if (finite(saved[key]?.[id]) > 0)
         state[key][id] = clamp(Math.floor(saved[key][id]), 0, 1e6);
     }
-  for (const town of Object.keys(TOWNS))
-    state.mastery[town] = Array.isArray(saved.mastery?.[town])
-      ? saved.mastery[town].filter((x) =>
-          ["saved", "steadfast", "restorer", "no-bursts"].includes(x),
-        )
-      : [];
   state.history = Array.isArray(saved.history)
     ? saved.history
         .filter(
@@ -219,33 +195,6 @@ export function migrateGame(saved) {
 }
 
 function validRound(r) {
-  if (r && !r.rules)
-    return Boolean(legacyMigrate({ saveVersion: VERSION, round: r }).round);
-  if (r?.rules === 3)
-    return Boolean(previousMigrate({ saveVersion: VERSION, round: r }).round);
-  if (
-    r?.rules !== 4 ||
-    !Array.isArray(r.projectiles) ||
-    r.projectiles.length > 96 ||
-    !Array.isArray(r.ruins) ||
-    r.ruins.length > 16
-  )
-    return false;
-  if (
-    r.projectiles.some(
-      (p) =>
-        !p ||
-        typeof p.target !== "string" ||
-        ![p.damage, p.ttl, p.from?.x, p.from?.y].every(Number.isFinite),
-    )
-  )
-    return false;
-  if (
-    r.ruins.some(
-      (x) => !x || typeof x.slot !== "string" || !known(BUILDINGS, x.type),
-    )
-  )
-    return false;
   if (
     !r ||
     !known(TOWNS, r.town) ||
@@ -291,39 +240,14 @@ function validRound(r) {
     r.carry >= STEP + 1e-8
   )
     return false;
-  if (!validLayout(r.layout, r.town)) return false;
   if (
     !Array.isArray(r.slots) ||
-    r.slots.length !== createMap(r.town, 4, r.layout).slots.length ||
+    r.slots.length !== createMap(r.town).slots.length ||
     !Array.isArray(r.enemies) ||
     r.enemies.length > 200
   )
     return false;
-  if (
-    !validLayout(r.layout, r.town) ||
-    (r.scenario && !validScenario(r.scenario))
-  )
-    return false;
-  const expected = createMap(r.town, 4, r.layout).slots;
-  if (
-    ![1, 2].includes(r.assault) ||
-    !["guard", "hold"].includes(r.warden.mode) ||
-    (r.warden.lane !== null && !mapLanes(r.town)[r.warden.lane])
-  )
-    return false;
-  if (r.ruins.some((x) => !expected.some((s) => s.id === x.slot))) return false;
-  if (
-    r.enemies.some(
-      (e) =>
-        e?.raid &&
-        (!expected.some((s) => s.id === e.raid) ||
-          !Number.isFinite(e.detour) ||
-          e.detour < 0 ||
-          e.detour > 1),
-    )
-  )
-    return false;
-
+  const expected = createMap(r.town).slots;
   if (
     !r.slots.every(
       (s, i) =>
@@ -402,18 +326,9 @@ function validRound(r) {
     return false;
   return (
     r.stats &&
-    [
-      "kills",
-      "wardenKills",
-      "bursts",
-      "lost",
-      "damage",
-      "built",
-      "raids",
-      "interrupts",
-      "orders",
-      "repairs",
-    ].every((key) => Number.isFinite(r.stats[key])) &&
+    ["kills", "wardenKills", "bursts", "lost", "damage", "built"].every((key) =>
+      Number.isFinite(r.stats[key]),
+    ) &&
     Array.isArray(r.tale) &&
     r.tale.every((t) => typeof t === "string") &&
     Array.isArray(r.waveHistory) &&
@@ -467,9 +382,7 @@ export function startGame(
   return {
     ...state,
     round: {
-      rules: 4,
-      layout: null,
-      scenario: null,
+      rules: 3,
       town,
       kit,
       seed: seed >>> 0,
@@ -484,7 +397,10 @@ export function startGame(
       time: 0,
       waveTime: 0,
       carry: 0,
-      glow: startingGlow(town, kit),
+      glow:
+        TOWNS[town].start +
+        (kit === "gardener" ? 10 : 0) -
+        (town === "first" ? 14 : 0),
       heart: 100,
       slots: createMap(town).slots.map((slot) =>
         town === "first" && slot.id === "0-2"
@@ -500,12 +416,9 @@ export function startGame(
           : slot,
       ),
       enemies: [],
-      projectiles: [],
-      ruins: [],
-      assault: 1,
       wave: makeWave(town, 1, seed >>> 0),
       waveHistory: [],
-      bursts: challenge === "no-bursts" ? 0 : flareCharges(kit),
+      bursts: challenge === "no-bursts" ? 0 : 2,
       blessings: [],
       offers: [],
       warden: {
@@ -516,8 +429,6 @@ export function startGame(
         cooldown: 0,
         deployed: false,
         lane: null,
-        mode: "hold",
-        orderPending: false,
       },
       stats: {
         kills: 0,
@@ -526,10 +437,6 @@ export function startGame(
         lost: 0,
         damage: 0,
         built: 0,
-        raids: 0,
-        interrupts: 0,
-        orders: 0,
-        repairs: 0,
       },
       events: [],
       nextEvent: 1,
@@ -602,7 +509,6 @@ export function forecast(r) {
 export function command(state, action, wallTime = null) {
   if (state.round && !state.round.rules)
     return legacyCommand(state, action, wallTime);
-  if (state.round?.rules === 3) return previousCommand(state, action, wallTime);
   const next = applyCommand(state, action);
   if (!state.settings.recording || !action || typeof action.type !== "string")
     return next;
@@ -665,7 +571,6 @@ function applyCommand(state, action) {
   if (!previous) return state;
   if (action.type === "collect") {
     if (ACTIVE.includes(previous.phase)) return state;
-    if (previous.scenario) return { ...state, round: null };
     const earned = reward(previous);
     const wins = { ...state.wins };
     if (previous.phase === "won")
@@ -673,21 +578,6 @@ function applyCommand(state, action) {
     return {
       ...state,
       embers: state.embers + earned,
-      mastery:
-        previous.phase === "won"
-          ? {
-              ...state.mastery,
-              [previous.town]: [
-                ...new Set([
-                  ...(state.mastery?.[previous.town] || []),
-                  "saved",
-                  ...(previous.heart === 100 ? ["steadfast"] : []),
-                  ...(previous.stats.lost === 0 ? ["restorer"] : []),
-                  ...(previous.challenge === "no-bursts" ? ["no-bursts"] : []),
-                ]),
-              ],
-            }
-          : state.mastery,
       lastPlaytestRound: state.settings.recording
         ? previous
         : state.lastPlaytestRound,
@@ -710,9 +600,6 @@ function applyCommand(state, action) {
           kit: previous.kit,
           challenge: previous.challenge || "standard",
           heart: previous.heart,
-          lost: previous.stats.lost,
-          standing: previous.slots.filter((s) => s.building).length,
-          interrupts: previous.stats.interrupts,
         },
       ].slice(-30),
       round: null,
@@ -763,7 +650,6 @@ function applyCommand(state, action) {
         slots: copy(r.slots),
         glow: r.glow,
         stats: copy(r.stats),
-        ruins: [...r.ruins],
       };
       if (action.type === "build") {
         const def = known(BUILDINGS, action.building)
@@ -772,7 +658,7 @@ function applyCommand(state, action) {
         if (
           !def ||
           slot.building ||
-          r.glow < buildCost(action.building, r.kit) ||
+          r.glow < def.cost ||
           (action.building === "farm" && !hasFutureDawn(r))
         )
           return state;
@@ -782,8 +668,7 @@ function applyCommand(state, action) {
           hp: maxHp({ type: action.building }, r.kit),
           cooldown: 0,
         };
-        r.glow -= buildCost(action.building, r.kit);
-        r.ruins = r.ruins.filter((x) => x.slot !== slot.id);
+        r.glow -= def.cost;
         r.stats.built++;
         event(r, "build", { x: slot.x, y: slot.y, material: action.building });
       } else if (action.type === "repair") {
@@ -795,7 +680,6 @@ function applyCommand(state, action) {
           return state;
         slot.building.hp = maxHp(slot.building, r.kit);
         r.glow -= repairCost(r);
-        r.stats.repairs++;
         event(r, "repair", { x: slot.x, y: slot.y });
       } else if (action.type === "upgrade") {
         const branch =
@@ -842,9 +726,7 @@ function applyCommand(state, action) {
       r.bursts =
         r.challenge === "no-bursts"
           ? 0
-          : flareCharges(r.kit) + (r.blessings.includes("reserves") ? 1 : 0);
-      r.assault = 1;
-      r.projectiles = [];
+          : 2 + (r.blessings.includes("reserves") ? 1 : 0);
       r.nightStart = { ...r.stats };
       r.slots.forEach((s) => {
         if (s.building) s.building.cooldown = 0;
@@ -852,7 +734,7 @@ function applyCommand(state, action) {
       event(r, "dusk");
       tale(
         r,
-        `Night ${r.night} · ${encounterFor(r.town, r.night).name}. ${r.wave.length} enemies approach. Hold until dawn.`,
+        `Night ${r.night}: ${r.wave.length} enemies approach. Hold until dawn.`,
       );
       return record();
     }
@@ -860,33 +742,16 @@ function applyCommand(state, action) {
   if (r.phase === "night") {
     const lane = mapLanes(r.town).find((l) => l.id === action.lane);
     if (action.type === "rally" && lane) {
-      const mode =
-        action.mode === "hold" ||
-        (Number.isFinite(action.progress) && action.mode !== "guard")
-          ? "hold"
-          : "guard";
-      if (
-        mode === "guard" &&
-        r.warden.mode === mode &&
-        r.warden.lane === lane.id &&
-        r.warden.deployed
-      )
-        return state;
-      r.warden.mode = mode;
-      r.warden.orderPending = true;
-      r.stats.orders++;
       const pos = routePoint(
         lane,
         clamp(finite(action.progress, 0.48), 0.15, 0.98),
         r.town,
-        4,
-        r.layout,
       );
       r.warden.targetX = pos.x;
       r.warden.targetY = pos.y;
       r.warden.deployed = true;
       r.warden.lane = lane.id;
-      event(r, "rally", { ...pos, lane: lane.id, mode });
+      event(r, "rally", pos);
       return record();
     }
     if (action.type === "burst" && lane && r.bursts > 0) {
@@ -895,16 +760,6 @@ function applyCommand(state, action) {
       r.bursts--;
       r.stats.bursts++;
       for (const enemy of targets) {
-        if (enemy.warned && enemy.stun <= 0) {
-          r.stats.interrupts++;
-          event(r, "interrupt", {
-            ...enemyPosition(r, enemy),
-            lane: enemy.lane,
-          });
-        }
-        enemy.warned = false;
-        enemy.raid = null;
-        enemy.detour = 0;
         enemy.hp -= 9;
         enemy.stun = 2;
         enemy.progress = Math.max(0, enemy.progress - 0.12);
@@ -922,20 +777,7 @@ function applyCommand(state, action) {
 }
 
 export function enemyPosition(r, enemy) {
-  const pos = routePoint(
-    mapLanes(r.town)[enemy.lane],
-    enemy.progress,
-    r.town,
-    r.rules || 2,
-    r.layout,
-  );
-  const site = enemy.raid && r.slots.find((s) => s.id === enemy.raid);
-  return site
-    ? {
-        x: pos.x + (site.x - pos.x) * enemy.detour,
-        y: pos.y + (site.y - pos.y) * enemy.detour,
-      }
-    : pos;
+  return routePoint(mapLanes(r.town)[enemy.lane], enemy.progress, r.town);
 }
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -960,15 +802,10 @@ function simulate(r) {
     if (!spawn.spawned && spawn.at <= r.waveTime + 1e-8) {
       spawn.spawned = true;
       const def = ENEMIES[spawn.type];
-      const extra = Math.max(0, r.night - TOWNS[r.town].nights);
       const mult = r.endless
-        ? 1 + extra * 0.1 + Math.max(0, extra - 10) ** 1.5 * 0.12
+        ? 1 + Math.max(0, r.night - TOWNS[r.town].nights) * 0.16
         : 1;
-      event(r, "approach", { lane: spawn.lane, enemyType: spawn.type });
-      if (spawn.assault > r.assault) {
-        r.assault = spawn.assault;
-        event(r, "assault", { assault: r.assault });
-      }
+      event(r, "approach", { lane: spawn.lane });
       r.enemies.push({
         ...spawn,
         hp: def.hp * mult,
@@ -978,34 +815,15 @@ function simulate(r) {
         stun: 0,
         burn: 0,
         burnRate: 0,
-        raid: null,
-        detour: 0,
-        raided: false,
-        enraged: false,
-        warned: false,
       });
     }
   const w = r.warden;
-  if (w.deployed && w.mode === "guard") {
-    const threat = r.enemies
-      .filter((e) => e.hp > 0 && e.lane === w.lane)
-      .sort((a, b) => b.progress - a.progress)[0];
-    const pos = threat
-      ? enemyPosition(r, threat)
-      : routePoint(mapLanes(r.town)[w.lane], 0.38, r.town, 4, r.layout);
-    w.targetX = pos.x;
-    w.targetY = pos.y;
-  }
   const dist = distance(w, { x: w.targetX, y: w.targetY });
-  const travel = 0.19 * STEP * (r.kit === "ranger" ? 1.4 : 1);
+  const travel = 0.22 * STEP * (r.kit === "ranger" ? 1.4 : 1);
   if (dist > 0) {
     const f = Math.min(1, travel / dist);
     w.x += (w.targetX - w.x) * f;
     w.y += (w.targetY - w.y) * f;
-  }
-  if (w.orderPending && dist < 0.075) {
-    w.orderPending = false;
-    event(r, "arrive", { x: w.x, y: w.y, lane: w.lane });
   }
   const lanterns = r.slots.filter((s) => s.building?.type === "lantern");
   const litBy = (point) =>
@@ -1024,14 +842,6 @@ function simulate(r) {
     });
     if (enemy.hp <= 0 && source === "warden") r.stats.wardenKills++;
   };
-  // Damage occurs at arrival, matching the displayed flight of the bolt.
-  for (const shot of r.projectiles) {
-    shot.ttl -= STEP;
-    if (shot.ttl > 1e-8) continue;
-    const target = r.enemies.find((e) => e.id === shot.target && e.hp > 0);
-    if (target) hurt(target, shot.damage, "tower", shot.from);
-  }
-  r.projectiles = r.projectiles.filter((shot) => shot.ttl > 1e-8);
   for (const slot of r.slots) {
     const b = slot.building;
     if (b?.type !== "tower") continue;
@@ -1052,17 +862,13 @@ function simulate(r) {
           e.stun <= 0 &&
           distance(positions.get(e.id), positions.get(enemy.id)) < 0.14,
       );
-      const damage =
+      hurt(
+        enemy,
         (b.branch === "pierce" ? 10 : BUILDINGS.tower.damage) *
-        (mist && b.branch !== "pierce" ? 0.65 : 1);
-      const from = { x: slot.x, y: slot.y };
-      r.projectiles.push({ target: enemy.id, damage, from, ttl: 0.15 });
-      event(r, "shot", {
-        source: "tower",
-        from,
-        to: positions.get(enemy.id),
-        enemy: enemy.id,
-      });
+          (mist && b.branch !== "pierce" ? 0.65 : 1),
+        "tower",
+        { x: slot.x, y: slot.y },
+      );
     }
     b.cooldown =
       BUILDINGS.tower.interval * (r.blessings.includes("watch") ? 0.8 : 1);
@@ -1073,11 +879,11 @@ function simulate(r) {
     .sort((a, b) => b.progress - a.progress);
   w.targetEnemy = w.deployed ? (threats[0]?.id ?? null) : null;
   if (w.deployed && w.cooldown < 1e-8 && threats.length) {
-    const lamp = litBy(w),
-      damage =
-        6 +
-        (r.kit === "ranger" ? 2 : 0) +
-        (lamp ? (lamp.building.branch === "courage" ? 6 : 3) : 0);
+    const lamp = litBy(w);
+    const damage =
+      6 +
+      (r.kit === "ranger" ? 2 : 0) +
+      (lamp ? (lamp.building.branch === "courage" ? 6 : 3) : 0);
     hurt(threats[0], damage, "warden", { x: w.x, y: w.y });
     if (lamp && r.blessings.includes("chain") && threats[1])
       hurt(threats[1], damage, "warden", { x: w.x, y: w.y });
@@ -1090,127 +896,42 @@ function simulate(r) {
       enemy.burn = Math.max(0, enemy.burn - STEP);
       if (enemy.hp <= 0) continue;
     }
-    if (
-      enemy.type === "king" &&
-      !enemy.enraged &&
-      enemy.hp <= enemy.maxHp * 0.5
-    ) {
-      enemy.enraged = true;
-      event(r, "enrage", { ...positions.get(enemy.id), lane: enemy.lane });
-      tale(r, "The crown breaks. The Hollow king quickens its heavy strike.");
-    }
     if (enemy.stun > 0) {
       enemy.stun = Math.max(0, enemy.stun - STEP);
       continue;
     }
-    const def = ENEMIES[enemy.type],
-      interval = def.interval * (enemy.enraged ? 0.72 : 1),
-      damage = def.damage + (enemy.enraged ? 4 : 0);
-    let target = null;
-    if (enemy.raid) {
-      const site = r.slots.find((s) => s.id === enemy.raid);
-      const length = Math.max(
-        0.01,
-        distance(
-          site,
-          routePoint(
-            mapLanes(r.town)[enemy.lane],
-            enemy.progress,
-            r.town,
-            4,
-            r.layout,
-          ),
-        ),
+    const def = ENEMIES[enemy.type];
+    const target = r.slots
+      .filter(
+        (s) =>
+          s.lane === enemy.lane &&
+          s.building &&
+          s.progress >= enemy.progress - 0.005,
+      )
+      .sort((a, b) => a.progress - b.progress)[0];
+    const endpoint = target?.progress ?? 1;
+    if (enemy.progress < endpoint - 1e-8) {
+      const lamp = litBy(positions.get(enemy.id));
+      enemy.progress = Math.min(
+        endpoint,
+        enemy.progress +
+          def.speed *
+            STEP *
+            (lamp ? (lamp.building.branch === "reach" ? 0.5 : 0.7) : 1),
       );
-      enemy.detour = Math.max(
-        0,
-        Math.min(
-          1,
-          enemy.detour +
-            ((site.building?.type === "farm" ? 1 : -1) * 0.065 * STEP) / length,
-        ),
-      );
-      if (!site.building && enemy.detour === 0) {
-        enemy.raid = null;
-        enemy.raided = true;
-        enemy.windup = interval;
-        continue;
-      }
-      if (enemy.detour < 1 || !site.building) continue;
-      target = site;
-    } else {
-      const wall = r.slots
-        .filter(
-          (s) =>
-            s.lane === enemy.lane &&
-            s.building?.type === "wall" &&
-            s.progress >= enemy.progress - 0.005,
-        )
-        .sort((a, b) => a.progress - b.progress)[0];
-      const farm =
-        enemy.type === "runner" && !enemy.raided
-          ? r.slots
-              .filter(
-                (s) =>
-                  s.lane === enemy.lane &&
-                  s.building?.type === "farm" &&
-                  s.progress >= enemy.progress - 0.005 &&
-                  (!wall || s.progress < wall.progress),
-              )
-              .sort((a, b) => a.progress - b.progress)[0]
-          : null;
-      const endpoint = farm?.progress ?? wall?.progress ?? 1;
-      if (enemy.progress < endpoint - 1e-8) {
-        const lamp = litBy(positions.get(enemy.id));
-        enemy.progress = Math.min(
-          endpoint,
-          enemy.progress +
-            def.speed *
-              STEP *
-              (0.405 / routeLength(r.town, enemy.lane, r.layout)) *
-              (lamp ? (lamp.building.branch === "reach" ? 0.5 : 0.7) : 1),
-        );
-        enemy.windup = interval;
-        enemy.warned = false;
-        continue;
-      }
-      if (farm) {
-        enemy.raid = farm.id;
-        enemy.detour = 0;
-        r.stats.raids++;
-        event(r, "raid", {
-          lane: enemy.lane,
-          ...positions.get(enemy.id),
-          site: farm.id,
-        });
-        continue;
-      }
-      target = wall;
+      enemy.windup = def.interval;
+      continue;
     }
     enemy.windup -= STEP;
-    if (
-      ["brute", "king"].includes(enemy.type) &&
-      enemy.windup <= 1.1 &&
-      !enemy.warned
-    ) {
-      enemy.warned = true;
-      event(r, "windup", {
-        ...positions.get(enemy.id),
-        lane: enemy.lane,
-        enemy: enemy.id,
-      });
-    }
     if (enemy.windup > 1e-8) continue;
-    enemy.windup = interval;
-    enemy.warned = false;
+    enemy.windup = def.interval;
     if (target) {
-      target.building.hp -= damage;
+      target.building.hp -= def.damage;
       event(r, "bite", {
         x: target.x,
         y: target.y,
-        damage,
+        damage: def.damage,
         material: target.building.type,
-        lane: enemy.lane,
       });
       if (target.building.branch === "thorns") {
         hurt(enemy, 4, "thorns", { x: target.x, y: target.y });
@@ -1220,20 +941,18 @@ function simulate(r) {
         const name = BUILDINGS[target.building.type].name;
         if (r.blessings.includes("salvage"))
           r.glow += Math.floor(BUILDINGS[target.building.type].cost / 2);
-        r.ruins = r.ruins.filter((x) => x.slot !== target.id);
-        r.ruins.push({ slot: target.id, type: target.building.type });
         target.building = null;
         r.stats.lost++;
         event(r, "fall", { x: target.x, y: target.y, lane: enemy.lane });
         r.lastLoss = `${name} fell on ${mapLanes(r.town)[enemy.lane].name}.`;
-        tale(r, r.lastLoss);
+        tale(r, `${r.lastLoss} The road is open behind it.`);
         incident(r, "fall", enemy.lane, r.lastLoss);
       }
     } else {
-      r.heart = Math.max(0, r.heart - damage);
-      r.stats.damage += damage;
+      r.heart = Math.max(0, r.heart - def.damage);
+      r.stats.damage += def.damage;
       r.lastLoss = `${def.name} reached the Hearth along ${mapLanes(r.town)[enemy.lane].name}.`;
-      event(r, "heart", { damage, lane: enemy.lane });
+      event(r, "heart", { damage: def.damage, lane: enemy.lane });
       incident(r, "heart", enemy.lane, r.lastLoss);
       if (r.heart <= 0) {
         r.phase = "lost";
@@ -1263,11 +982,9 @@ function simulate(r) {
       lost: r.stats.lost - (r.nightStart?.lost || 0),
       damage: r.stats.damage - (r.nightStart?.damage || 0),
       standing: r.slots.filter((s) => s.building).length,
-      interrupts: r.stats.interrupts - (r.nightStart?.interrupts || 0),
-      raids: r.stats.raids - (r.nightStart?.raids || 0),
     };
     r.waveHistory.push({ night: r.night, heart: r.heart, seconds: r.waveTime });
-    if (r.scenario || (!r.endless && r.completed >= TOWNS[r.town].nights)) {
+    if (!r.endless && r.completed >= TOWNS[r.town].nights) {
       r.phase = "won";
       event(r, "won");
       tale(r, "The beacon is whole. The village will see another spring.");
@@ -1304,7 +1021,6 @@ function simulate(r) {
 
 export function advance(state, dt) {
   if (state.round && !state.round.rules) return legacyAdvance(state, dt);
-  if (state.round?.rules === 3) return previousAdvance(state, dt);
   if (
     !state.round ||
     state.round.phase !== "night" ||
@@ -1319,7 +1035,7 @@ export function advance(state, dt) {
     r.carry = Math.max(0, r.carry - STEP);
     simulate(r);
   }
-  if (r.phase !== "night" || r.carry < 1e-9) r.carry = 0;
+  if (r.phase !== "night") r.carry = 0;
   return { ...state, round: r };
 }
 
@@ -1327,7 +1043,6 @@ export function advance(state, dt) {
 // Simulation time, rather than wall time, makes pause and speed settings irrelevant.
 export function replayRound(record) {
   if (record && !record.rules) return legacyReplay(record);
-  if (record?.rules === 3) return previousReplay(record);
   if (
     !record ||
     record.replayTruncated ||
@@ -1342,15 +1057,13 @@ export function replayRound(record) {
   let state = freshGame();
   state.kit = record.kit;
   state.wins = Object.fromEntries(Object.keys(TOWNS).map((id) => [id, 1]));
-  state = record.scenario
-    ? startScenario(record.scenario)
-    : startGame(
-        state,
-        record.town,
-        record.seed,
-        record.endless,
-        record.challenge || "standard",
-      );
+  state = startGame(
+    state,
+    record.town,
+    record.seed,
+    record.endless,
+    record.challenge || "standard",
+  );
   for (const action of record.commands) {
     if (
       !Number.isFinite(action.time) ||
@@ -1378,44 +1091,4 @@ export function replayRound(record) {
     state = next;
   }
   return state;
-}
-
-export function validScenario(def) {
-  return Boolean(
-    def &&
-      known(TOWNS, def.town) &&
-      known(KITS, def.kit) &&
-      Number.isInteger(def.seed) &&
-      def.seed >= 0 &&
-      def.seed <= 4294967295 &&
-      Number.isInteger(def.night) &&
-      def.night >= 1 &&
-      def.night <= 6 &&
-      Number.isFinite(def.budget) &&
-      def.budget >= 0 &&
-      def.budget <= 500 &&
-      validLayout(def.layout, def.town) &&
-      validGroups(def.groups, def.town),
-  );
-}
-export function startScenario(definition) {
-  if (!validScenario(definition))
-    throw new Error(
-      "Invalid encounter: check roads, plots, spawn groups and budget.",
-    );
-  const def = copy(definition),
-    state = freshGame();
-  state.kit = def.kit;
-  state.wins = Object.fromEntries(Object.keys(TOWNS).map((id) => [id, 1]));
-  const s = startGame(state, def.town, def.seed);
-  Object.assign(s.round, {
-    layout: def.layout || null,
-    scenario: def,
-    slots: createMap(def.town, 4, def.layout).slots,
-    glow: def.budget,
-    night: def.night,
-    completed: def.night - 1,
-    wave: waveFromGroups(def.groups, def.seed, def.night),
-  });
-  return s;
 }

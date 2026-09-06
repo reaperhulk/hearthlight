@@ -45,7 +45,7 @@ try {
     () => window.__game.getState().round.enemies.length > 0,
   );
   await page.click('[aria-label="Hearth flare on North road"]');
-  await page.waitForFunction(() => window.__game.getState().round.bursts === 1);
+  await page.waitForFunction(() => window.__game.getState().round.bursts === 2);
   await page.click('[aria-label="Open settings"]');
   assert.ok((await page.evaluate(() => window.__game.getState())).round.paused);
   await page.keyboard.press("Escape");
