@@ -329,9 +329,11 @@ function validRound(r) {
       (s, i) =>
         s?.id === expected[i].id &&
         s.lane === expected[i].lane &&
-        s.progress === expected[i].progress &&
-        s.x === expected[i].x &&
-        s.y === expected[i].y &&
+        ["progress", "x", "y"].every(
+          (key) =>
+            Number.isFinite(s[key]) &&
+            Math.abs(s[key] - expected[i][key]) < 1e-9,
+        ) &&
         (!s.building ||
           (known(BUILDINGS, s.building.type) &&
             Number.isFinite(s.building.hp) &&

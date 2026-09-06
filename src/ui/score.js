@@ -3,6 +3,8 @@ import { maxHp } from "../engine/campaign.js";
 // An original, scheduled folk motif with day/night arrangements and three mix buses.
 // Audio is decorative: every warning also has a visible counterpart.
 let ctx, buses, compressor, timer, noiseSource, noiseBuffer;
+const waveforms = new Map();
+let effectPan = 0;
 let duckUntil = 0,
   variation = 0,
   generation = 0;
@@ -13,8 +15,173 @@ let nextBeat = 0,
   active = false,
   voices = 0;
 let levels = { music: 0.35, effects: 0.65, ambience: 0.35 };
-const roots = [48, 53, 57, 55];
-const melody = [0, 7, 12, 7, 4, 2, 0, 7, 9, 7, 4, 2, 0, 4, 7, 12];
+// Four paired 32-beat sentences with rests and a quiet interlude: about two minutes.
+const roots = [48, 53, 57, 55, 48, 50, 53, 55];
+const phrases = [
+  [
+    0,
+    null,
+    7,
+    12,
+    null,
+    7,
+    4,
+    null,
+    2,
+    4,
+    7,
+    null,
+    4,
+    null,
+    2,
+    null,
+    0,
+    null,
+    7,
+    9,
+    null,
+    7,
+    4,
+    null,
+    2,
+    null,
+    0,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ],
+  [
+    4,
+    null,
+    7,
+    12,
+    14,
+    null,
+    12,
+    7,
+    9,
+    null,
+    7,
+    null,
+    4,
+    2,
+    4,
+    null,
+    7,
+    null,
+    9,
+    12,
+    null,
+    9,
+    7,
+    null,
+    4,
+    null,
+    2,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ],
+  [
+    0,
+    null,
+    null,
+    7,
+    null,
+    null,
+    4,
+    null,
+    2,
+    null,
+    null,
+    null,
+    0,
+    null,
+    null,
+    null,
+    9,
+    null,
+    null,
+    7,
+    null,
+    null,
+    4,
+    null,
+    2,
+    null,
+    0,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ],
+  [
+    7,
+    9,
+    12,
+    null,
+    14,
+    12,
+    9,
+    null,
+    7,
+    null,
+    4,
+    7,
+    9,
+    null,
+    7,
+    null,
+    4,
+    null,
+    2,
+    0,
+    null,
+    2,
+    4,
+    null,
+    7,
+    null,
+    0,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ],
+];
+const harmonics = {
+  lute: [0, 1, 0.46, 0.25, 0.12, 0.06, 0.03],
+  flute: [0, 1, 0.06, 0.19, 0.025, 0.035],
+  cello: [0, 1, 0.42, 0.28, 0.17, 0.11, 0.08],
+  bell: [0, 1, 0.08, 0.5, 0.03, 0.21, 0.01, 0.09],
+};
+function instrument(osc, name) {
+  if (!harmonics[name]) {
+    osc.type = name;
+    return;
+  }
+  if (!waveforms.has(name))
+    waveforms.set(
+      name,
+      ctx.createPeriodicWave(
+        new Float32Array(harmonics[name].length),
+        new Float32Array(harmonics[name]),
+      ),
+    );
+  osc.setPeriodicWave(waveforms.get(name));
+}
+function connectSpatial(source, bus, pan) {
+  const panner = ctx.createStereoPanner();
+  panner.pan.value = Math.max(-0.8, Math.min(0.8, pan));
+  source.connect(panner).connect(buses[bus]);
+  return panner;
+}
 const freq = (note) => 440 * 2 ** ((note - 69) / 12);
 
 function note(
@@ -24,6 +191,7 @@ function note(
   bus = "music",
   type = "triangle",
   when = 0,
+  pan = bus === "effects" ? effectPan : 0,
 ) {
   if (
     !ctx ||
@@ -36,14 +204,30 @@ function note(
   const osc = ctx.createOscillator(),
     amp = ctx.createGain(),
     filter = ctx.createBiquadFilter();
-  osc.type = type;
+  instrument(osc, type);
   osc.frequency.value = freq(pitch);
   filter.type = "lowpass";
-  filter.frequency.value = bus === "music" ? 1500 : 4000;
+  filter.frequency.setValueAtTime(
+    type === "lute"
+      ? 3400
+      : type === "cello"
+        ? 900
+        : bus === "music"
+          ? 2100
+          : 4000,
+    start,
+  );
+  if (type === "lute")
+    filter.frequency.exponentialRampToValueAtTime(650, start + length);
+  const attack = type === "flute" || type === "cello" ? 0.12 : 0.012;
   amp.gain.setValueAtTime(0, start);
-  amp.gain.linearRampToValueAtTime(volume, start + Math.min(0.025, length / 5));
+  amp.gain.linearRampToValueAtTime(
+    volume,
+    start + Math.min(attack, length / 5),
+  );
   amp.gain.exponentialRampToValueAtTime(0.0001, start + length);
-  osc.connect(filter).connect(amp).connect(buses[bus]);
+  osc.connect(filter).connect(amp);
+  const panner = connectSpatial(amp, bus, pan);
   osc.start(start);
   osc.stop(start + length + 0.03);
   voices++;
@@ -53,6 +237,7 @@ function note(
     osc.disconnect();
     filter.disconnect();
     amp.disconnect();
+    panner.disconnect();
   };
 }
 
@@ -63,45 +248,58 @@ function schedule() {
     return;
   }
   while (nextBeat < ctx.currentTime + 0.15) {
-    const root = roots[Math.floor(beat / 16) % roots.length];
-    const n = beat % 16;
-    const phrase = Math.floor(beat / 64) % 3;
-    note(
-      root + 12 + melody[(n + (phrase === 2 ? 8 : 0)) % 16],
-      0.8,
-      n % 4 === 0 ? 0.1 : 0.055,
-      "music",
-      phrase === 1 ? "sine" : "triangle",
-      nextBeat,
-    );
-    if (n % 4 === 0) {
-      note(root, 2.4, 0.08, "music", "sine", nextBeat);
-      note(root + 7, 2.0, 0.035, "music", "sine", nextBeat + 0.025);
+    const bar = Math.floor(beat / 8),
+      root = roots[bar % roots.length],
+      n = beat % 32;
+    const section = Math.floor(beat / 64) % 4,
+      melody = phrases[section][n];
+    const night = mood === "night" || mood === "danger";
+    if (melody !== null && !(night && n % 4 === 3))
+      note(
+        root + 12 + melody,
+        n % 4 === 0 ? 1.1 : 0.65,
+        n % 4 === 0 ? 0.065 : 0.04,
+        "music",
+        section === 1 ? "flute" : "lute",
+        nextBeat,
+        -0.18,
+      );
+    if (beat % 8 === 0) {
+      note(root - 12, 3.4, 0.045, "music", "cello", nextBeat, 0.12);
+      if (section !== 2)
+        note(root + 7, 2.8, 0.018, "music", "flute", nextBeat + 0.03, 0.3);
     }
-    if (mood === "day" && n === 6) {
-      note(root + 24, 0.12, 0.018, "ambience", "sine", nextBeat);
-      note(root + 26, 0.1, 0.012, "ambience", "sine", nextBeat + 0.16);
+    // Spare answer phrase in the upper register, leaving the melody room.
+    if (!night && section === 3 && [6, 14, 22].includes(n))
+      note(
+        root + 24 + [7, 4, 2][Math.floor(n / 8)],
+        1.5,
+        0.022,
+        "music",
+        "bell",
+        nextBeat,
+        0.35,
+      );
+    if (!night && section === 2 && n === 10) {
+      note(root + 29, 0.13, 0.018, "ambience", "sine", nextBeat, -0.6);
+      note(root + 31, 0.1, 0.012, "ambience", "sine", nextBeat + 0.18, -0.5);
     }
-    if (n % 8 === 0)
-      percussion(0.05, 700 + (beat % 3) * 130, 0.04, "ambience", nextBeat);
-    if (mood === "night" || mood === "danger") {
-      if (n % 8 === 0) {
-        note(root - 12, 3.0, 0.035, "music", "triangle", nextBeat);
-        note(root - 5, 2.8, 0.025, "music", "triangle", nextBeat + 0.07);
-      }
-      if (n % 2 === 0)
-        note(
-          root - 12,
-          0.22,
-          mood === "danger" ? 0.13 : 0.075,
-          "music",
-          "triangle",
-          nextBeat,
-        );
-      if (mood === "danger" && n % 4 === 2)
-        note(root + 1, 0.65, 0.025, "music", "sine", nextBeat);
+    if (night && beat % 4 === 0) {
+      percussion(0.13, mood === "danger" ? 180 : 260, 0.22, "music", nextBeat);
+      note(
+        root - 12,
+        0.3,
+        mood === "danger" ? 0.08 : 0.045,
+        "music",
+        "cello",
+        nextBeat,
+        0,
+      );
     }
-    nextBeat += mood === "day" ? 0.48 : 0.42;
+    if (mood === "danger" && beat % 8 === 6)
+      percussion(0.08, 1100, 0.12, "music", nextBeat);
+    if (beat % 16 === 12) percussion(0.06, 900, 0.07, "ambience", nextBeat);
+    nextBeat += mood === "day" ? 0.5 : 0.43;
     beat++;
   }
 }
@@ -177,6 +375,8 @@ export function scoreMood(r) {
   const threatened = r.enemies.some(
     (e) =>
       e.progress > 0.72 ||
+      e.raid ||
+      e.warned ||
       r.slots.some(
         (s) =>
           s.building &&
@@ -209,9 +409,17 @@ export function disposeScore() {
   duckUntil = 0;
   active = false;
   lastSounds.clear();
+  waveforms.clear();
 }
 
-function percussion(length, cutoff, volume, bus = "effects", when = 0) {
+function percussion(
+  length,
+  cutoff,
+  volume,
+  bus = "effects",
+  when = 0,
+  pan = bus === "effects" ? effectPan : 0,
+) {
   if (
     !ctx ||
     ctx.state !== "running" ||
@@ -231,7 +439,8 @@ function percussion(length, cutoff, volume, bus = "effects", when = 0) {
   filter.Q.value = 1.6;
   gain.gain.setValueAtTime(volume, start);
   gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
-  source.connect(filter).connect(gain).connect(buses[bus]);
+  source.connect(filter).connect(gain);
+  const panner = connectSpatial(gain, bus, pan);
   source.start(start, (variation++ % 20) * 0.1, length);
   voices++;
   source.onended = () => {
@@ -239,6 +448,7 @@ function percussion(length, cutoff, volume, bus = "effects", when = 0) {
     source.disconnect();
     filter.disconnect();
     gain.disconnect();
+    panner.disconnect();
   };
 }
 function duck() {
@@ -255,17 +465,26 @@ export function soundEvent(event) {
   const gap =
     {
       approach: 6,
+      raid: 1.2,
+      windup: 1.1,
+      shot: 0.07,
+      arrive: 0.3,
       heart: 0.65,
       fall: 0.3,
       hit: 0.035,
       bite: 0.07,
       banish: 0.08,
     }[event.type] || 0;
-  const key = `${event.type}:${event.type === "approach" ? event.lane : event.source || ""}`;
+  const key = `${event.type}:${["approach", "raid", "windup"].includes(event.type) ? event.lane : event.source || ""}`;
   if (ctx.currentTime - (lastSounds.get(key) ?? -Infinity) < gap) return;
   lastSounds.set(key, ctx.currentTime);
+  const location = Number.isFinite(event.x) ? event.x : event.to?.x;
+  effectPan = Number.isFinite(location)
+    ? (location - 0.5) * 1.5
+    : [0, 0.65, 0, -0.65][event.lane] || 0;
   const detune = ((variation++ % 5) - 2) * 0.14;
-  if (["fall", "heart"].includes(event.type)) duck();
+  if (["fall", "heart", "windup", "raid", "assault"].includes(event.type))
+    duck();
   switch (event.type) {
     case "build":
       percussion(0.15, event.material === "tower" ? 1600 : 450, 0.8);
@@ -299,6 +518,29 @@ export function soundEvent(event) {
     case "rally":
       note(74, 0.15, 0.035, "effects", "sine");
       break;
+    case "arrive":
+      note(79, 0.12, 0.035, "effects", "bell");
+      break;
+    case "raid":
+      note(81, 0.13, 0.055, "effects", "bell");
+      note(74, 0.2, 0.055, "effects", "bell", ctx.currentTime + 0.16);
+      break;
+    case "windup":
+      note(38, 0.65, 0.1, "effects", "cello");
+      percussion(0.15, 240, 0.45);
+      break;
+    case "interrupt":
+      percussion(0.22, 2400, 0.4);
+      note(86, 0.3, 0.06, "effects", "bell");
+      break;
+    case "enrage":
+    case "assault":
+      note(36, 1.2, 0.085, "effects", "cello");
+      note(43, 1.0, 0.05, "effects", "cello", ctx.currentTime + 0.2);
+      break;
+    case "shot":
+      percussion(0.09, 3800, 0.15);
+      break;
     case "hit":
       percussion(0.07, event.source === "tower" ? 2800 : 1000, 0.3);
       note(
@@ -329,7 +571,19 @@ export function soundEvent(event) {
       );
       break;
     case "approach":
-      note(55, 0.4, 0.035, "effects", "sine");
+      note(
+        event.enemyType === "king"
+          ? 36
+          : event.enemyType === "brute"
+            ? 43
+            : event.enemyType === "runner"
+              ? 76
+              : 55,
+        0.45,
+        0.04,
+        "effects",
+        event.enemyType === "runner" ? "bell" : "flute",
+      );
       break;
     case "heart":
       note(40, 0.35, 0.1, "effects", "sine", ctx.currentTime + 0.15);

@@ -4,6 +4,7 @@ import {
   command,
   freshGame,
   startGame,
+  startScenario,
   enemyPosition,
   migrateGame,
   replayRound,
@@ -15,6 +16,7 @@ import {
   startingGlow,
   routeLength,
 } from "../content.js";
+import { SCENARIOS } from "../scenarios.js";
 const night = () =>
   command(startGame(freshGame(), "first", 42), { type: "start" });
 const enemy = (type, progress) => ({
@@ -101,4 +103,12 @@ it("rejects a saved raid or guard order pointing outside its map", () => {
   s.round.warden.mode = "guard";
   s.round.warden.lane = 99;
   expect(migrateGame(s).round).toBeNull();
+});
+
+it("accepts harmless cross-browser geometry rounding but rejects displaced plots", () => {
+  const state = startScenario(SCENARIOS.mill);
+  state.round.slots[0].x += 1e-14;
+  expect(migrateGame(JSON.parse(JSON.stringify(state))).round).not.toBeNull();
+  state.round.slots[0].x += 0.01;
+  expect(migrateGame(JSON.parse(JSON.stringify(state))).round).toBeNull();
 });

@@ -14,10 +14,15 @@ implementation; physical-device and listening claims still require evidence.
 - [x] Matched-seed tactical counterexamples and a validated, replayable local scenario API.
 - [x] Desktop/mobile information layout, recovery advice and accessible battle reports.
 - [x] Village life, restoration, distinct silhouettes and synchronized impacts.
-- [ ] Authored instrument timbres, longer arrangements and spatial combat cues.
+- [x] Authored instrument timbres, longer arrangements and spatial combat cues.
 - [ ] Encounter editor, visual replay, transition profiling and performance gates.
 - [ ] Final CI, offline, viewport, live browser, and documented device limitations.
 
+
+Audio uses original harmonic timbres, a roughly two-minute arrangement,
+spatial raid/strike/arrival cues and bounded voices. Critical cues duck music.
+Save geometry allows sub-nanounit rounding differences between JS runtimes
+while rejecting moved plots; browser fixtures exposed the original strict check.
 
 The UI is split into planning, battle, results, settings and persistence modules.
 The frame loop now advances whole 100 ms batches so recorded commands never

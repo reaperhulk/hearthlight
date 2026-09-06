@@ -29,12 +29,14 @@ class Node {
   gain = new Param();
   frequency = new Param();
   Q = new Param();
+  pan = new Param();
   threshold = new Param();
   ratio = new Param();
   connect(node) {
     return node;
   }
   disconnect() {}
+  setPeriodicWave() {}
   start() {
     audio.starts++;
   }
@@ -59,6 +61,14 @@ beforeEach(async () => {
       createGain() {
         const n = new Node();
         this.gains.push(n);
+        return n;
+      }
+      createPeriodicWave() {
+        return {};
+      }
+      createStereoPanner() {
+        const n = new Node();
+        (this.panners ||= []).push(n);
         return n;
       }
       createOscillator() {
@@ -96,7 +106,9 @@ afterEach(() => {
 });
 it("signals danger from a breached approach before Hearth damage", () => {
   let s = command(startGame(freshGame()), { type: "start" });
-  s.round.slots.forEach(slot => { slot.building = null; });
+  s.round.slots.forEach((slot) => {
+    slot.building = null;
+  });
   s = advance(s, 19);
   expect(s.round.heart).toBe(100);
   expect(score.scoreMood(s.round)).toBe("danger");
@@ -124,4 +136,22 @@ it("critical cues duck music and a changed volume preserves its recovery", () =>
   const before = audio.starts;
   score.soundEvent({ type: "burst" });
   expect(audio.starts).toBe(before);
+});
+
+it("positions a raid warning on its farm and gives critical cues their own space", () => {
+  score.unlockScore();
+  score.soundEvent({ type: "raid", lane: 1, x: 0.9 });
+  expect(audio.panners).toHaveLength(2);
+  for (const n of audio.panners) expect(n.pan.value).toBeCloseTo(0.6);
+  expect(audio.gains[0].gain.calls).toContainEqual([
+    "target",
+    0.35 * 0.3,
+    10,
+    0.025,
+  ]);
+  const count = audio.starts;
+  score.soundEvent({ type: "raid", lane: 1, x: 0.9 });
+  expect(audio.starts).toBe(count);
+  score.soundEvent({ type: "windup", lane: 3, x: 0.1 });
+  expect(audio.panners.at(-1).pan.value).toBeCloseTo(-0.6);
 });

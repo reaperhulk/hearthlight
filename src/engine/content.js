@@ -493,6 +493,12 @@ export function validLayout(layout, town) {
             p.length !== 2 ||
             p.some((n) => !Number.isFinite(n) || n < 0.01 || n > 0.99),
         ) ||
+        points.some(
+          (p, i) =>
+            i > 0 &&
+            Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]) <
+              0.001,
+        ) ||
         Math.hypot(points.at(-1)[0] - 0.5, points.at(-1)[1] - 0.5) > 0.16,
     )
   )
