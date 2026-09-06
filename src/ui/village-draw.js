@@ -161,10 +161,59 @@ export function paintGround(ctx, town, dark = false, rules = 4, layout = null) {
     const a = (i * Math.PI * 2) / 15;
     circle(ctx, 360 + Math.cos(a) * 50, 360 + Math.sin(a) * 50, 4, "#c0b590");
   }
-  // A few permanent cottages make the central hearth a home.
-  cottage(ctx, 323, 385, 0.55);
-  cottage(ctx, 402, 374, 0.5);
-  cottage(ctx, 365, 410, 0.48);
+  // Permanent landmarks give each town a different silhouette.
+  if (town === "marsh") {
+    for (let i = 0; i < 9; i++) {
+      ctx.fillStyle = dark ? "#77725b" : "#c5aa7b";
+      ctx.fillRect(490 + i * 5, 407 - i * 3, 4, 37);
+    }
+    ctx.strokeStyle = "#bdab84";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(488, 406);
+    ctx.lineTo(535, 379);
+    ctx.stroke();
+  } else if (town === "ridge") {
+    for (const [x, y] of [
+      [285, 311],
+      [425, 417],
+      [271, 423],
+    ])
+      path(
+        ctx,
+        [
+          [x - 14, y + 12],
+          [x - 5, y - 22],
+          [x + 9, y - 18],
+          [x + 18, y + 13],
+        ],
+        dark ? "#596662" : "#a2a78a",
+        "#394d44",
+        2,
+      );
+  } else {
+    ctx.fillStyle = "#af9270";
+    ctx.fillRect(445, 398, 16, 30);
+    path(
+      ctx,
+      [
+        [441, 400],
+        [453, 382],
+        [465, 400],
+      ],
+      "#83513d",
+      "#493d30",
+      2,
+    );
+    ctx.strokeStyle = "#dfd1a3";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(437, 383);
+    ctx.lineTo(467, 413);
+    ctx.moveTo(437, 413);
+    ctx.lineTo(467, 383);
+    ctx.stroke();
+  }
 }
 
 function cottage(ctx, x, y, scale = 1) {
@@ -364,6 +413,60 @@ export function drawBuilding(ctx, type, x, y, scale = 1, branch = null) {
 
 export function paintBuildings(ctx, r, contrast = false) {
   ctx.clearRect(0, 0, SIZE, SIZE);
+  // The square fills with repaired roofs as the vigil progresses.
+  const homes = [
+    [323, 385],
+    [402, 374],
+    [365, 410],
+    [314, 417],
+    [416, 408],
+    [341, 438],
+  ];
+  for (let i = 0; i < homes.length; i++) {
+    const [x, y] = homes[i];
+    if (i < 2 + r.completed) cottage(ctx, x, y, 0.6);
+    else {
+      ctx.strokeStyle = "#a59b78";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 10, y - 3, 20, 14);
+      ctx.fillStyle = "#5c634d";
+      ctx.fillRect(x - 9, y + 5, 18, 4);
+    }
+  }
+  if (r.completed >= 3) {
+    ctx.strokeStyle = "#f0d295";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(310, 372);
+    ctx.quadraticCurveTo(365, 414, 420, 363);
+    ctx.stroke();
+    for (let i = 0; i < 7; i++) {
+      const x = 318 + i * 14,
+        y = 380 + Math.sin((i / 6) * Math.PI) * 10;
+      path(
+        ctx,
+        [
+          [x, y],
+          [x + 7, y],
+          [x + 3, y + 9],
+        ],
+        i % 2 ? "#d08c65" : "#b6cfa0",
+      );
+    }
+  }
+  for (const ruin of r.ruins || []) {
+    const slot = r.slots.find((s) => s.id === ruin.slot);
+    if (!slot || slot.building) continue;
+    const p = pt(slot);
+    for (let i = 0; i < 5; i++) {
+      ctx.save();
+      ctx.translate(p.x + (i - 2) * 7, p.y + hash(i) * 10);
+      ctx.rotate(i * 0.8);
+      ctx.fillStyle = ruin.type === "wall" ? "#887664" : "#7a6653";
+      ctx.fillRect(-6, -3, 12, 6);
+      ctx.restore();
+    }
+  }
   for (const slot of r.slots)
     if (slot.building) {
       const p = pt(slot);
@@ -388,7 +491,14 @@ export function paintBuildings(ctx, r, contrast = false) {
         );
         ctx.stroke();
       }
-      drawBuilding(ctx, slot.building.type, p.x, p.y, 1, slot.building.branch);
+      drawBuilding(
+        ctx,
+        slot.building.type,
+        p.x,
+        p.y,
+        1.12,
+        slot.building.branch,
+      );
       const hp = slot.building.hp / maxHp(slot.building, r.kit);
       if (contrast) {
         ctx.strokeStyle = "#fff4c9";
@@ -425,7 +535,8 @@ function enemySprite(type) {
   canvas.width = 60;
   canvas.height = 72;
   const ctx = canvas.getContext("2d");
-  const size = type === "brute" ? 19 : type === "runner" ? 10 : 13;
+  const size =
+    type === "king" ? 22 : type === "brute" ? 19 : type === "runner" ? 10 : 13;
   const x = 30,
     y = 34;
   circle(ctx, x, y, size + 7, `${ENEMIES[type].color}15`);
@@ -463,6 +574,55 @@ function enemySprite(type) {
         [x + 8, y - 16],
       ],
       "#dbb6b1",
+    );
+  }
+  if (type === "king") {
+    path(
+      ctx,
+      [
+        [10, 21],
+        [5, 7],
+        [15, 12],
+        [19, 2],
+        [29, 14],
+        [41, 2],
+        [45, 12],
+        [55, 7],
+        [50, 21],
+      ],
+      null,
+      "#f1c78c",
+      3,
+    );
+    path(
+      ctx,
+      [
+        [17, 28],
+        [30, 24],
+        [43, 28],
+        [40, 44],
+        [30, 49],
+        [20, 44],
+      ],
+      "#302d37",
+      "#d9ac78",
+      2,
+    );
+    circle(ctx, 30, 17, 4, "#f5d696");
+  }
+  if (type === "runner") {
+    path(
+      ctx,
+      [
+        [19, 39],
+        [7, 43],
+        [18, 34],
+        [32, 38],
+        [49, 46],
+        [40, 48],
+        [29, 42],
+      ],
+      "#c393af",
     );
   }
   if (type === "mist") {
@@ -530,6 +690,22 @@ export function paintLiving(
       const p = pt(slot);
       circle(ctx, p.x, p.y, buildingRange(slot.building) * SIZE, "#f4d9950b");
     }
+  // Connections show which defenses actually benefit from lantern light.
+  for (const lamp of r.slots.filter((s) => s.building?.type === "lantern"))
+    for (const tower of r.slots.filter(
+      (s) =>
+        s.building?.type === "tower" &&
+        Math.hypot(s.x - lamp.x, s.y - lamp.y) <= buildingRange(lamp.building),
+    )) {
+      ctx.strokeStyle = contrast ? "#ffe59b" : "#ffe59b55";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 7]);
+      ctx.beginPath();
+      ctx.moveTo(lamp.x * SIZE, lamp.y * SIZE);
+      ctx.lineTo(tower.x * SIZE, tower.y * SIZE);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   // A small bounded glow; terrain and town never repaint for flame motion.
   const glow = ctx.createRadialGradient(360, 348, 4, 360, 350, 66);
   glow.addColorStop(0, "#ffce8a44");
@@ -586,7 +762,45 @@ export function paintLiving(
     });
     const bob =
       decorative && enemy.stun <= 0 ? Math.sin(clock * 5 + enemy.lane) * 2 : 0;
+    if (enemy.raid) {
+      const farm = r.slots.find((s) => s.id === enemy.raid);
+      if (farm) {
+        ctx.strokeStyle = "#ffa88d";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(farm.x * SIZE, farm.y * SIZE);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeRect(farm.x * SIZE - 26, farm.y * SIZE - 27, 52, 53);
+      }
+    }
     ctx.drawImage(enemySprite(enemy.type), p.x - 30, p.y - 37 + bob);
+    if (enemy.warned && enemy.stun <= 0) {
+      ctx.strokeStyle = "#ffd19f";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 29, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "#241e26";
+      ctx.fillRect(p.x - 25, p.y + 30, 50, 15);
+      ctx.fillStyle = "#ffe5b6";
+      ctx.font = "bold 10px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("STRIKE", p.x, p.y + 41);
+    }
+    if (enemy.type === "king") {
+      ctx.fillStyle = "#ffe4a1";
+      ctx.font = "bold 11px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        enemy.enraged ? "ENRAGED KING" : "ANTLERED KING",
+        p.x,
+        p.y - 45,
+      );
+    }
+
     if (contrast) {
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;

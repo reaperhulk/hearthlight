@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { BUILDINGS, mapLanes } from "../engine/content.js";
+import { BUILDINGS, ENEMIES, mapLanes, routePoint } from "../engine/content.js";
 import {
   SIZE,
   paintGround,
@@ -104,7 +104,11 @@ export function VillageMap({
                 ? `${s.building.type}:${s.building.branch}:${s.building.hp}`
                 : "",
             )
-            .join("|") + current.contrast;
+            .join("|") +
+          current.contrast +
+          current.round.completed +
+          current.round.heart +
+          JSON.stringify(current.round.ruins);
         if (key !== townKey) {
           paintBuildings(
             town.getContext("2d"),
@@ -167,7 +171,7 @@ export function VillageMap({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [round.town, metrics]);
+  }, [round.town, round.rules, round.layout, metrics]);
   return (
     <div
       className={`village-map ${contrast ? "contrast-map" : ""} ${card ? "placing" : ""}`}
@@ -203,7 +207,7 @@ export function VillageMap({
               ? `${BUILDINGS[card].name} coverage`
               : card === "wall"
                 ? "Blocks this road"
-                : "+12 Glow at dawn"}
+                : `+${round.kit === "gardener" ? 17 : 12} Glow at dawn`}
           </span>
         </div>
       )}
@@ -242,33 +246,62 @@ export function VillageMap({
         ))}
       </div>
       {mapLanes(round.town).map((lane) => {
-        const diagonal = round.town !== "ridge" && lane.id > 0;
-        // Keep entry labels off the road so they cannot hide approaching enemies.
-        const rawX =
-          0.5 +
-          Math.cos(lane.angle) * 0.43 +
-          (lane.id === 0
-            ? -0.18
-            : round.town === "ridge" && lane.id === 2
-              ? 0.2
-              : 0);
-        const x = diagonal ? Math.max(0.15, Math.min(0.85, rawX)) : rawX,
-          y = 0.5 + Math.sin(lane.angle) * 0.43 + (diagonal ? 0.12 : 0);
+        const entry = routePoint(
+          lane,
+          0,
+          round.town,
+          round.rules || 2,
+          round.layout,
+        );
+        const x = Math.max(
+          0.14,
+          Math.min(
+            0.86,
+            entry.x + (entry.y < 0.15 ? -0.18 : entry.y > 0.85 ? 0.18 : 0),
+          ),
+        );
+        const y = Math.max(
+          0.075,
+          Math.min(
+            0.925,
+            entry.y +
+              (entry.x > 0.8
+                ? -0.17
+                : entry.x < 0.2
+                  ? round.town === "ridge"
+                    ? -0.17
+                    : 0.12
+                  : 0),
+          ),
+        );
+        const coming = round.wave.filter(
+          (e) => e.lane === lane.id && (round.phase === "day" || !e.spawned),
+        );
+        const summary = Object.entries(ENEMIES)
+          .map(([type, def]) => {
+            const n = coming.filter((e) => e.type === type).length;
+            return n ? `${n} ${def.name}` : null;
+          })
+          .filter(Boolean)
+          .join(", ");
+        const symbols = {
+          shade: "◆",
+          runner: "➤",
+          brute: "⬟",
+          mist: "◌",
+          king: "♛",
+        };
         return (
           <button
             key={lane.id}
             className="road-label"
             style={{
               left: `${x * 100}%`,
-              top: `${(round.town === "ridge" && Math.abs(Math.sin(lane.angle)) < 0.1 ? y - 0.2 : y) * 100}%`,
-              transform:
-                round.town === "ridge" && lane.id === 1
-                  ? "translate(-100%,-50%)"
-                  : round.town === "ridge" && lane.id === 3
-                    ? "translate(0,-50%)"
-                    : undefined,
+              top: `${y * 100}%`,
             }}
             onClick={() => onRoad(lane.id)}
+            aria-label={`${lane.name}. ${summary || "No more enemies approaching"}. ${round.phase === "night" ? "Guard this road" : "Inspect this approach"}`}
+            title={summary || "Quiet tonight"}
           >
             {lane.name}
             {round.phase === "day" && (
@@ -276,7 +309,8 @@ export function VillageMap({
                 className="road-count"
                 aria-label={`${round.wave.filter((e) => e.lane === lane.id).length} approaching`}
               >
-                {round.wave.filter((e) => e.lane === lane.id).length}
+                {coming.length} ·{" "}
+                {[...new Set(coming.map((e) => symbols[e.type]))].join(" ")}
               </span>
             )}
           </button>

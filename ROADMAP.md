@@ -12,12 +12,18 @@ implementation; physical-device and listening claims still require evidence.
 - [x] Persistent guard orders, physical raiders, authored tactical geography.
 - [x] Six-night encounter arcs, finales, distinct towns, kit sidegrades and mastery.
 - [x] Matched-seed tactical counterexamples and a validated, replayable local scenario API.
-- [ ] Desktop/mobile information layout, recovery advice and accessible battle reports.
-- [ ] Village life, restoration, distinct silhouettes and synchronized impacts.
+- [x] Desktop/mobile information layout, recovery advice and accessible battle reports.
+- [x] Village life, restoration, distinct silhouettes and synchronized impacts.
 - [ ] Authored instrument timbres, longer arrangements and spatial combat cues.
 - [ ] Encounter editor, visual replay, transition profiling and performance gates.
 - [ ] Final CI, offline, viewport, live browser, and documented device limitations.
 
+
+The UI is split into planning, battle, results, settings and persistence modules.
+The frame loop now advances whole 100 ms batches so recorded commands never
+fall between an unrecorded fractional step. Browser smoke reports scene and
+container dimensions if a battlefield collapses; CSS gives the desktop grid
+an explicit shrinking row and preserves a larger phone map.
 
 ## Town-defense redesign (September 2026)
 

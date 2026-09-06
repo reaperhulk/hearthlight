@@ -1165,6 +1165,7 @@ textarea {
   min-height: 0;
   align-items: stretch;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+  grid-template-rows: minmax(0, 1fr);
   gap: 20px;
 }
 .in-game .battlefield {
@@ -1243,7 +1244,6 @@ textarea {
   color: #203327;
   border-color: #d9be88;
 }
-.command-panel:not(.view-forecast) .forecast,
 .command-panel:not(.view-story) .story-panel {
   display: none;
 }
@@ -1400,7 +1400,7 @@ textarea {
   .in-game .play-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(285px, 48%) minmax(0, 1fr);
+    grid-template-rows: minmax(348px, 53%) minmax(0, 1fr);
     gap: 6px;
   }
   .in-game .village-map {
@@ -1599,4 +1599,88 @@ textarea {
     top: 44%;
     font-size: 10px;
   }
+}
+
+/* One planning surface on desktop; phone tabs keep detail below the map. */
+@media (min-width: 761px) {
+  .panel-tabs button:nth-child(2) {
+    display: none;
+  }
+  .command-panel.view-build .forecast {
+    display: block;
+    order: 0;
+  }
+  .command-panel.view-story .forecast {
+    display: none;
+  }
+  .forecast .section-heading {
+    margin-bottom: 6px;
+  }
+  .forecast-road {
+    padding: 4px 0;
+    font-size: 12px;
+  }
+  .forecast details {
+    margin-top: 6px;
+    font-size: 12px;
+  }
+  .encounter-advice {
+    font-size: 12px;
+    line-height: 1.45;
+    margin-top: 8px;
+  }
+}
+@media (max-width: 760px) {
+  .command-panel:not(.view-forecast) .forecast {
+    display: none;
+  }
+  .in-game .run-heading .eyebrow {
+    display: block;
+    max-width: 100%;
+  }
+  .order-summary {
+    font-size: 11px;
+    margin: 0 0 6px;
+  }
+}
+.run-heading > div:first-child {
+  min-width: 0;
+}
+.run-stats {
+  flex-shrink: 0;
+}
+.run-stats strong {
+  white-space: nowrap;
+}
+.plot {
+  clip-path: circle(50%);
+}
+.mastery-badges {
+  color: #ffe0a0;
+  font-size: 11px;
+  line-height: 1.6;
+  display: block;
+}
+.encounter-advice,
+.economic-advice {
+  color: #d7dfbb;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.recovery-advice {
+  display: grid;
+  gap: 6px;
+}
+.recovery-advice button {
+  text-align: left;
+  font-size: 12px;
+  padding: 8px;
+}
+.settlement-result {
+  font-size: 13px;
+  color: #d0dabc;
+}
+kbd {
+  font: 10px system-ui;
+  opacity: 0.8;
 }

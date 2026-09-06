@@ -125,11 +125,36 @@ try {
     await page.setViewport({ width, height });
     for (const name of ["first-day", "ridge-day", "ridge-battle", "victory"]) {
       await hydrate(page, scene(name));
-      await page.waitForFunction(
-        () =>
-          document.querySelector(".village-map").getBoundingClientRect()
-            .height > 100,
-      );
+      try {
+        await page.waitForFunction(
+          () =>
+            document.querySelector(".village-map")?.getBoundingClientRect()
+              .height > 100,
+          { timeout: 3000 },
+        );
+      } catch (error) {
+        console.error(
+          "Collapsed battlefield",
+          { name, width, height },
+          await page.evaluate(() =>
+            [
+              ".in-game",
+              ".run-heading",
+              ".play-layout",
+              ".battlefield",
+              ".village-map",
+            ].map((selector) => {
+              const e = document.querySelector(selector);
+              return {
+                selector,
+                rect: e?.getBoundingClientRect().toJSON(),
+                text: e?.innerText.slice(0, 150),
+              };
+            }),
+          ),
+        );
+        throw error;
+      }
       await layout();
       const fit = await page.evaluate(() => {
         const visible = (selector) =>

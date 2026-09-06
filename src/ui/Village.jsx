@@ -3,20 +3,14 @@ import {
   advance,
   command,
   dawnIncome,
-  farmIncome,
-  freshGame,
   hasFutureDawn,
-  maxHp,
   migrateGame,
-  repairCost,
-  reward,
   startGame,
   townUnlocked,
 } from "../engine/campaign.js";
 import {
   BLESSINGS,
   BUILDINGS,
-  ENEMIES,
   KITS,
   TOWNS,
   mapLanes,
@@ -25,238 +19,34 @@ import {
 } from "../engine/content.js";
 import { introduction, defeatExplanation, pauseForLesson } from "./guidance.js";
 import { VillageMap } from "./VillageMap.jsx";
-import { drawBuilding } from "./village-draw.js";
+import { Settings } from "./Settings.jsx";
+import { Planning } from "./Planning.jsx";
+import { BattleControls } from "./BattleControls.jsx";
+import { Results } from "./Results.jsx";
+import { useVillagePersistence, load, SAVE } from "./useVillagePersistence.js";
 import {
   scoreMood,
   disposeScore,
   setMix,
   setMood,
   soundEvent,
-  suspendScore,
   unlockScore,
 } from "./score.js";
 
-const SAVE = "hearthlight-save";
-function load() {
-  try {
-    return migrateGame(JSON.parse(localStorage.getItem(SAVE)));
-  } catch {
-    return freshGame();
-  }
-}
 const seed = () => crypto.getRandomValues(new Uint32Array(1))[0];
-function Icon({ type }) {
-  const mount = useCallback(
-    (canvas) => {
-      if (!canvas) return;
-      canvas.width = 100;
-      canvas.height = 100;
-      const ctx = canvas.getContext("2d");
-      drawBuilding(ctx, type, 50, 57, 1.45);
-    },
-    [type],
-  );
-  return <canvas className="building-icon" ref={mount} aria-hidden="true" />;
-}
-
-function Settings({ state, act, onClose, onImport }) {
-  const [text, setText] = useState(""),
-    [note, setNote] = useState("");
-  const dialog = useRef(null);
-  useEffect(() => {
-    const previous = document.activeElement;
-    const panel = dialog.current;
-    panel.querySelector("button")?.focus();
-    const keys = (e) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const items = [
-        ...panel.querySelectorAll(
-          "button:not(:disabled), input, select, textarea, summary",
-        ),
-      ].filter(
-        (el) => !el.closest("details:not([open])") || el.tagName === "SUMMARY",
-      );
-      const first = items[0],
-        last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    panel.addEventListener("keydown", keys);
-    return () => {
-      panel.removeEventListener("keydown", keys);
-      if (previous?.isConnected) previous.focus();
-    };
-  }, [onClose]);
-  return (
-    <div className="modal-backdrop">
-      <section
-        ref={dialog}
-        className="settings panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-title"
-      >
-        <div className="section-heading">
-          <h2 id="settings-title">Tend the details</h2>
-          <button onClick={onClose} aria-label="Close settings">
-            ×
-          </button>
-        </div>
-        <p>The game pauses while you are here.</p>
-        {["music", "effects", "ambience"].map((id) => (
-          <label className="setting-row" key={id}>
-            {id[0].toUpperCase() + id.slice(1)}
-            <input
-              aria-label={`${id} volume`}
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={state.settings[id]}
-              onChange={(e) =>
-                act({ type: "setting", key: id, value: Number(e.target.value) })
-              }
-            />
-          </label>
-        ))}
-        {[
-          ["motion", "Animated scenery and effects"],
-          ["contrast", "High-contrast battlefield"],
-          ["guide", "Show the introductory guide"],
-          ["recording", "Record a local playtest · nothing is sent"],
-        ].map(([id, label]) => (
-          <label className="setting-row" key={id}>
-            {label}
-            <input
-              type="checkbox"
-              checked={state.settings[id]}
-              onChange={(e) =>
-                act({ type: "setting", key: id, value: e.target.checked })
-              }
-            />
-          </label>
-        ))}
-        <label className="setting-row">
-          Visual effects
-          <select
-            aria-label="Visual effects intensity"
-            value={state.settings.intensity}
-            onChange={(e) =>
-              act({
-                type: "setting",
-                key: "intensity",
-                value: Number(e.target.value),
-              })
-            }
-          >
-            <option value={1}>Full scenery</option>
-            <option value={0.3}>Low effects</option>
-            <option value={0}>Essential cues only</option>
-          </select>
-        </label>
-        <details>
-          <summary>Carry your fire · save and restore</summary>
-          <p>
-            Copy this save to another device. Import replaces this device’s
-            progress; the previous save is kept as a recovery copy.
-          </p>
-          <textarea
-            aria-label="Save transfer text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Your save will appear here"
-            rows={4}
-          />
-          <div className="button-row">
-            <button
-              onClick={() => {
-                setText(JSON.stringify(state));
-                setNote("Save ready. Select and copy the text.");
-              }}
-            >
-              Export save
-            </button>
-            <button
-              disabled={!state.round && !state.lastPlaytestRound}
-              onClick={() => {
-                setText(
-                  JSON.stringify({
-                    format: "hearthlight-playtest-v1",
-                    build: __COMMIT__,
-                    viewport: [window.innerWidth, window.innerHeight],
-                    browser: navigator.userAgent,
-                    round: state.round || state.lastPlaytestRound,
-                    attempts: state.playtestLog,
-                  }),
-                );
-                setNote(
-                  "Playtest record ready. It includes the seed, commands, outcomes and, if recording was enabled, accepted and rejected inputs. Nothing is uploaded; copy it only if you choose to share it.",
-                );
-              }}
-            >
-              Export playtest record
-            </button>
-            <button
-              disabled={!text.trim()}
-              onClick={() => {
-                try {
-                  const data = JSON.parse(text);
-                  if (
-                    !data ||
-                    typeof data !== "object" ||
-                    !("saveVersion" in data)
-                  )
-                    throw Error();
-                  onImport(data);
-                  setNote("Your fire has been carried.");
-                } catch {
-                  setNote(
-                    "That save could not be read. Your progress is unchanged.",
-                  );
-                }
-              }}
-            >
-              Import save
-            </button>
-          </div>
-          <p role="status">{note}</p>
-        </details>
-        <p className="quiet">
-          Keyboard: 1–4 select a building · Tab and Enter choose a plot · D
-          starts night · During battle, 1–4 send the Warden and Shift+1–4 flare
-          a road. Space pauses outside buttons · Escape clears selection.
-        </p>
-      </section>
-    </div>
-  );
-}
-
 export function Village() {
-  const [state, setState] = useState(load),
-    [selected, setSelected] = useState(null),
+  const { state, setState, current, foreign, elsewhere, setElsewhere, notice } =
+    useVillagePersistence();
+  const [selected, setSelected] = useState(null),
     [card, setCard] = useState(null),
     [preview, setPreview] = useState(null),
     [pending, setPending] = useState(null),
     [moving, setMoving] = useState(null),
     [town, setTown] = useState("first"),
     [settings, setSettings] = useState(false),
-    [elsewhere, setElsewhere] = useState(false),
-    [notice, setNotice] = useState(""),
     [retiring, setRetiring] = useState(false),
     [view, setView] = useState("build");
-  const current = useRef(state),
-    foreign = useRef(false),
-    soundCursor = useRef({ seed: null, event: 0 }),
+  const soundCursor = useRef({ seed: null, event: 0 }),
     metrics = useRef({ frames: [], paint: [] });
   const [reduce, setReduce] = useState(
     () =>
@@ -271,32 +61,29 @@ export function Village() {
     return () => query.removeEventListener?.("change", change);
   }, []);
   useEffect(() => () => disposeScore(), []);
-  useEffect(() => {
-    current.current = state;
-  }, [state]);
-  useEffect(() => {
-    foreign.current = elsewhere;
-  }, [elsewhere]);
-  const act = useCallback((action) => {
-    unlockScore();
-    const wallTime = Date.now();
-    setState((s) => {
-      const resumeLesson =
-        s.round?.paused &&
-        s.settings.guide &&
-        s.round.town === "first" &&
-        ((action.type === "rally" &&
-          !s.round.warden.deployed &&
-          s.round.lessons?.includes("wall")) ||
-          (action.type === "burst" &&
-            s.round.stats.bursts === 0 &&
-            s.round.lessons?.includes("burst")));
-      const next = command(s, action, wallTime);
-      return resumeLesson && next !== s
-        ? command(next, { type: "pause" })
-        : next;
-    });
-  }, []);
+  const act = useCallback(
+    (action) => {
+      unlockScore();
+      const wallTime = Date.now();
+      setState((s) => {
+        const resumeLesson =
+          s.round?.paused &&
+          s.settings.guide &&
+          s.round.town === "first" &&
+          ((action.type === "rally" &&
+            !s.round.warden.deployed &&
+            s.round.lessons?.includes("wall")) ||
+            (action.type === "burst" &&
+              s.round.stats.bursts === 0 &&
+              s.round.lessons?.includes("burst")));
+        const next = command(s, action, wallTime);
+        return resumeLesson && next !== s
+          ? command(next, { type: "pause" })
+          : next;
+      });
+    },
+    [setState],
+  );
   const closeSettings = useCallback(() => setSettings(false), []);
   const begin = (id, endless = false, challenge = "standard") => {
     unlockScore();
@@ -317,8 +104,8 @@ export function Village() {
       if (!foreign.current && document.visibilityState === "visible") {
         pending += dt;
         if (pending >= 0.1) {
-          const elapsed = pending;
-          pending = 0;
+          const elapsed = Math.floor(pending / 0.1) * 0.1;
+          pending -= elapsed;
           setState((s) =>
             pauseForLesson(advance(s, elapsed * s.settings.speed)),
           );
@@ -328,65 +115,7 @@ export function Village() {
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, []);
-  useEffect(() => {
-    let serialized = null,
-      failed = false;
-    try {
-      serialized = localStorage.getItem(SAVE);
-    } catch {
-      /* Saving will report the failure below. */
-    }
-    const save = () => {
-      if (foreign.current) return;
-      try {
-        const next = JSON.stringify(current.current);
-        if (next === serialized) return;
-        if (serialized) localStorage.setItem(`${SAVE}-recovery`, serialized);
-        localStorage.setItem(SAVE, next);
-        serialized = next;
-        if (failed) {
-          setNotice("Your progress is saving again.");
-          failed = false;
-        }
-      } catch {
-        if (!failed)
-          setNotice(
-            "This browser could not save. Export your fire in Settings to keep it.",
-          );
-        failed = true;
-      }
-    };
-    const hidden = () => {
-      if (document.visibilityState === "hidden") {
-        setState((s) =>
-          s.round?.phase === "night" && !s.round.paused
-            ? command(s, { type: "pause" })
-            : s,
-        );
-        suspendScore();
-        save();
-      }
-    };
-    const other = (e) => {
-      if (e.key === SAVE && e.newValue) {
-        foreign.current = true;
-        setElsewhere(true);
-        suspendScore();
-      }
-    };
-    const interval = setInterval(save, 1500);
-    document.addEventListener("visibilitychange", hidden);
-    window.addEventListener("pagehide", save);
-    window.addEventListener("storage", other);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", hidden);
-      window.removeEventListener("pagehide", save);
-      window.removeEventListener("storage", other);
-      save();
-    };
-  }, []);
+  }, [foreign, setState]);
   useEffect(() => {
     setMix(state.settings);
     const r = state.round;
@@ -475,7 +204,7 @@ export function Village() {
     };
     window.addEventListener("keydown", keys);
     return () => window.removeEventListener("keydown", keys);
-  }, [act, settings, elsewhere]);
+  }, [act, settings, elsewhere, current]);
   useEffect(() => {
     window.__game = {
       getState: () => current.current,
@@ -490,7 +219,7 @@ export function Village() {
     return () => {
       delete window.__game;
     };
-  }, []);
+  }, [current, setState]);
   const openSettings = () => {
     if (state.round?.phase === "night" && !state.round.paused)
       act({ type: "pause" });
@@ -609,7 +338,6 @@ export function Village() {
             className="primary"
             onClick={() => {
               setState(load());
-              foreign.current = false;
               setElsewhere(false);
             }}
           >
@@ -650,8 +378,9 @@ export function Village() {
               <h2>A saved village leaves you something.</h2>
               <p>
                 Spend 8 of your earned Embers on the Mason kit. Your next
-                opening will have walls with 90 health instead of 65, and
-                repairs will cost 6 Glow instead of 8.
+                opening will have walls with 90 health instead of 65 and cheaper
+                repairs. The tradeoff: 8 less starting Glow and 2 flares instead
+                of the Keeper’s 3.
               </p>
               <button
                 className="primary"
@@ -673,7 +402,7 @@ export function Village() {
               <h2>Every beacon is burning.</h2>
               <p>
                 You have saved all four towns. The story is complete. Return
-                with a different kit, attempt a night watch without bursts, or
+                with a different kit, attempt a night watch without flares, or
                 see how long your village lasts in Endless watch.
               </p>
             </section>
@@ -709,6 +438,21 @@ export function Village() {
                         ? `${def.nights} nights`
                         : `Save ${TOWNS[def.requires].name} to unlock`}
                   </small>
+                  {state.mastery?.[id]?.length > 0 && (
+                    <span className="mastery-badges">
+                      {state.mastery[id]
+                        .map(
+                          (mark) =>
+                            ({
+                              saved: "Beacon lit",
+                              steadfast: "Hearth unbroken",
+                              restorer: "Every roof saved",
+                              "no-bursts": "Without flares",
+                            })[mark],
+                        )
+                        .join(" · ")}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -722,7 +466,7 @@ export function Village() {
                     Endless watch
                   </button>
                   <button onClick={() => begin(town, false, "no-bursts")}>
-                    Challenge · No bursts
+                    Challenge · No flares
                   </button>
                 </>
               )}
@@ -971,77 +715,30 @@ export function Village() {
                   </section>
                 )}
                 {over ? (
-                  <section className={`panel outcome ${r.phase}`}>
-                    <span className="outcome-mark">
-                      {r.phase === "won" ? "☀" : "✧"}
-                    </span>
-                    <h2>
-                      {r.phase === "won"
-                        ? "A village saved."
-                        : r.phase === "retired"
-                          ? "Nothing earned is lost."
-                          : "The beacon went dark."}
-                    </h2>
-                    <p>
-                      {r.phase === "won"
-                        ? "The beacon is whole. Smoke rises from the roofs. Somewhere, someone puts the kettle on."
-                        : r.lastLoss ||
-                          "You banked the fire before the next assault."}
-                    </p>
-                    {defeat && (
-                      <div className="advice">
-                        <ol>
-                          {defeat.chain.map((line, i) => (
-                            <li key={i}>{line}</li>
-                          ))}
-                        </ol>
-                        <p>{defeat.advice}</p>
-                      </div>
-                    )}
-                    <div className="reward">
-                      <span>{r.completed} completed nights × 3</span>
-                      <strong>{r.completed * 3} Embers</strong>
-                      {r.phase === "won" && (
-                        <>
-                          <span>Beacon restored</span>
-                          <strong>+{TOWNS[r.town].reward}</strong>
-                        </>
-                      )}
-                      <span>Total carried home</span>
-                      <strong>{reward(r)} Embers</strong>
-                    </div>
-                    <button
-                      className="primary"
-                      onClick={() => {
-                        act({ type: "collect" });
-                        setSelected(null);
-                        setCard(null);
-                      }}
-                    >
-                      Carry the fire home →
-                    </button>
-                    <button
-                      onClick={() => {
-                        const town = r.town,
-                          oldSeed = r.seed;
-                        setState((s) =>
-                          startGame(
-                            command(s, { type: "collect" }),
-                            town,
-                            oldSeed,
-                            r.endless,
-                            r.challenge,
-                          ),
-                        );
-                        setSelected(null);
-                        setCard(null);
-                        setMoving(null);
-                        setRetiring(false);
-                      }}
-                    >
-                      Try this same defense again
-                    </button>
-                  </section>
+                  <Results
+                    r={r}
+                    defeat={defeat}
+                    onCollect={() => {
+                      act({ type: "collect" });
+                      setSelected(null);
+                      setCard(null);
+                    }}
+                    onRetry={() => {
+                      setState((s) =>
+                        startGame(
+                          command(s, { type: "collect" }),
+                          r.town,
+                          r.seed,
+                          r.endless,
+                          r.challenge,
+                        ),
+                      );
+                      setSelected(null);
+                      setCard(null);
+                      setMoving(null);
+                      setRetiring(false);
+                    }}
+                  />
                 ) : (
                   <>
                     {lesson && (
@@ -1066,343 +763,25 @@ export function Village() {
                       </div>
                     )}
                     {r.phase === "day" ? (
-                      <>
-                        <section className="panel forecast">
-                          <div className="section-heading">
-                            <h2>Tonight’s approach</h2>
-                            <span>Night {r.night}</span>
-                          </div>
-                          {mapLanes(r.town).map((lane) => {
-                            const enemies = r.wave.filter(
-                              (e) => e.lane === lane.id,
-                            );
-                            const types = [
-                              ...new Set(enemies.map((e) => e.type)),
-                            ];
-                            return (
-                              <div key={lane.id} className="forecast-road">
-                                <strong>{lane.name}</strong>
-                                <span>
-                                  {enemies.length
-                                    ? `${enemies.length} · ${types.map((t) => ENEMIES[t].name).join(", ")}`
-                                    : "Quiet tonight"}
-                                </span>
-                              </div>
-                            );
-                          })}
-                          {r.rules >= 4 && (
-                            <p className="encounter-advice">
-                              {encounterFor(r.town, r.night).lesson}
-                            </p>
-                          )}
-                          <details>
-                            <summary>Know the enemy</summary>
-                            {[...new Set(r.wave.map((e) => e.type))].map(
-                              (type) => (
-                                <p key={type}>
-                                  <strong>{ENEMIES[type].name}:</strong>{" "}
-                                  {ENEMIES[type].description}
-                                </p>
-                              ),
-                            )}
-                          </details>
-                        </section>
-                        {r.offers.length > 0 && (
-                          <section className="panel blessings">
-                            <h2>A gift of the dawn</h2>
-                            <p>
-                              Choose one blessing for the rest of this vigil.
-                            </p>
-                            {r.offers.map((id) => (
-                              <button
-                                key={id}
-                                onClick={() => act({ type: "blessing", id })}
-                              >
-                                <strong>{BLESSINGS[id].name}</strong>
-                                <span>{BLESSINGS[id].detail}</span>
-                              </button>
-                            ))}
-                          </section>
-                        )}
-                        {r.dawnReport && (
-                          <p className="dawn-summary" role="status">
-                            Dawn paid {r.dawnReport.income} Glow ·{" "}
-                            {r.dawnReport.kills} banished ·{" "}
-                            {r.dawnReport.lost
-                              ? `${r.dawnReport.lost} buildings lost`
-                              : "every building held"}
-                            {r.dawnReport.damage > 0 &&
-                              ` · ${r.dawnReport.damage} Hearth damage. Dawn & story shows the breach.`}
-                          </p>
-                        )}
-                        {r.night === 1 && r.kit !== "keeper" && (
-                          <p className="kit-summary">
-                            {KITS[r.kit].name}: {KITS[r.kit].detail}
-                          </p>
-                        )}
-                        <section className="panel build-panel">
-                          <div className="section-heading">
-                            <h2>Make your stand</h2>
-                            <span>No clock. Take your time.</span>
-                          </div>
-                          {pending &&
-                            card === pending.building &&
-                            r.slots.find(
-                              (s) => s.id === pending.slot && !s.building,
-                            ) && (
-                              <div className="placement-confirm" role="status">
-                                <strong>
-                                  {BUILDINGS[card].name} ·{" "}
-                                  {buildCost(card, r.kit, r.rules || 2)} Glow
-                                </strong>
-                                <span>
-                                  {
-                                    mapLanes(r.town)[
-                                      r.slots.find((s) => s.id === pending.slot)
-                                        .lane
-                                    ].name
-                                  }{" "}
-                                  · plot{" "}
-                                  {r.slots.find((s) => s.id === pending.slot)
-                                    .index + 1}
-                                </span>
-                                <div className="button-row">
-                                  <button
-                                    className="primary"
-                                    onClick={() =>
-                                      onSlot(
-                                        r.slots.find(
-                                          (s) => s.id === pending.slot,
-                                        ),
-                                      )
-                                    }
-                                  >
-                                    Build here
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setPending(null);
-                                      setPreview(null);
-                                    }}
-                                  >
-                                    Cancel placement
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          <div className="build-grid">
-                            {Object.entries(BUILDINGS)
-                              .filter(
-                                ([id]) =>
-                                  !(
-                                    state.settings.guide &&
-                                    r.town === "first" &&
-                                    r.night === 1 &&
-                                    ["farm", "tower", "lantern"].includes(id)
-                                  ),
-                              )
-                              .map(([id, def]) => (
-                                <button
-                                  key={id}
-                                  className={`build-card ${card === id ? "chosen" : ""} ${lesson?.card === id ? "recommended" : ""}`}
-                                  disabled={
-                                    r.glow <
-                                      buildCost(id, r.kit, r.rules || 2) ||
-                                    (id === "farm" && !hasFutureDawn(r))
-                                  }
-                                  onClick={() => {
-                                    setPending(null);
-                                    setCard(card === id ? null : id);
-                                    setMoving(null);
-                                    setSelected(null);
-                                  }}
-                                >
-                                  <Icon type={id} />
-                                  <strong>{def.name}</strong>
-                                  <span>
-                                    ✦ {buildCost(id, r.kit, r.rules || 2)}
-                                  </span>
-                                </button>
-                              ))}
-                          </div>
-                          <p className="card-description">
-                            {card
-                              ? `${BUILDINGS[card].description} Choose an empty plot on the map.`
-                              : moving
-                                ? "Choose an empty plot. Moving costs 3 Glow."
-                                : !hasFutureDawn(r)
-                                  ? "Final night: invest in defense. New farms and farm upgrades cannot pay off before victory."
-                                  : "Choose a building, then a plot. Select an existing building to improve it."}
-                          </p>
-                        </section>
-                        {b && (
-                          <section className="panel inspector">
-                            <div className="section-heading">
-                              <h2>{BUILDINGS[b.type].name}</h2>
-                              <button
-                                onClick={() => setSelected(null)}
-                                aria-label="Close building details"
-                              >
-                                ×
-                              </button>
-                            </div>
-                            <p>{BUILDINGS[b.type].description}</p>
-                            <div className="inspection-stats">
-                              <span>
-                                {Math.ceil(b.hp)} / {maxHp(b, r.kit)} health
-                              </span>
-                              {b.type === "farm" && (
-                                <span>
-                                  +{farmIncome(b, r.kit)} Glow at dawn
-                                </span>
-                              )}
-                            </div>
-                            {b.branch ? (
-                              <p className="specialization">
-                                ✧ {BUILDINGS[b.type].branches[b.branch].name}
-                                <br />
-                                {BUILDINGS[b.type].branches[b.branch].detail}
-                              </p>
-                            ) : (
-                              <div className="upgrade-list">
-                                {Object.entries(BUILDINGS[b.type].branches).map(
-                                  ([id, branch]) => (
-                                    <button
-                                      key={id}
-                                      disabled={
-                                        r.glow < branch.cost ||
-                                        (b.type === "farm" && !hasFutureDawn(r))
-                                      }
-                                      onClick={() =>
-                                        act({
-                                          type: "upgrade",
-                                          slot: selected,
-                                          branch: id,
-                                        })
-                                      }
-                                    >
-                                      <strong>
-                                        {branch.name} <em>✦ {branch.cost}</em>
-                                      </strong>
-                                      <span>{branch.detail}</span>
-                                    </button>
-                                  ),
-                                )}
-                              </div>
-                            )}
-                            <div className="button-row">
-                              <button
-                                disabled={
-                                  b.hp >= maxHp(b, r.kit) ||
-                                  r.glow < repairCost(r)
-                                }
-                                onClick={() =>
-                                  act({ type: "repair", slot: selected })
-                                }
-                              >
-                                Repair · {repairCost(r)} Glow
-                              </button>
-                              <button
-                                disabled={r.glow < 3}
-                                onClick={() => {
-                                  setMoving(selected);
-                                  setCard(null);
-                                }}
-                              >
-                                Move · 3
-                              </button>
-                              <button
-                                onClick={() => {
-                                  act({ type: "sell", slot: selected });
-                                  setSelected(null);
-                                }}
-                              >
-                                Salvage · +
-                                {Math.floor(BUILDINGS[b.type].cost / 2)}
-                              </button>
-                            </div>
-                          </section>
-                        )}
-                      </>
+                      <Planning
+                        r={r}
+                        guide={state.settings.guide}
+                        lesson={lesson}
+                        card={card}
+                        setCard={setCard}
+                        pending={pending}
+                        setPending={setPending}
+                        setPreview={setPreview}
+                        moving={moving}
+                        setMoving={setMoving}
+                        selected={selected}
+                        setSelected={setSelected}
+                        b={b}
+                        act={act}
+                        onSlot={onSlot}
+                      />
                     ) : (
-                      <section className="panel night-controls">
-                        {r.rules >= 4 && (
-                          <p className="order-summary" role="status">
-                            {r.warden.deployed
-                              ? `${r.warden.mode === "guard" ? "Guarding" : "Holding position on"} ${mapLanes(r.town)[r.warden.lane]?.name}. ${r.warden.orderPending ? "On the way." : "Ready."}`
-                              : "The Warden is awaiting your first order."}
-                            {encounterFor(r.town, r.night).finale &&
-                              ` Assault ${r.assault} of ${r.town === "first" ? 1 : 2}.`}
-                          </p>
-                        )}
-                        <div className="section-heading">
-                          <h2>Keep the light moving</h2>
-                          <span>
-                            ✧ {r.bursts} {r.bursts === 1 ? "flare" : "flares"}
-                          </span>
-                        </div>
-
-                        {mapLanes(r.town).map((lane) => {
-                          const enemies = r.enemies.filter(
-                            (e) => e.lane === lane.id,
-                          );
-                          const incoming = r.wave.filter(
-                            (e) => e.lane === lane.id && !e.spawned,
-                          ).length;
-                          const close = enemies.some((e) => e.progress > 0.72);
-                          const weakening = r.slots.some(
-                            (s) =>
-                              s.lane === lane.id &&
-                              s.building &&
-                              s.building.hp < maxHp(s.building, r.kit) * 0.3 &&
-                              enemies.some(
-                                (e) =>
-                                  Math.abs(e.progress - s.progress) < 0.015,
-                              ),
-                          );
-                          const danger = close || weakening;
-                          return (
-                            <div
-                              className={`threat-card ${danger ? "urgent" : ""}`}
-                              key={lane.id}
-                            >
-                              <div>
-                                <strong>{lane.name}</strong>
-                                <span>
-                                  {enemies.length} here
-                                  {incoming ? ` · ${incoming} coming` : ""}
-                                  {close
-                                    ? " · close to the Hearth"
-                                    : weakening
-                                      ? " · defense weakening"
-                                      : ""}
-                                </span>
-                              </div>
-                              <div className="button-row">
-                                <button
-                                  onClick={() => onRoad(lane.id)}
-                                  aria-label={`Send Warden to ${lane.name}`}
-                                  aria-pressed={r.warden.lane === lane.id}
-                                >
-                                  {r.rules >= 4
-                                    ? `Guard road ${lane.id + 1}`
-                                    : "Send Warden →"}
-                                </button>
-                                <button
-                                  className="burst"
-                                  disabled={!enemies.length || !r.bursts}
-                                  onClick={() =>
-                                    act({ type: "burst", lane: lane.id })
-                                  }
-                                  aria-label={`Hearth flare on ${lane.name}`}
-                                >
-                                  ✧ Flare
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </section>
+                      <BattleControls r={r} act={act} onRoad={onRoad} />
                     )}
                     {r.blessings.length > 0 && (
                       <div className="held-blessings">
