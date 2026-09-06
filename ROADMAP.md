@@ -17,7 +17,8 @@ implementation; physical-device and listening claims still require evidence.
 - [x] Authored instrument timbres, longer arrangements and spatial combat cues.
 - [x] Encounter editor with entrances, bends, plots and spawn groups; local drafts.
 - [x] Visual replay with bounded imports, cached seeking and outcome comparison.
-- [ ] Transition profiling and sustained performance gates.
+- [x] Cold loading, placement, audio startup and a 30-second sustained battle probe.
+- [x] Frame, input and readiness budgets enforced before deployment; bounded collections.
 - [ ] Final CI, offline, viewport, live browser, and documented device limitations.
 
 

@@ -109,6 +109,7 @@ export function VillageMap({
           current.round.completed +
           current.round.heart +
           JSON.stringify(current.round.ruins);
+        const start = performance.now();
         if (key !== townKey) {
           paintBuildings(
             town.getContext("2d"),
@@ -121,7 +122,6 @@ export function VillageMap({
           current.round.paused || current.round.phase !== "night"
             ? 1
             : Math.min(1, (now - current.at) / 100);
-        const start = performance.now();
         for (const e of current.round.events)
           if (!effectTimes.has(e.id))
             effectTimes.set(

@@ -33,7 +33,7 @@ jobs:
           name: browser-screenshots
           path: browser-screenshots
       - name: Capture browser frame pacing
-        run: node scripts/perf-probe.mjs --seconds 4 --repeat 3 > browser-performance.json
+        run: node scripts/perf-probe.mjs --seconds 4 --repeat 3 --assert --output browser-performance.json
         env:
           CHROME_PATH: /usr/bin/google-chrome
       - name: Capture explicit strategy examples

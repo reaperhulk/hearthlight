@@ -132,4 +132,5 @@ The background test verified that another tab pauses combat before return.
 
 The physical-device and fresh-player gates above remain unmeasured. The
 implementation checklist is complete in IMPROVEMENTS.md; larger commissioned
-art/audio production remains contingent on the human gate in the original plan.
+art/audio production was subsequently authorized by the user, who accepted
+the prototype fun gate and requested the complete second improvement plan.

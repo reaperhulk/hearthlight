@@ -1,4 +1,37 @@
-# September 2026 improvement plan: implementation record
+# Second improvement plan: implementation record
+
+The user accepted the prototype and authorized completion of the full plan.
+Human fun testing did not block the implementation below. Physical-device
+and listening results are reported only when actually measured.
+
+| Area | Delivered in this pass | Evidence |
+| --- | --- | --- |
+| Opening and controls | Hearth and flare naming, finite goal, existing farm, wall-first guide, keyboard fix, range previews and explicit touch confirmation | DOM tests and real Chromium opening |
+| Tactical depth | Persistent road guarding, farm-raiding detours, wall-only blocking, authored geometry, delayed projectile damage and heavy-strike interrupts | 30 matched tactical comparisons, replay equality, engine tests |
+| Campaign and progression | Distinct six-night arcs, Antlered King finales, sidegrade kits, restored village square, ruins, mastery awards and settlement outcomes | 120 profile cases, 60 separate build cases and native render checks |
+| Interface and world | Forecast beside desktop construction, on-map enemy symbols, raid/strike priorities, repair shortcuts, farm payback, distinct king silhouette and lantern connections | Viewport/control/offline smoke; static and live inspection |
+| Music and sound | Original lute/flute/cello/bell harmonics, paired phrases over roughly two minutes, day/night/danger arrangements, spatial raid/windup/arrival cues, voice caps and warning ducking | Audio graph, mute, lifecycle and directional cue tests; subjective mix requires listening |
+| Authoring and debugging | Encounter workshop with road/plot/group editing, local drafts, import/export, sandbox play and visual replay with cached seeking | Replay/validation tests and browser round-trip with campaign preservation |
+| Maintainability | Planning, battle, results, settings and persistence split out of the main component; overwritten CSS removed; old simulation rules frozen | Lint, migration tests and full quality gate |
+| Performance | Retained cached/interpolated renderer; cold-load, placement and audio-start probes; 30-second sustained battle; frame/input/readiness budgets in CI and deployment | Browser measurements and scene-population checks; results documented after the final run |
+
+The tactical benchmark includes an exposed mill that survives an early River
+commitment but falls when the Warden always follows the leading enemy.
+Scattershot preserves a wall against a crowd; Sunlance preserves it against
+a protected king. Both branches can win, with different structure losses.
+These are concrete counterexamples, not a human enjoyment score.
+
+The first browser failure exposed exact-coordinate save checks across Node
+and Chromium. A sub-nanounit geometry tolerance now accepts portable saves
+while rejecting displaced plots. The second was a smoke test trying to click
+the removed desktop Approach tab; it now verifies the combined forecast.
+
+The original implementation record below is historical and describes the
+preceding rules and evidence.
+
+---
+
+## Original improvement plan: implementation record
 
 The old inevitable-fall game has been replaced with a finite village-defense
 campaign. This document maps the original review's work packages to the
@@ -82,7 +115,7 @@ continues belong in the separate session notes, not an inferred “fun score.”
 The engineering work in the plan is implemented. Its human acceptance gates
 remain unmeasured: comprehension without coaching, meaningful choices,
 voluntary replay, and whether the game is enjoyable. Follow PLAYTEST.md with
-fresh players before expanding the content or commissioning a larger score
-and asset set. Device listening, real-phone performance and Safari/120Hz
+fresh players to measure comprehension and preference. The user has already
+authorized the current content, visual and audio expansion. Device listening, real-phone performance and Safari/120Hz
 checks also require the relevant hardware. None is claimed as a passing
 result from bots or the cloud browser.

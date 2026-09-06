@@ -12,6 +12,7 @@ export function scene(name) {
   let state = freshGame();
   if (name.startsWith("full-")) return fullTown(name.endsWith("battle"));
   if (name === "home") return state;
+  if (name === "opening") return startGame(state, "first", 42);
   if (name === "first-day") {
     state = startGame(state, "first", 42);
     for (const [slot, building] of [
