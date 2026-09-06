@@ -12,6 +12,8 @@ export function VillageMap({
   selected,
   card,
   recommended,
+  preview,
+  onPreview,
   onSlot,
   onRoad,
   motion,
@@ -19,6 +21,10 @@ export function VillageMap({
   intensity = 1,
   metrics,
 }) {
+  const touchInput = useRef(false);
+  const candidate =
+    card && round.slots.find((s) => s.id === preview && !s.building);
+  const range = candidate && (BUILDINGS[card].range || 0);
   const groundRef = useRef(null),
     nightRef = useRef(null),
     townRef = useRef(null),
@@ -165,6 +171,31 @@ export function VillageMap({
       <canvas ref={townRef} className="map-layer" aria-hidden="true" />
       <canvas ref={liveRef} className="map-layer living" aria-hidden="true" />
       <div
+        className="hearth-label"
+        aria-label={`Hearth, ${round.heart} health`}
+      >
+        ♨ Hearth <strong>{Math.ceil(round.heart)}</strong>
+      </div>
+      {candidate && (
+        <div
+          className={`placement-preview ${range ? "ranged" : ""}`}
+          style={{
+            left: `${candidate.x * 100}%`,
+            top: `${candidate.y * 100}%`,
+            width: `${range ? range * 200 : 8}%`,
+            height: `${range ? range * 200 : 8}%`,
+          }}
+        >
+          <span>
+            {range
+              ? `${BUILDINGS[card].name} coverage`
+              : card === "wall"
+                ? "Blocks this road"
+                : "+12 Glow at dawn"}
+          </span>
+        </div>
+      )}
+      <div
         className="plot-buttons"
         role="group"
         aria-label={
@@ -178,7 +209,14 @@ export function VillageMap({
             key={slot.id}
             className={`plot ${recommended === slot.id ? "recommended" : ""} ${selected === slot.id ? "selected" : ""} ${slot.building ? "built" : ""}`}
             style={{ left: `${slot.x * 100}%`, top: `${slot.y * 100}%` }}
-            onClick={() => onSlot(slot)}
+            onPointerDown={(e) => {
+              touchInput.current = e.pointerType === "touch";
+            }}
+            onMouseEnter={() => onPreview?.(slot.id)}
+            onMouseLeave={() => onPreview?.(null)}
+            onFocus={() => onPreview?.(slot.id)}
+            onBlur={() => onPreview?.(null)}
+            onClick={() => onSlot(slot, touchInput.current)}
             aria-label={`${mapLanes(round.town)[slot.lane].name}, plot ${slot.index + 1}${slot.building ? `, ${BUILDINGS[slot.building.type].name}, ${Math.ceil(slot.building.hp)} health` : `, empty${card ? `, build ${BUILDINGS[card].name}` : ""}`}`}
             aria-describedby={
               recommended === slot.id ? "plot-recommendation" : undefined

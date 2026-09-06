@@ -20,16 +20,13 @@ try {
   await hydrate(page, freshGame());
   await layout();
   await clickText(page, "Light the first fire");
-  for (const [building, plot] of [
-    ["Farm", 3],
-    ["Timber wall", 1],
-  ]) {
+  for (const [building, plot] of [["Timber wall", 1]]) {
     await clickText(page, building);
     await page.click(`[aria-label^="North road, plot ${plot}"]`);
   }
   assert.equal(
     (await page.evaluate(() => window.__game.getState())).round.stats.built,
-    2,
+    1,
   );
   await layout();
   await clickText(page, "Start Night");
@@ -39,14 +36,15 @@ try {
       await page.evaluate(() => window.__game.getState())
     ).round.lessons.includes("wall"),
   );
-  await page.click('[aria-label="Send Warden to North road"]');
+  await page.focus('[aria-label="Send Warden to North road"]');
+  await page.keyboard.press("Space");
   await page.waitForFunction(
     () => window.__game.getState().round.warden.deployed,
   );
   await page.waitForFunction(
     () => window.__game.getState().round.enemies.length > 0,
   );
-  await page.click('[aria-label="Lantern burst on North road"]');
+  await page.click('[aria-label="Hearth flare on North road"]');
   await page.waitForFunction(() => window.__game.getState().round.bursts === 1);
   await page.click('[aria-label="Open settings"]');
   assert.ok((await page.evaluate(() => window.__game.getState())).round.paused);

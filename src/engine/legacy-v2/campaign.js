@@ -1,10 +1,4 @@
 import {
-  advance as legacyAdvance,
-  command as legacyCommand,
-  migrateGame as legacyMigrate,
-  replayRound as legacyReplay,
-} from "./legacy-v2/campaign.js";
-import {
   BUILDINGS,
   BLESSINGS,
   ENEMIES,
@@ -74,7 +68,6 @@ export function freshGame() {
 }
 
 export function migrateGame(saved) {
-  if (saved?.round && !saved.round.rules) return legacyMigrate(saved);
   const fresh = freshGame();
   if (!saved || typeof saved !== "object" || Array.isArray(saved)) return fresh;
   const embers = clamp(finite(saved.embers), 0, 1e9);
@@ -382,7 +375,6 @@ export function startGame(
   return {
     ...state,
     round: {
-      rules: 3,
       town,
       kit,
       seed: seed >>> 0,
@@ -397,24 +389,9 @@ export function startGame(
       time: 0,
       waveTime: 0,
       carry: 0,
-      glow:
-        TOWNS[town].start +
-        (kit === "gardener" ? 10 : 0) -
-        (town === "first" ? 14 : 0),
+      glow: TOWNS[town].start + (kit === "gardener" ? 10 : 0),
       heart: 100,
-      slots: createMap(town).slots.map((slot) =>
-        town === "first" && slot.id === "0-2"
-          ? {
-              ...slot,
-              building: {
-                type: "farm",
-                branch: null,
-                hp: BUILDINGS.farm.hp,
-                cooldown: 0,
-              },
-            }
-          : slot,
-      ),
+      slots: createMap(town).slots,
       enemies: [],
       wave: makeWave(town, 1, seed >>> 0),
       waveHistory: [],
@@ -507,8 +484,6 @@ export function forecast(r) {
 }
 
 export function command(state, action, wallTime = null) {
-  if (state.round && !state.round.rules)
-    return legacyCommand(state, action, wallTime);
   const next = applyCommand(state, action);
   if (!state.settings.recording || !action || typeof action.type !== "string")
     return next;
@@ -951,7 +926,7 @@ function simulate(r) {
     } else {
       r.heart = Math.max(0, r.heart - def.damage);
       r.stats.damage += def.damage;
-      r.lastLoss = `${def.name} reached the Hearth along ${mapLanes(r.town)[enemy.lane].name}.`;
+      r.lastLoss = `${def.name} reached the Heart along ${mapLanes(r.town)[enemy.lane].name}.`;
       event(r, "heart", { damage: def.damage, lane: enemy.lane });
       incident(r, "heart", enemy.lane, r.lastLoss);
       if (r.heart <= 0) {
@@ -1020,7 +995,6 @@ function simulate(r) {
 }
 
 export function advance(state, dt) {
-  if (state.round && !state.round.rules) return legacyAdvance(state, dt);
   if (
     !state.round ||
     state.round.phase !== "night" ||
@@ -1042,7 +1016,6 @@ export function advance(state, dt) {
 // A portable reproducer contains scenario seed and timestamped player commands.
 // Simulation time, rather than wall time, makes pause and speed settings irrelevant.
 export function replayRound(record) {
-  if (record && !record.rules) return legacyReplay(record);
   if (
     !record ||
     record.replayTruncated ||

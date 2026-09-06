@@ -231,7 +231,8 @@ function Settings({ state, act, onClose, onImport }) {
         </details>
         <p className="quiet">
           Keyboard: 1–4 select a building · Tab and Enter choose a plot · D
-          starts night · Space pauses · Escape clears selection.
+          starts night · During battle, 1–4 send the Warden and Shift+1–4 flare
+          a road. Space pauses outside buttons · Escape clears selection.
         </p>
       </section>
     </div>
@@ -242,6 +243,8 @@ export function Village() {
   const [state, setState] = useState(load),
     [selected, setSelected] = useState(null),
     [card, setCard] = useState(null),
+    [preview, setPreview] = useState(null),
+    [pending, setPending] = useState(null),
     [moving, setMoving] = useState(null),
     [town, setTown] = useState("first"),
     [settings, setSettings] = useState(false),
@@ -416,11 +419,37 @@ export function Village() {
         setCard(null);
         setSelected(null);
         setMoving(null);
+        setPending(null);
+        setPreview(null);
         return;
       }
-      if (e.code === "Space" && r.phase === "night") {
+      if (
+        e.code === "Space" &&
+        r.phase === "night" &&
+        !(
+          e.target instanceof HTMLElement &&
+          e.target.closest("button, a, summary, [role=button]")
+        )
+      ) {
         e.preventDefault();
         act({ type: "pause" });
+      }
+      if (r.phase === "night" && ["1", "2", "3", "4"].includes(e.key)) {
+        const lane = Number(e.key) - 1;
+        if (mapLanes(r.town)[lane]) {
+          const threats = r.enemies.filter((x) => x.lane === lane);
+          act(
+            e.shiftKey
+              ? { type: "burst", lane }
+              : {
+                  type: "rally",
+                  lane,
+                  progress: threats.length
+                    ? Math.max(0.3, ...threats.map((x) => x.progress + 0.03))
+                    : 0.48,
+                },
+          );
+        }
       }
       if (r.phase === "day" && e.key.toLowerCase() === "d") {
         act({ type: "start" });
@@ -432,7 +461,7 @@ export function Village() {
           current.current.settings.guide &&
           r.town === "first" &&
           r.night === 1 &&
-          ["tower", "lantern"].includes(id)
+          ["farm", "tower", "lantern"].includes(id)
         )
           return;
         setView("build");
@@ -492,7 +521,7 @@ export function Village() {
       });
     }
   };
-  const onSlot = (slot) => {
+  const onSlot = (slot, touch = false) => {
     setView("build");
     if (r.phase === "night") {
       act({ type: "rally", lane: slot.lane, progress: slot.progress });
@@ -506,6 +535,12 @@ export function Village() {
       return;
     }
     if (card && !slot.building && r.glow >= BUILDINGS[card].cost) {
+      if (touch) {
+        setPending({ slot: slot.id, building: card });
+        setPreview(slot.id);
+        return;
+      }
+      setPending(null);
       act({ type: "build", slot: slot.id, building: card });
       setCard(null);
       setSelected(null);
@@ -760,6 +795,14 @@ export function Village() {
                   : r.phase === "day"
                     ? "A little time to prepare."
                     : "Hold the roads."}
+                {!over && (
+                  <small className="goal-line">
+                    Protect the Hearth ·{" "}
+                    {r.endless
+                      ? "Hold as long as you can"
+                      : `Survive ${TOWNS[r.town].nights} nights`}
+                  </small>
+                )}
               </h1>
             </div>
             <div className="run-stats">
@@ -768,13 +811,13 @@ export function Village() {
                 <strong>✦ {r.glow}</strong>
               </span>
               <span>
-                <small>THE BEACON</small>
+                <small>NIGHTS SURVIVED</small>
                 <strong>
                   {r.completed} / {r.endless ? "∞" : TOWNS[r.town].nights}
                 </strong>
               </span>
               <span>
-                <small>HEART</small>
+                <small>HEARTH</small>
                 <strong className={r.heart < 35 ? "danger-text" : ""}>
                   ♥ {r.heart}
                 </strong>
@@ -784,7 +827,7 @@ export function Village() {
           <div
             className="heart-track"
             role="meter"
-            aria-label="Heart health"
+            aria-label="Hearth health"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={r.heart}
@@ -798,6 +841,8 @@ export function Village() {
                 round={r}
                 selected={selected}
                 card={card}
+                preview={pending?.slot || preview}
+                onPreview={setPreview}
                 recommended={lesson?.plot}
                 onSlot={onSlot}
                 onRoad={onRoad}
@@ -889,7 +934,7 @@ export function Village() {
                       <p>
                         {r.dawnReport.kills} enemies banished.{" "}
                         {r.dawnReport.standing} buildings standing;{" "}
-                        {r.dawnReport.lost} lost. {r.dawnReport.damage} Heart
+                        {r.dawnReport.lost} lost. {r.dawnReport.damage} Hearth
                         damage. Dawn paid {r.dawnReport.income} Glow, including{" "}
                         {r.dawnReport.farms} from farms.
                       </p>
@@ -1067,7 +1112,7 @@ export function Village() {
                               ? `${r.dawnReport.lost} buildings lost`
                               : "every building held"}
                             {r.dawnReport.damage > 0 &&
-                              ` · ${r.dawnReport.damage} Heart damage. Dawn & story shows the breach.`}
+                              ` · ${r.dawnReport.damage} Hearth damage. Dawn & story shows the breach.`}
                           </p>
                         )}
                         {r.night === 1 && r.kit !== "keeper" && (
@@ -1080,6 +1125,51 @@ export function Village() {
                             <h2>Make your stand</h2>
                             <span>No clock. Take your time.</span>
                           </div>
+                          {pending &&
+                            card === pending.building &&
+                            r.slots.find(
+                              (s) => s.id === pending.slot && !s.building,
+                            ) && (
+                              <div className="placement-confirm" role="status">
+                                <strong>
+                                  {BUILDINGS[card].name} ·{" "}
+                                  {BUILDINGS[card].cost} Glow
+                                </strong>
+                                <span>
+                                  {
+                                    mapLanes(r.town)[
+                                      r.slots.find((s) => s.id === pending.slot)
+                                        .lane
+                                    ].name
+                                  }{" "}
+                                  · plot{" "}
+                                  {r.slots.find((s) => s.id === pending.slot)
+                                    .index + 1}
+                                </span>
+                                <div className="button-row">
+                                  <button
+                                    className="primary"
+                                    onClick={() =>
+                                      onSlot(
+                                        r.slots.find(
+                                          (s) => s.id === pending.slot,
+                                        ),
+                                      )
+                                    }
+                                  >
+                                    Build here
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setPending(null);
+                                      setPreview(null);
+                                    }}
+                                  >
+                                    Cancel placement
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           <div className="build-grid">
                             {Object.entries(BUILDINGS)
                               .filter(
@@ -1088,7 +1178,7 @@ export function Village() {
                                     state.settings.guide &&
                                     r.town === "first" &&
                                     r.night === 1 &&
-                                    ["tower", "lantern"].includes(id)
+                                    ["farm", "tower", "lantern"].includes(id)
                                   ),
                               )
                               .map(([id, def]) => (
@@ -1100,6 +1190,7 @@ export function Village() {
                                     (id === "farm" && !hasFutureDawn(r))
                                   }
                                   onClick={() => {
+                                    setPending(null);
                                     setCard(card === id ? null : id);
                                     setMoving(null);
                                     setSelected(null);
@@ -1215,7 +1306,7 @@ export function Village() {
                         <div className="section-heading">
                           <h2>Keep the light moving</h2>
                           <span>
-                            ✧ {r.bursts} {r.bursts === 1 ? "burst" : "bursts"}
+                            ✧ {r.bursts} {r.bursts === 1 ? "flare" : "flares"}
                           </span>
                         </div>
 
@@ -1249,7 +1340,7 @@ export function Village() {
                                   {enemies.length} here
                                   {incoming ? ` · ${incoming} coming` : ""}
                                   {close
-                                    ? " · close to the Heart"
+                                    ? " · close to the Hearth"
                                     : weakening
                                       ? " · defense weakening"
                                       : ""}
@@ -1269,9 +1360,9 @@ export function Village() {
                                   onClick={() =>
                                     act({ type: "burst", lane: lane.id })
                                   }
-                                  aria-label={`Lantern burst on ${lane.name}`}
+                                  aria-label={`Hearth flare on ${lane.name}`}
                                 >
-                                  ✧ Burst
+                                  ✧ Flare
                                 </button>
                               </div>
                             </div>

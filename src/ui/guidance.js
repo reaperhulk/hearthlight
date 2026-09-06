@@ -6,15 +6,19 @@ export function introduction(r) {
   if (r.phase === "night") {
     if (!r.warden.deployed)
       return {
-        title: r.paused
-          ? "The wall is holding. Now help it."
-          : "Watch the north wall",
+        title:
+          r.paused && r.lessons?.includes("wall")
+            ? "The wall is holding. Now help it."
+            : "Watch the north wall",
         text: "Send the Warden to North road. He walks to the attackers and fights automatically.",
       };
     if (r.night >= 2 && r.stats.bursts === 0)
       return {
-        title: r.paused ? "Try a lantern burst" : "Keep a spark in reserve",
-        text: "Use Burst on a road with enemies. It damages, interrupts and pushes them back. Charges return each night.",
+        title:
+          r.paused && r.lessons?.includes("burst")
+            ? "Try a Hearth flare"
+            : "Keep a spark in reserve",
+        text: "Use Flare on a road with enemies. It damages, interrupts and pushes them back. Charges return each night.",
       };
     return {
       title: "Hold until dawn",
@@ -23,22 +27,15 @@ export function introduction(r) {
   }
   if (r.phase !== "day") return null;
   if (r.night === 1) {
-    if (!r.slots.some((s) => s.building?.type === "farm"))
-      return {
-        title: "1 · Plant tomorrow’s budget",
-        text: "Choose Farm, then the marked North plot 3. It pays 12 Glow at dawn.",
-        card: "farm",
-        plot: "0-2",
-      };
     if (!r.slots.some((s) => s.building?.type === "wall"))
       return {
-        title: "2 · Hold the north road",
-        text: "Choose Timber wall, then the marked North plot 1. Enemies must break it before moving on.",
+        title: "1 · Protect the Hearth",
+        text: "The village already has a farm. Place a Timber wall on North plot 1 to stop the first attackers before they reach the Hearth.",
         card: "wall",
         plot: "0-0",
       };
     return {
-      title: "3 · Let the first night come",
+      title: "2 · Let the first night come",
       text: "Start Night. Watch enemies meet the wall, then send your Warden to help.",
     };
   }
@@ -52,11 +49,11 @@ export function introduction(r) {
   return !hasFutureDawn(r)
     ? {
         title: "One last night",
-        text: "Choose a blessing, repair and strengthen your defenses. Survive to restore the beacon.",
+        text: "Choose a blessing, repair and strengthen your defenses. Keep the Hearth alive to save the village.",
       }
     : {
         title: "Make the next night your own",
-        text: `${TOWNS.first.nights - r.completed} nights remain. Select a building for two different upgrades, or try a lantern beside your Warden.`,
+        text: `${TOWNS.first.nights - r.completed} nights remain. Repair the north wall, strengthen a tower, or plant a second farm for future income. Choose which road your Warden will support.`,
       };
 }
 
@@ -71,7 +68,7 @@ export function defeatExplanation(r) {
     : `Attackers had an open route along ${road}. Cover it with a wall and damage source before the next attempt.`;
   return {
     chain: chain.map((e) => e.text),
-    advice: `${advice}${r.bursts > 0 ? ` You still had ${r.bursts} burst ${r.bursts === 1 ? "charge" : "charges"}; use one as enemies get past your last defense.` : " With your bursts spent, move the Warden to the innermost attackers."}`,
+    advice: `${advice}${r.bursts > 0 ? ` You still had ${r.bursts} flare ${r.bursts === 1 ? "charge" : "charges"}; use one as enemies get past your last defense.` : " With your flares spent, move the Warden to the innermost attackers."}`,
   };
 }
 

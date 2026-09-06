@@ -69,13 +69,13 @@ describe("the playable interface", () => {
     await mount();
     expect(document.body.textContent).toContain("test-build");
     await click(button("Light the first fire"));
-    await click(button("Farm"));
-    await click(document.querySelector('[aria-label^="North road, plot 3"]'));
+    await click(button("Timber wall"));
+    await click(document.querySelector('[aria-label^="North road, plot 1"]'));
     expect(window.__game.getState().round.slots[2].building.type).toBe("farm");
     await click(document.querySelector('[aria-label^="North road, plot 3"]'));
     expect(document.body.textContent).toContain("+12 Glow at dawn");
     await click(button("↶ Undo last change"));
-    expect(window.__game.getState().round.glow).toBe(62);
+    expect(window.__game.getState().round.glow).toBe(48);
     await act(async () =>
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "d" })),
     );
@@ -92,9 +92,9 @@ describe("the playable interface", () => {
     await click(button("Start Night"));
     await act(async () => window.__game.advance(6));
     await click(labelled("Send Warden to North road"));
-    expect(labelled("Lantern burst on North road").disabled).toBe(false);
+    expect(labelled("Hearth flare on North road").disabled).toBe(false);
     expect(document.querySelectorAll(".threat-card")).toHaveLength(3);
-    await click(labelled("Lantern burst on North road"));
+    await click(labelled("Hearth flare on North road"));
     expect(window.__game.getState().round.bursts).toBe(1);
   });
   it("shows exact victory rewards, collects once, and enables the next town", async () => {
@@ -208,4 +208,33 @@ describe("the playable interface", () => {
     const replay = replayRound(state.round);
     expect(replay.round).toEqual(state.round);
   });
+});
+
+it("does not intercept Space on a focused combat button", async () => {
+  await mount(startGame(freshGame()));
+  await click(button("Start Night"));
+  const guard = labelled("Send Warden to River road");
+  guard.focus();
+  let event;
+  await act(async () => {
+    event = new KeyboardEvent("keydown", {
+      key: " ",
+      code: "Space",
+      bubbles: true,
+      cancelable: true,
+    });
+    guard.dispatchEvent(event);
+  });
+  expect(event.defaultPrevented).toBe(false);
+  expect(window.__game.getState().round.paused).toBe(false);
+  await act(async () =>
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: " ",
+        code: "Space",
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(window.__game.getState().round.paused).toBe(true);
 });

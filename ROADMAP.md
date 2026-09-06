@@ -1,5 +1,23 @@
 # Hearthlight roadmap
 
+## Second improvement plan (September 6, 2026)
+
+The prototype fun gate is accepted by the user. Continue through the entire
+implementation; physical-device and listening claims still require evidence.
+
+- [x] Consistent Hearth/flare language, visible survival goal, an existing farm
+      and a wall-first opening; Space respects focused buttons.
+- [x] Mouse/keyboard coverage previews and explicit touch placement confirmation.
+- [x] Preserve the previous simulation for existing saves and replay records.
+- [ ] Persistent guard orders, physical raiders, authored tactical geography.
+- [ ] Six-night encounter arcs, finales, distinct towns, kit sidegrades and mastery.
+- [ ] Desktop/mobile information layout, recovery advice and accessible battle reports.
+- [ ] Village life, restoration, distinct silhouettes and synchronized impacts.
+- [ ] Authored instrument timbres, longer arrangements and spatial combat cues.
+- [ ] Encounter editor, visual replay, transition profiling and performance gates.
+- [ ] Final CI, offline, viewport, live browser, and documented device limitations.
+
+
 ## Town-defense redesign (September 2026)
 
 The approved redesign replaces inevitable defeat with winnable scenarios.

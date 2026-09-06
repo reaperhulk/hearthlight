@@ -16,8 +16,7 @@ import { finishCampaign } from "../../../scripts/campaign-balance.js";
 describe("lessons and earned challenges", () => {
   it("teaches the wall then Warden and reaches dawn without a first-night tower", () => {
     let s = startGame(freshGame(), "first", 42);
-    expect(introduction(s.round).plot).toBe("0-2");
-    s = command(s, { type: "build", slot: "0-2", building: "farm" });
+    expect(s.round.slots[2].building.type).toBe("farm");
     expect(introduction(s.round).plot).toBe("0-0");
     s = command(s, { type: "build", slot: "0-0", building: "wall" });
     s = command(s, { type: "start" });
@@ -44,8 +43,8 @@ describe("lessons and earned challenges", () => {
     expect(s.round.phase).toBe("lost");
     const result = defeatExplanation(s.round);
     expect(result.chain[0]).toContain("Timber wall fell on North road");
-    expect(result.chain.at(-1)).toContain("reached the Heart");
-    expect(result.advice).toContain("2 burst charges");
+    expect(result.chain.at(-1)).toContain("reached the Hearth");
+    expect(result.advice).toContain("2 flare charges");
   });
   it("a no-burst challenge is locked until victory, completable and replayable", () => {
     const fresh = freshGame();

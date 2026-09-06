@@ -99,6 +99,7 @@ export function strategyReport() {
           heart: r.heart,
           completed: r.completed,
           wardenShare: Math.round((100 * r.stats.wardenKills) / r.stats.kills),
+          startingFarms: r.town === "first" ? 1 : 0,
           incomeBuilt: r.commands.filter(
             (c) => c.type === "build" && c.building === "farm",
           ).length,
@@ -129,7 +130,7 @@ if (
   assert.ok(
     results
       .filter((r) => r.strategy === "harvest-battery")
-      .every((r) => r.incomeBuilt >= 2),
+      .every((r) => r.incomeBuilt + r.startingFarms >= 2),
   );
   assert.ok(
     results

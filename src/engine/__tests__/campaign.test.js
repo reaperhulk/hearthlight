@@ -41,7 +41,7 @@ describe("the village campaign", () => {
     expect(state.embers).toBe(0);
     expect(state.wins).toEqual({});
   });
-  it("a wall blocks movement; its destruction never remotely wounds the Heart", () => {
+  it("a wall blocks movement; its destruction never remotely wounds the Hearth", () => {
     let state = build(start(), "0-0", "wall");
     state = command(state, { type: "start" });
     state.round.wave = [];
@@ -67,7 +67,7 @@ describe("the village campaign", () => {
     state = advance(state, 0.1);
     expect(state.round.enemies[0].progress).toBeGreaterThan(0.3);
   });
-  it("damage to the Heart requires an enemy there and stops precisely on defeat", () => {
+  it("damage to the Hearth requires an enemy there and stops precisely on defeat", () => {
     let state = command(start(), { type: "start" });
     state.round.heart = 1;
     state.round.wave = [];

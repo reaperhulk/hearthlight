@@ -94,8 +94,9 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
-it("signals danger from a breached approach before Heart damage", () => {
+it("signals danger from a breached approach before Hearth damage", () => {
   let s = command(startGame(freshGame()), { type: "start" });
+  s.round.slots.forEach(slot => { slot.building = null; });
   s = advance(s, 19);
   expect(s.round.heart).toBe(100);
   expect(score.scoreMood(s.round)).toBe("danger");

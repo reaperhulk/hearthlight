@@ -254,7 +254,7 @@ if (
           (r) => r.town === town && r.style === style,
         );
         console.log(
-          `${town.padEnd(7)} ${style.padEnd(8)} ${group.filter((r) => r.outcome === "won").length}/${group.length} wins; ${Math.round(group.reduce((sum, r) => sum + r.seconds, 0) / group.length)}s combat; ${Math.round(group.reduce((sum, r) => sum + r.heart, 0) / group.length)} Heart`,
+          `${town.padEnd(7)} ${style.padEnd(8)} ${group.filter((r) => r.outcome === "won").length}/${group.length} wins; ${Math.round(group.reduce((sum, r) => sum + r.seconds, 0) / group.length)}s combat; ${Math.round(group.reduce((sum, r) => sum + r.heart, 0) / group.length)} Hearth`,
         );
       }
   }

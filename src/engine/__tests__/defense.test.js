@@ -88,7 +88,7 @@ describe("combat and persistence regressions", () => {
     );
     expect(interrupted.round.enemies[0].hp).toBe(16);
   });
-  it("Thorn barricades punish attackers without remote Heart damage", () => {
+  it("Thorn barricades punish attackers without remote Hearth damage", () => {
     let s = nightWith(
       [enemy("one")],
       [
@@ -105,10 +105,10 @@ describe("combat and persistence regressions", () => {
     let s = command(start(), build("0-0", "wall"));
     s = command(s, { type: "move", slot: "0-0", to: "1-0" });
     s = command(s, { type: "undo" });
-    expect(s.round.glow).toBe(50);
+    expect(s.round.glow).toBe(start().round.glow - 12);
     s = command(s, { type: "sell", slot: "0-0" });
     s = command(s, { type: "undo" });
-    expect(s.round.glow).toBe(50);
+    expect(s.round.glow).toBe(start().round.glow - 12);
     expect(s.round.slots[0].building.type).toBe("wall");
   });
   it("a saved, resumed run remains replayable, including its automatic pause", () => {
