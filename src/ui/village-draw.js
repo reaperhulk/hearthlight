@@ -653,6 +653,25 @@ export function paintLiving(
   ctx.clearRect(0, 0, SIZE, SIZE);
   const lanes = mapLanes(r.town);
   const decorative = motion && intensity > 0;
+  const activeRoad =
+    r.phase === "night"
+      ? r.warden.deployed
+        ? r.warden.lane
+        : null
+      : r.slots.find((s) => s.id === selected)?.lane;
+  if (Number.isInteger(activeRoad) && lanes[activeRoad]) {
+    ctx.strokeStyle = contrast ? "#adffdc" : "#a4eed673";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    for (let i = 0; i <= 24; i++) {
+      const p = pt(
+        routePoint(lanes[activeRoad], i / 24, r.town, r.rules || 2, r.layout),
+      );
+      if (i) ctx.lineTo(p.x, p.y);
+      else ctx.moveTo(p.x, p.y);
+    }
+    ctx.stroke();
+  }
   if (contrast)
     for (const lane of lanes) {
       ctx.strokeStyle = "#f4e8ba88";

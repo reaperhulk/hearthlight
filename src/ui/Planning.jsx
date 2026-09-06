@@ -102,7 +102,7 @@ export function Planning({
         <p className="dawn-summary" role="status">
           Dawn paid {r.dawnReport.income} Glow · {r.dawnReport.kills} banished ·{" "}
           {r.dawnReport.lost
-            ? `${r.dawnReport.lost} buildings lost`
+            ? `${r.dawnReport.lost} ${r.dawnReport.lost === 1 ? "building" : "buildings"} lost`
             : "every building held"}
           {r.dawnReport.damage > 0 &&
             ` · ${r.dawnReport.damage} Hearth damage. Dawn & story shows the breach.`}

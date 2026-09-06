@@ -25,9 +25,12 @@ are implemented; physical-device and listening claims still require evidence.
 Live play confirmed a preserved save can finish, a new campaign can breach
 and recover, and its actual browser record reproduces in the visual viewer.
 Dawn advice now prioritizes the breached road over incidental repairs.
+Critical combat events have concise live announcements; keyboard road groups
+include threat summaries, and the selected/guarded route is highlighted.
 The first performance gate passed all budgets; the follow-up replaces
 trigonometric noise generation on the first input and asserts actual audio
-initialization in the audio-start probe.
+initialization in the audio-start probe. It changes a volume slider through
+the keyboard; selecting a palette card alone intentionally does not start sound.
 
 The workshop is available under Settings → Design and replay tools. Sandbox
 progress and drafts are separate from the campaign; imports are validated and

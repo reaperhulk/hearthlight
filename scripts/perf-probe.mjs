@@ -28,10 +28,10 @@ const session = await browserSession({
   uncapped: process.argv.includes("--uncapped"),
 });
 const { page, errors, browser } = session;
+const reports = [];
 try {
   const cdp = await page.createCDPSession();
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
-  const reports = [];
   for (const name of [
     "first-day",
     "ridge-day",
@@ -90,19 +90,17 @@ try {
             window.__probe.tasks.push(e.duration);
           window.__probe.tasks = window.__probe.tasks.slice(-200);
         }).observe({ type: "longtask", buffered: true });
-        document.addEventListener(
-          "click",
-          () => {
-            const start = performance.now();
-            requestAnimationFrame(() =>
-              requestAnimationFrame(() => {
-                window.__probe.inputs.push(performance.now() - start);
-                window.__probe.inputs = window.__probe.inputs.slice(-100);
-              }),
-            );
-          },
-          true,
-        );
+        const recordInput = () => {
+          const start = performance.now();
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              window.__probe.inputs.push(performance.now() - start);
+              window.__probe.inputs = window.__probe.inputs.slice(-100);
+            }),
+          );
+        };
+        document.addEventListener("click", recordInput, true);
+        document.addEventListener("keydown", recordInput, true);
       });
       await hydrate(page, fixture);
       await page.removeScriptToEvaluateOnNewDocument(probe.identifier);
@@ -165,7 +163,11 @@ try {
         await clickText(page, "Timber wall");
         await page.click('[aria-label^="North road, plot 1"]');
       }
-      if (name === "audio-start") await clickText(page, "Timber wall");
+      if (name === "audio-start") {
+        await page.click('[aria-label="Open settings"]');
+        await page.focus('[aria-label="music volume"]');
+        await page.keyboard.press("ArrowRight");
+      }
       if (name === "dusk") await clickText(page, "Start Night");
       if (name === "open-settings")
         await page.click('[aria-label="Open settings"]');
@@ -316,7 +318,7 @@ try {
       seconds,
       repeats,
       uncapped: process.argv.includes("--uncapped"),
-      note: "requestAnimationFrame intervals include browser scheduling, not physical display presentation. Missed frames are estimates against a 60 Hz budget; paint measures command recording only. Input-to-paint is click-to-second-rAF latency, not physical display latency. Cold start disables HTTP cache and bypasses the service worker on a local server. CPU throttling is not a phone benchmark. Use matching real devices before claiming a speedup.",
+      note: "requestAnimationFrame intervals include browser scheduling, not physical display presentation. Missed frames are estimates against a 60 Hz budget; paint measures command recording only. Input-to-paint is click/keydown-to-second-rAF latency, not physical display latency. Cold start disables HTTP cache and bypasses the service worker on a local server. CPU throttling is not a phone benchmark. Use matching real devices before claiming a speedup.",
       budgets,
       failures,
       reports,
@@ -329,6 +331,14 @@ try {
   console.log(output);
   if (process.argv.includes("--assert"))
     assert.deepEqual(failures, [], "Browser performance budget exceeded");
+} catch (error) {
+  const flag = process.argv.indexOf("--output");
+  if (flag >= 0)
+    await writeFile(
+      process.argv[flag + 1],
+      JSON.stringify({ error: error.message, reports }, null, 2),
+    );
+  throw error;
 } finally {
   await session.close();
 }

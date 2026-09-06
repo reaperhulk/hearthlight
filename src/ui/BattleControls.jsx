@@ -1,8 +1,36 @@
 import { maxHp } from "../engine/campaign.js";
 import { mapLanes, encounterFor } from "../engine/content.js";
 export function BattleControls({ r, act, onRoad }) {
+  const cue = r.events
+    .filter(
+      (e) =>
+        ["raid", "windup", "heart", "fall", "assault"].includes(e.type) &&
+        r.time - e.time < 4,
+    )
+    .at(-1);
+  const roadName =
+    cue && Number.isInteger(cue.lane)
+      ? mapLanes(r.town)[cue.lane]?.name
+      : "the village";
+  const announcement = cue
+    ? {
+        raid: `Farm raid on ${roadName}. Send the Warden or use a flare.`,
+        windup: `Heavy strike preparing on ${roadName}. A flare can interrupt.`,
+        heart: `The Hearth is taking damage from ${roadName}.`,
+        fall: `A defense fell on ${roadName}.`,
+        assault: "The second assault has begun.",
+      }[cue.type]
+    : "";
   return (
     <section className="panel night-controls">
+      <p
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {announcement}
+      </p>
       {r.rules >= 4 && (
         <p className="order-summary" role="status">
           {r.warden.deployed
@@ -39,6 +67,8 @@ export function BattleControls({ r, act, onRoad }) {
           <div
             className={`threat-card ${danger ? "urgent" : ""}`}
             key={lane.id}
+            role="group"
+            aria-label={`${lane.name}: ${enemies.length} attackers, ${incoming} coming.${raiding ? " Farm under raid." : winding ? " Heavy strike preparing." : close ? " Attackers close to the Hearth." : weakening ? " Defense weakening." : ""}`}
           >
             <div>
               <strong>{lane.name}</strong>
