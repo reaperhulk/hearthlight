@@ -44,6 +44,11 @@ export function Planning({
         a.building.hp / maxHp(a.building, r.kit) -
         b.building.hp / maxHp(b.building, r.kit),
     );
+  const breach = (r.incidents || [])
+    .filter((e) => e.type === "heart" && e.night === r.completed)
+    .at(-1);
+  const breachSlot =
+    breach && r.slots.find((s) => s.lane === breach.lane && s.index === 0);
   const farm = b?.type === "farm" ? b : { type: "farm" };
   const income = farmIncome(farm, r.kit);
   return (
@@ -103,28 +108,46 @@ export function Planning({
             ` · ${r.dawnReport.damage} Hearth damage. Dawn & story shows the breach.`}
         </p>
       )}
-      {r.dawnReport && (damaged.length > 0 || r.ruins?.length > 0) && (
-        <div className="dawn-summary recovery-advice">
-          {damaged[0] && (
-            <button
-              onClick={() => {
-                setSelected(damaged[0].id);
-                setCard(null);
-              }}
-            >
-              {mapLanes(r.town)[damaged[0].lane].name}: inspect your weakest{" "}
-              {BUILDINGS[damaged[0].building.type].name.toLowerCase()} ·{" "}
-              {Math.ceil(damaged[0].building.hp)} health
-            </button>
-          )}
-          {r.ruins?.length > 0 && (
-            <span>
-              {r.ruins.length} ruined {r.ruins.length === 1 ? "plot" : "plots"}{" "}
-              can be rebuilt. Protect exposed gardens from Skitters.
-            </span>
-          )}
-        </div>
-      )}
+      {r.dawnReport &&
+        (breachSlot || damaged.length > 0 || r.ruins?.length > 0) && (
+          <div className="dawn-summary recovery-advice">
+            {breachSlot && (
+              <button
+                className="breach-advice"
+                onClick={() => {
+                  setSelected(breachSlot.building ? breachSlot.id : null);
+                  setCard(breachSlot.building ? null : "wall");
+                  setPreview(breachSlot.id);
+                }}
+              >
+                {mapLanes(r.town)[breach.lane].name} breached:{" "}
+                {breachSlot.building
+                  ? "inspect your front defense"
+                  : "add a wall at the entrance"}
+                . Back it with a tower or the Warden.
+              </button>
+            )}
+            {!breachSlot && damaged[0] && (
+              <button
+                onClick={() => {
+                  setSelected(damaged[0].id);
+                  setCard(null);
+                }}
+              >
+                {mapLanes(r.town)[damaged[0].lane].name}: inspect your weakest{" "}
+                {BUILDINGS[damaged[0].building.type].name.toLowerCase()} ·{" "}
+                {Math.ceil(damaged[0].building.hp)} health
+              </button>
+            )}
+            {r.ruins?.length > 0 && (
+              <span>
+                {r.ruins.length} ruined{" "}
+                {r.ruins.length === 1 ? "plot" : "plots"} can be rebuilt.
+                Protect exposed gardens from Skitters.
+              </span>
+            )}
+          </div>
+        )}
       {r.night === 1 && r.kit !== "keeper" && (
         <p className="kit-summary">
           {KITS[r.kit].name}: {KITS[r.kit].detail}

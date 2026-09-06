@@ -134,3 +134,29 @@ The physical-device and fresh-player gates above remain unmeasured. The
 implementation checklist is complete in IMPROVEMENTS.md; larger commissioned
 art/audio production was subsequently authorized by the user, who accepted
 the prototype fun gate and requested the complete second improvement plan.
+
+
+## Second-plan live verification (September 6)
+
+On deployed `f9ce1da` in the cloud desktop browser, the preserved earlier-rule
+save completed its final two nights at 100 Hearth, collected its reward,
+and entered a new rules-4 Briar Hollow campaign. The Warden retained the
+River assignment. Leaving Orchard undefended produced an actual breach;
+flares cleared the attackers and the next dawn reported 66 damage, 34 Hearth,
+39 income and four standing buildings. The story named Orchard as the road.
+The live replay viewer reproduced the recorded result and seeking to its end
+showed the same 34 Hearth, 43 Glow, eight kills and four buildings. Returning
+and reloading preserved that campaign. These observations are tool-driven
+play, not fresh-player enjoyment or an estimate of player difficulty.
+
+CI run `34016592559` on `2f91f95` passed 56 unit/DOM/offline checks, 120 profile
+cases, 60 build cases, 30 tactical cases, browser interactions, all eight
+viewport sizes, offline reload, workshop isolation and performance budgets.
+Chrome 152 on Linux, 4× CPU throttle: all reported frame p95 values were at
+or below 16.8 ms; the 30-second upgraded-town battle stayed active with bounded
+collections. The worst transition frame was 133.4 ms at dusk; cold local
+readiness was at most 314.6 ms. These are the pre-optimization measurements.
+A subsequent patch makes startup noise generation cheaper and ensures the
+audio-start probe actually creates an AudioContext; use its CI artifact for
+any claim about the resulting performance. Physical phone ergonomics,
+listening quality, thermal behavior, Safari and 120 Hz remain unmeasured.

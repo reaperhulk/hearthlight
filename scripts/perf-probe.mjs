@@ -76,7 +76,15 @@ try {
       await page.setCacheEnabled(name !== "cold-start");
       await page.setBypassServiceWorker(name === "cold-start");
       const probe = await page.evaluateOnNewDocument(() => {
-        window.__probe = { inputs: [], tasks: [] };
+        window.__probe = { inputs: [], tasks: [], audioContexts: 0 };
+        const NativeAudioContext = window.AudioContext;
+        if (NativeAudioContext)
+          window.AudioContext = class extends NativeAudioContext {
+            constructor(...args) {
+              super(...args);
+              window.__probe.audioContexts++;
+            }
+          };
         new PerformanceObserver((list) => {
           for (const e of list.getEntries())
             window.__probe.tasks.push(e.duration);
@@ -157,8 +165,7 @@ try {
         await clickText(page, "Timber wall");
         await page.click('[aria-label^="North road, plot 1"]');
       }
-      if (name === "audio-start")
-        await page.click('[aria-label="Open settings"]');
+      if (name === "audio-start") await clickText(page, "Timber wall");
       if (name === "dusk") await clickText(page, "Start Night");
       if (name === "open-settings")
         await page.click('[aria-label="Open settings"]');
@@ -177,6 +184,12 @@ try {
           metrics: window.__game.metrics(),
           state: window.__game.getState(),
         }));
+      if (name === "audio-start")
+        assert.equal(
+          probeData.audioContexts,
+          1,
+          "Audio-start scene did not initialize audio",
+        );
       assert.equal(
         state.round.phase,
         name === "dusk" ? "night" : before.round.phase,
@@ -223,6 +236,7 @@ try {
         metrics.frames.reduce((a, b) => a + b, 0) / metrics.frames.length;
       runs.push({
         duration,
+        audioContexts: probeData.audioContexts,
         readyMs: name === "cold-start" ? readyMs : undefined,
         worstFrame: Math.max(...metrics.frames),
         longestTask: Math.max(0, ...probeData.tasks),

@@ -96,7 +96,7 @@ export const BUILDINGS = {
 
 export const ENEMIES = {
   king: {
-    name: "Hollow king",
+    name: "Antlered king",
     hp: 150,
     speed: 0.023,
     damage: 22,

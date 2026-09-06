@@ -15,7 +15,10 @@ criteria.
   never rebalance them when changing current rules.
 - `src/engine/campaign.js`: pure commands, fixed-step combat, rewards,
   save migration, and replay.
-- `src/ui/Village.jsx`: accessible React controls, state loop, persistence.
+- `src/ui/Village.jsx`: campaign shell and state loop.
+- `src/ui/Planning.jsx`, `BattleControls.jsx`, `Results.jsx`, `Settings.jsx`: accessible phase controls.
+- `src/ui/useVillagePersistence.js`: autosave, recovery and tab arbitration.
+- `src/ui/Workbench.jsx`, `src/engine/replay-view.js`: separate local editor and indexed replay.
 - `src/ui/VillageMap.jsx`, `village-draw.js`: layered Canvas2D battlefield.
 - `src/ui/score.js`: original procedural music, effects, ambience buses.
 - `scripts/campaign-balance.js`: explicit scripted policies and balance gate.
@@ -67,7 +70,7 @@ workflow runs quality and browser smoke before publishing.
 - Give the player a legible goal and a real victory. Endless is optional.
 - Planning is untimed; income arrives at dawn. Never reward waiting for a
   trickle or starting/retiring without completing a night.
-- Heart damage needs a visible attacker at the Heart. Losing a distant
+- Hearth damage needs a visible attacker at the Hearth. Losing a distant
   building must never damage it remotely.
 - Forecasts use the actual wave. Randomness depends on seed, town, and
   night, never player input cadence or cosmetic effects.

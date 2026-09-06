@@ -323,10 +323,13 @@ export function unlockScore() {
     );
     const buffer = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate),
       data = buffer.getChannelData(0);
-    let last = 0;
+    let last = 0,
+      noiseSeed = 0x6a09e667;
     for (let i = 0; i < data.length; i++) {
-      const random = Math.sin(i * 73.137) * 4375.4;
-      last = (last + ((random - Math.floor(random)) * 2 - 1) * 0.02) / 1.02;
+      // Integer noise avoids 176,000 trigonometric calls on the first input.
+      noiseSeed = (Math.imul(noiseSeed, 1664525) + 1013904223) >>> 0;
+      const random = noiseSeed / 4294967296;
+      last = (last + (random * 2 - 1) * 0.02) / 1.02;
       data[i] = last * 0.35;
     }
     noiseBuffer = buffer;

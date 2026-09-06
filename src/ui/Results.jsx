@@ -28,8 +28,14 @@ export function Results({ r, defeat, onCollect, onRetry }) {
       )}
       <p className="settlement-result">
         {r.slots.filter((s) => s.building).length} buildings still standing ·{" "}
-        {r.stats.lost} lost · {r.stats.repairs || 0} repaired ·{" "}
-        {r.stats.interrupts || 0} heavy strikes interrupted.
+        {r.stats.lost} lost
+        {Number.isFinite(r.stats.repairs)
+          ? ` · ${r.stats.repairs} repaired`
+          : ""}
+        {Number.isFinite(r.stats.interrupts)
+          ? ` · ${r.stats.interrupts} heavy strikes interrupted`
+          : ""}
+        .
       </p>
       {r.phase === "won" && (
         <p className="mastery-badges">

@@ -2,8 +2,8 @@
 
 ## Second improvement plan (September 6, 2026)
 
-The prototype fun gate is accepted by the user. Continue through the entire
-implementation; physical-device and listening claims still require evidence.
+The prototype fun gate is accepted by the user. All engineering items below
+are implemented; physical-device and listening claims still require evidence.
 
 - [x] Consistent Hearth/flare language, visible survival goal, an existing farm
       and a wall-first opening; Space respects focused buttons.
@@ -19,8 +19,15 @@ implementation; physical-device and listening claims still require evidence.
 - [x] Visual replay with bounded imports, cached seeking and outcome comparison.
 - [x] Cold loading, placement, audio startup and a 30-second sustained battle probe.
 - [x] Frame, input and readiness budgets enforced before deployment; bounded collections.
-- [ ] Final CI, offline, viewport, live browser, and documented device limitations.
+- [x] CI, offline, viewport and live browser verification; device limitations documented.
 
+
+Live play confirmed a preserved save can finish, a new campaign can breach
+and recover, and its actual browser record reproduces in the visual viewer.
+Dawn advice now prioritizes the breached road over incidental repairs.
+The first performance gate passed all budgets; the follow-up replaces
+trigonometric noise generation on the first input and asserts actual audio
+initialization in the audio-start probe.
 
 The workshop is available under Settings → Design and replay tools. Sandbox
 progress and drafts are separate from the campaign; imports are validated and
