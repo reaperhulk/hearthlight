@@ -15,9 +15,16 @@ implementation; physical-device and listening claims still require evidence.
 - [x] Desktop/mobile information layout, recovery advice and accessible battle reports.
 - [x] Village life, restoration, distinct silhouettes and synchronized impacts.
 - [x] Authored instrument timbres, longer arrangements and spatial combat cues.
-- [ ] Encounter editor, visual replay, transition profiling and performance gates.
+- [x] Encounter editor with entrances, bends, plots and spawn groups; local drafts.
+- [x] Visual replay with bounded imports, cached seeking and outcome comparison.
+- [ ] Transition profiling and sustained performance gates.
 - [ ] Final CI, offline, viewport, live browser, and documented device limitations.
 
+
+The workshop is available under Settings → Design and replay tools. Sandbox
+progress and drafts are separate from the campaign; imports are validated and
+local only. Replay seeking uses two-second checkpoints and handles earlier
+simulation rules. The desktop smoke check now uses the combined forecast view.
 
 Audio uses original harmonic timbres, a roughly two-minute arrangement,
 spatial raid/strike/arrival cues and bounded voices. Critical cues duck music.

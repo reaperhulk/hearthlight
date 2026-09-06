@@ -434,7 +434,6 @@ details p {
   transform: translate(-50%, -50%);
   width: 42px;
   height: 42px;
-  min-height: 42px;
   padding: 0;
   background: transparent;
   border: 1px solid transparent;
@@ -450,21 +449,17 @@ details p {
 }
 .placing .plot:not(.built) {
   border: 1px dashed #e6d297;
-  background: #fee7990d;
   box-shadow: 0 0 0 4px #fde9a008;
 }
 .road-label {
   position: absolute;
   transform: translate(-50%, -50%);
-  white-space: nowrap;
-  font-size: 9px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
   background: #203c32dd;
   border: 1px solid #b2be8c99;
   color: #e7e3be;
   padding: 5px 7px;
-  min-height: 30px;
   border-radius: 4px;
 }
 .map-caption {
@@ -511,13 +506,11 @@ details p {
 .command-panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 .guide {
   display: flex;
   gap: 12px;
   border-left: 2px solid #d9bd82;
-  padding: 10px 14px;
   background: #cfb3760a;
 }
 .guide-star {
@@ -530,12 +523,7 @@ details p {
   color: #e9d6a6;
 }
 .guide p {
-  font-size: 12px;
-  line-height: 1.65;
   margin-top: 4px;
-}
-.command-panel .panel {
-  padding: 17px;
 }
 .command-panel h2 {
   font-size: 21px;
@@ -562,14 +550,10 @@ details p {
 }
 .build-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 7px;
 }
 .build-card {
-  padding: 3px 2px 9px;
-  display: flex;
   flex-direction: column;
-  align-items: center;
   background: #2b4132;
   border-color: #526648;
   border-radius: 7px;
@@ -595,16 +579,12 @@ details p {
   min-height: 35px;
 }
 .planning-actions {
-  display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 .planning-actions > button:first-child {
-  align-self: flex-end;
   border: none;
   padding: 0 6px;
   background: transparent;
-  font-size: 11px;
 }
 .planning-actions .primary {
   width: 100%;
@@ -654,7 +634,6 @@ details p {
   flex-wrap: wrap;
 }
 .inspector .button-row button {
-  font-size: 10px;
   padding: 7px;
   flex: 1;
   white-space: nowrap;
@@ -670,21 +649,18 @@ details p {
 }
 .threat-card {
   border-top: 1px solid #4a6248;
-  padding: 14px 0;
 }
 .threat-card > div:first-child {
   display: flex;
   justify-content: space-between;
   gap: 8px;
   font-size: 13px;
-  margin-bottom: 10px;
 }
 .threat-card span {
   font-size: 10px;
   color: #b0c3ac;
 }
 .threat-card .button-row button {
-  font-size: 12px;
   min-height: 44px;
 }
 .threat-card .button-row > button:first-child {
@@ -712,7 +688,6 @@ details p {
   padding: 4px 7px;
 }
 .retire {
-  font-size: 10px;
   color: #a2b09b;
   align-self: center;
   border: none;
@@ -1683,4 +1658,124 @@ textarea {
 kbd {
   font: 10px system-ui;
   opacity: 0.8;
+}
+
+/* Workshop is deliberately separate from the campaign's fixed battle viewport. */
+.workshop {
+  padding-top: 22px;
+}
+.workshop-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.workshop > p {
+  margin: 12px 0;
+  color: #bbc6ab;
+  font-size: 14px;
+}
+.workshop h1 {
+  font-size: 32px;
+}
+.workshop-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(310px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.workshop-stage {
+  min-width: 0;
+}
+.workshop-stats {
+  padding: 10px 0;
+  font-size: 13px;
+  color: #ffe0a0;
+}
+.workshop-editor {
+  display: grid;
+  gap: 12px;
+}
+.workshop label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.workshop :is(input, select, textarea) {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  color: #f3edcf;
+  background: #142e27;
+  border: 1px solid #7b8c6d;
+  border-radius: 5px;
+  font: 13px system-ui;
+}
+.workshop input[type="range"] {
+  padding: 0;
+}
+.workshop fieldset {
+  min-width: 0;
+  border: 1px solid #69795e;
+  border-radius: 7px;
+  padding: 10px;
+}
+.workshop legend {
+  font-size: 12px;
+  padding: 0 5px;
+  color: #dacba6;
+}
+.workshop-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.workshop-controls {
+  margin: 10px 0;
+}
+.workshop-planning .forecast,
+.workshop-planning .build-panel {
+  display: block;
+}
+.workshop-planning {
+  gap: 12px;
+  margin-top: 16px;
+}
+.workshop details p {
+  font-size: 12px;
+  margin: 10px 0;
+  color: #bec9b0;
+}
+.workshop details > label {
+  margin: 10px 0;
+}
+.workshop-transfer textarea {
+  margin: 10px 0;
+}
+.replay-timeline {
+  margin: 12px 0;
+}
+.replay-commands {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-left: 24px;
+}
+.replay-commands button {
+  text-align: left;
+  font-size: 12px;
+  width: 100%;
+  margin-bottom: 4px;
+}
+@media (max-width: 760px) {
+  .workshop-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workshop-heading {
+    align-items: start;
+  }
+  .workshop h1 {
+    font-size: 25px;
+  }
 }

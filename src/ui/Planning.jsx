@@ -32,7 +32,11 @@ export function Planning({
   act,
   onSlot,
 }) {
-  const dawns = r.endless ? null : Math.max(0, TOWNS[r.town].nights - r.night);
+  const dawns = r.scenario
+    ? 0
+    : r.endless
+      ? null
+      : Math.max(0, TOWNS[r.town].nights - r.night);
   const damaged = r.slots
     .filter((s) => s.building && s.building.hp < maxHp(s.building, r.kit))
     .sort(
@@ -65,7 +69,7 @@ export function Planning({
         })}
         {r.rules >= 4 && (
           <p className="encounter-advice">
-            {encounterFor(r.town, r.night).lesson}
+            {r.scenario?.lesson || encounterFor(r.town, r.night).lesson}
           </p>
         )}
         <details>

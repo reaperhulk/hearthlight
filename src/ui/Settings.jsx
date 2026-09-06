@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-export function Settings({ state, act, onClose, onImport }) {
+export function Settings({ state, act, onClose, onImport, onWorkshop }) {
   const [text, setText] = useState(""),
     [note, setNote] = useState("");
   const dialog = useRef(null);
@@ -171,6 +171,11 @@ export function Settings({ state, act, onClose, onImport }) {
             </button>
           </div>
           <p role="status">{note}</p>
+        </details>
+        <details>
+          <summary>Design and replay tools</summary>
+          <p>Author a local encounter or inspect a recorded attempt.</p>
+          <button onClick={onWorkshop}>Open encounter workshop</button>
         </details>
         <p className="quiet">
           Keyboard: 1–4 select a building · Tab and Enter choose a plot · D

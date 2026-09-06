@@ -22,6 +22,7 @@ import { VillageMap } from "./VillageMap.jsx";
 import { Settings } from "./Settings.jsx";
 import { Planning } from "./Planning.jsx";
 import { BattleControls } from "./BattleControls.jsx";
+import { Workbench } from "./Workbench.jsx";
 import { Results } from "./Results.jsx";
 import { useVillagePersistence, load, SAVE } from "./useVillagePersistence.js";
 import {
@@ -31,6 +32,7 @@ import {
   setMood,
   soundEvent,
   unlockScore,
+  suspendScore,
 } from "./score.js";
 
 const seed = () => crypto.getRandomValues(new Uint32Array(1))[0];
@@ -44,6 +46,7 @@ export function Village() {
     [moving, setMoving] = useState(null),
     [town, setTown] = useState("first"),
     [settings, setSettings] = useState(false),
+    [workshop, setWorkshop] = useState(false),
     [retiring, setRetiring] = useState(false),
     [view, setView] = useState("build");
   const soundCursor = useRef({ seed: null, event: 0 }),
@@ -146,7 +149,7 @@ export function Village() {
         return;
       const r = current.current.round;
       const digit = /^Digit[1-4]$/.test(e.code) ? e.code.at(-1) : e.key;
-      if (!r || settings || elsewhere) return;
+      if (!r || settings || elsewhere || workshop) return;
       if (e.key === "Escape") {
         setCard(null);
         setSelected(null);
@@ -204,7 +207,7 @@ export function Village() {
     };
     window.addEventListener("keydown", keys);
     return () => window.removeEventListener("keydown", keys);
-  }, [act, settings, elsewhere, current]);
+  }, [act, settings, elsewhere, current, workshop]);
   useEffect(() => {
     window.__game = {
       getState: () => current.current,
@@ -306,6 +309,14 @@ export function Village() {
     Object.keys(TOWNS).find(
       (id) => !state.wins[id] && townUnlocked(state, id),
     ) || "meadow";
+  if (workshop)
+    return (
+      <Workbench
+        onClose={() => setWorkshop(false)}
+        record={state.round || state.lastPlaytestRound}
+        settings={state.settings}
+      />
+    );
   return (
     <main
       className={`hearthlight ${r && !elsewhere ? "in-game" : ""} ${state.settings.contrast ? "high-contrast" : ""} ${!state.settings.motion || reduce ? "still" : ""}`}
@@ -857,6 +868,11 @@ export function Village() {
           act={act}
           onClose={closeSettings}
           onImport={onImport}
+          onWorkshop={() => {
+            setSettings(false);
+            suspendScore();
+            setWorkshop(true);
+          }}
         />
       )}
     </main>

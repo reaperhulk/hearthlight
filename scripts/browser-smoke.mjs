@@ -213,7 +213,7 @@ try {
           ),
           "Inspector pushed Start Night out of view",
         );
-        await clickText(page, "Approach");
+        // Desktop shows forecast and construction together.
         await page.waitForFunction(
           () =>
             getComputedStyle(document.querySelector(".forecast")).display !==
@@ -254,6 +254,39 @@ try {
     "Offline reload lost the saved village",
   );
   await page.setOfflineMode(false);
+  const campaignBeforeWorkshop = await page.evaluate(
+    () => window.__game.getState().round,
+  );
+  await page.click('[aria-label="Open settings"]');
+  {
+    const summary = await page.waitForFunction(() =>
+      [...document.querySelectorAll("summary")].find((e) =>
+        e.textContent.includes("Design and replay"),
+      ),
+    );
+    await summary.asElement().click();
+    await summary.dispose();
+  }
+  await clickText(page, "Open encounter workshop");
+  await page.waitForSelector(".workshop");
+  await page.select('[aria-label="Encounter example"]', "swarm");
+  await clickText(page, "Apply encounter");
+  await clickText(page, "Timber wall");
+  await page.click('[aria-label^="North road, plot 1"]');
+  await clickText(page, "Replay this attempt");
+  await page.waitForSelector('[aria-label="Replay time"]');
+  assert.ok(
+    await page.$eval(".workshop-note", (e) =>
+      e.textContent.includes("matches"),
+    ),
+  );
+  await clickText(page, "Return to your village");
+  assert.deepEqual(
+    (await page.evaluate(() => window.__game.getState())).round,
+    campaignBeforeWorkshop,
+    "Workshop altered campaign progress",
+  );
+
   assert.deepEqual(errors, [], "Browser console/page errors");
   console.log(
     "Browser smoke passed: build, defend, win, reward, kit, save, settings and responsive layouts.",

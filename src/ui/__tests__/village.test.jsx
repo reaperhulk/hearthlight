@@ -238,3 +238,18 @@ it("does not intercept Space on a focused combat button", async () => {
   );
   expect(window.__game.getState().round.paused).toBe(true);
 });
+
+it("keeps workshop drafts and replay inspection separate from the campaign", async () => {
+  await mount(startGame(freshGame()));
+  const campaign = window.__game.getState().round;
+  await click(labelled("Open settings"));
+  await click(button("Open encounter workshop"));
+  expect(document.querySelector(".workshop")).not.toBeNull();
+  await click(button("Timber wall"));
+  await click(document.querySelector('[aria-label^="North road, plot 1"]'));
+  await click(button("Replay this attempt"));
+  expect(document.body.textContent).toContain("Replayed outcome matches");
+  expect(labelled("Replay time")).not.toBeNull();
+  await click(button("Return to your village"));
+  expect(window.__game.getState().round).toEqual(campaign);
+});
